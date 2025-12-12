@@ -59,10 +59,11 @@ export function generateColorScheme(seed: string): ColorScheme {
   // Text visited color: slightly darker/desaturated version of text background
   const textVisitedColor = hsl(textBgHue, 50 + rng.next() * 20, 42 + rng.next() * 10);
 
-  // ZK highlight colors: distinct purple/magenta for Z and K letters (zero-knowledge)
-  const zkHue = 280 + rng.next() * 40; // Purple-magenta range
-  const zkBackgroundColor = hsl(zkHue, 80 + rng.next() * 15, 50 + rng.next() * 15);
-  const zkVisitedColor = hsl(zkHue, 60 + rng.next() * 15, 35 + rng.next() * 10);
+  // ZK highlight colors: complementary hue to text background for Z and K letters
+  // Use triadic color (120 degrees offset) from text background for nice contrast while staying harmonious
+  const zkHue = (textBgHue + 120 + rng.next() * 30 - 15) % 360;
+  const zkBackgroundColor = hsl(zkHue, 75 + rng.next() * 20, 50 + rng.next() * 15);
+  const zkVisitedColor = hsl(zkHue, 55 + rng.next() * 20, 35 + rng.next() * 10);
 
   // Player color: golden crown feel
   const playerHue = 45 + rng.next() * 15; // Gold range
