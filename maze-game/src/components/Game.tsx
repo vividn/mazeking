@@ -110,8 +110,16 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   // Keyboard controls - only when input is not focused
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle movement keys when typing in an input
+      // Don't handle keys when typing in an input
       if (inputFocused) return;
+
+      // R key restarts the game (works even when won)
+      if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        initGame(seed);
+        return;
+      }
+
       if (gameState?.gameWon) return;
 
       switch (e.key) {
@@ -144,7 +152,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleMove, gameState?.gameWon, inputFocused]);
+  }, [handleMove, gameState?.gameWon, inputFocused, initGame, seed]);
 
   const handleSeedChange = (newSeed: string) => {
     initGame(newSeed);

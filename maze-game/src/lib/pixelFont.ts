@@ -757,24 +757,6 @@ export interface EntryPoint {
   side: 'top' | 'bottom' | 'left' | 'right';
 }
 
-// Pre-computed entry points for better maze connectivity
-export const CHAR_ENTRY_POINTS: Record<string, EntryPoint[]> = {
-  'A': [
-    { x: 0, y: 0, side: 'top' }, { x: 4, y: 0, side: 'top' },
-    { x: 0, y: 7, side: 'bottom' }, { x: 4, y: 7, side: 'bottom' },
-  ],
-  'B': [
-    { x: 0, y: 0, side: 'top' },
-    { x: 0, y: 7, side: 'bottom' },
-    { x: 4, y: 1, side: 'right' }, { x: 4, y: 5, side: 'right' },
-  ],
-  'C': [
-    { x: 1, y: 0, side: 'top' }, { x: 1, y: 7, side: 'bottom' },
-    { x: 0, y: 1, side: 'left' }, { x: 0, y: 6, side: 'left' },
-  ],
-  // Default entry points for unspecified chars
-};
-
 export function getCharWidth(char: string): number {
   // Try exact match first (for lowercase)
   let pattern = PIXEL_FONT[char];
@@ -800,18 +782,11 @@ export function getTextDimensions(text: string): { width: number; height: number
   return { width, height: 8 };
 }
 
-// Get entry points for a character, or default edge points
+// Get entry points for a character based on filled edge cells
 export function getEntryPoints(char: string): EntryPoint[] {
-  // Check uppercase first for entry points
-  const upperChar = char.toUpperCase();
-  if (CHAR_ENTRY_POINTS[upperChar]) {
-    return CHAR_ENTRY_POINTS[upperChar];
-  }
-
-  // Generate default entry points based on the pattern
   let pattern = PIXEL_FONT[char];
   if (!pattern) {
-    pattern = PIXEL_FONT[upperChar];
+    pattern = PIXEL_FONT[char.toUpperCase()];
   }
   if (!pattern) return [];
 

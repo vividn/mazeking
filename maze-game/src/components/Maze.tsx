@@ -76,8 +76,9 @@ export const Maze: React.FC<MazeProps> = ({
     ctx.save();
     ctx.translate(offsetX, offsetY);
 
-    // Wall thickness
+    // Wall thickness - thicker for outer perimeter
     const wallThickness = Math.max(2, cellSize * 0.1);
+    const perimeterWallThickness = Math.max(4, cellSize * 0.18);
 
     // Draw all cells
     for (let y = 0; y < maze.height; y++) {
@@ -149,82 +150,68 @@ export const Maze: React.FC<MazeProps> = ({
       }
     }
 
-    // Helper to draw a glowing highlight circle behind entities
-    const drawGlow = (pos: Position, glowColor: string, radius: number) => {
-      const cellX = pos.x * cellSize + cellSize / 2;
-      const cellY = pos.y * cellSize + cellSize / 2;
+    // Draw thicker outer perimeter walls (inside the playing field, skipping warp passages)
+    ctx.strokeStyle = colors.wallColor;
+    ctx.lineWidth = perimeterWallThickness;
+    ctx.lineCap = 'square';
+    const perimeterInset = perimeterWallThickness / 2;
 
-      const gradient = ctx.createRadialGradient(
-        cellX, cellY, 0,
-        cellX, cellY, radius
-      );
-      gradient.addColorStop(0, glowColor);
-      gradient.addColorStop(1, 'transparent');
-
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(cellX, cellY, radius, 0, Math.PI * 2);
-      ctx.fill();
-    };
-
-    // Helper to draw emoji/icon centered in cell
-    const drawIcon = (pos: Position, icon: string, scale = 0.65) => {
-      const cellX = pos.x * cellSize;
-      const cellY = pos.y * cellSize;
-      const fontSize = cellSize * scale;
-
-      ctx.font = `${fontSize}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      // Draw with shadow for better visibility
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
-      ctx.shadowBlur = 6;
-      ctx.shadowOffsetX = 2;
-      ctx.shadowOffsetY = 2;
-      ctx.fillText(icon, cellX + cellSize / 2, cellY + cellSize / 2);
-      ctx.shadowBlur = 0;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-    };
-
-    // Draw treasure chest with enhanced glow
-    const glowRadius = cellSize * 0.8;
-
-    // Draw multiple glow layers for the treasure chest to make it stand out
-    drawGlow(doorPos, colors.doorGlowColor, glowRadius * 2.0);
-    drawGlow(doorPos, colors.doorGlowColor, glowRadius * 1.5);
-    drawGlow(doorPos, colors.doorGlowColor, glowRadius);
-
-    // Draw a colored square behind the treasure chest for extra visibility
-    const doorCellX = doorPos.x * cellSize;
-    const doorCellY = doorPos.y * cellSize;
-    ctx.fillStyle = colors.doorGlowColor;
-    ctx.fillRect(doorCellX + cellSize * 0.1, doorCellY + cellSize * 0.1, cellSize * 0.8, cellSize * 0.8);
-
-    // Draw treasure chest icon
-    drawIcon(doorPos, '💰', 0.8);
-
-    // Draw key with glow (if not collected)
-    if (keyPos !== null) {
-      drawGlow(keyPos, colors.keyGlowColor, glowRadius);
-      drawIcon(keyPos, '🔑', 0.65);
+    // Top perimeter - draw segments, skipping warp passages
+    for (let x = 0; x < maze.width; x++) {
+      // Check if there's a wall at the top (north wall of top row = south wall of bottom row)
+      const bottomCell = maze.cells[maze.height - 1][x];
+      if (bottomCell.southWall) {
+        ctx.beginPath();
+        ctx.moveTo(x * cellSize, perimeterInset);
+        ctx.lineTo((x + 1) * cellSize, perimeterInset);
+        ctx.stroke();
+      }
     }
 
-    // Draw player (crown) with stronger glow
-    drawGlow(playerPos, colors.playerGlowColor, glowRadius * 1.2);
-    drawIcon(playerPos, '👑', 0.75);
+    // Bottom perimeter - draw segments, skipping warp passages
+    for (let x = 0; x < maze.width; x++) {
+      const bottomCell = maze.cells[maze.height - 1][x];
+      if (bottomCell.southWall) {
+        ctx.beginPath();
+        ctx.moveTo(x * cellSize, maze.height * cellSize - perimeterInset);
+        ctx.lineTo((x + 1) * cellSize, maze.height * cellSize - perimeterInset);
+        ctx.stroke();
+      }
+    }
 
-    // Draw wraparound arrows at edges where passages exist
+    // Left perimeter - draw segments, skipping warp passages
+    for (let y = 0; y < maze.height; y++) {
+      // Check if there's a wall on the left (west wall of left column = east wall of right column)
+      const rightCell = maze.cells[y][maze.width - 1];
+      if (rightCell.eastWall) {
+        ctx.beginPath();
+        ctx.moveTo(perimeterInset, y * cellSize);
+        ctx.lineTo(perimeterInset, (y + 1) * cellSize);
+        ctx.stroke();
+      }
+    }
+
+    // Right perimeter - draw segments, skipping warp passages
+    for (let y = 0; y < maze.height; y++) {
+      const rightCell = maze.cells[y][maze.width - 1];
+      if (rightCell.eastWall) {
+        ctx.beginPath();
+        ctx.moveTo(maze.width * cellSize - perimeterInset, y * cellSize);
+        ctx.lineTo(maze.width * cellSize - perimeterInset, (y + 1) * cellSize);
+        ctx.stroke();
+      }
+    }
+
+    // Draw wraparound arrows at edges where passages exist (BEFORE icons so icons render on top)
     // Each pair of matching arrows (top/bottom or left/right at same position) gets a unique color
     const arrowSize = cellSize * 0.35;
 
     // Generate distinct colors for arrow pairs based on position
     const getArrowColor = (index: number): string => {
       // Use golden ratio to distribute hues evenly
-      // Darker colors (35% lightness) for better contrast
+      // Brighter colors (60% lightness) for better visibility
       const hue = (index * 137.508) % 360;
-      return `hsla(${hue}, 85%, 35%, 0.95)`;
+      return `hsla(${hue}, 90%, 60%, 1.0)`;
     };
 
     // Helper to draw a small arrow with high visibility
@@ -311,6 +298,152 @@ export const Maze: React.FC<MazeProps> = ({
       const cellY = arrow.y * cellSize + cellSize / 2;
       drawArrow(cellX, cellY, 'right', arrow.color);
     }
+
+    // Aura colors for different entities
+    const goldAuraColor = 'rgba(255, 215, 0, 0.6)';
+    // Treasure chest aura: dark red when locked, light green when unlocked
+    const chestAuraColor = hasKey ? 'rgba(144, 238, 144, 0.7)' : 'rgba(180, 50, 50, 0.7)';
+
+    // Helper to draw a glowing highlight circle behind entities
+    const drawGlow = (pos: Position, glowColor: string, radius: number) => {
+      const cellX = pos.x * cellSize + cellSize / 2;
+      const cellY = pos.y * cellSize + cellSize / 2;
+
+      const gradient = ctx.createRadialGradient(
+        cellX, cellY, 0,
+        cellX, cellY, radius
+      );
+      gradient.addColorStop(0, glowColor);
+      gradient.addColorStop(1, 'transparent');
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(cellX, cellY, radius, 0, Math.PI * 2);
+      ctx.fill();
+    };
+
+    // Helper to draw a custom locked treasure chest
+    const drawLockedChest = (pos: Position, scale: number) => {
+      const cellX = pos.x * cellSize + cellSize / 2;
+      const cellY = pos.y * cellSize + cellSize / 2;
+      const size = cellSize * scale;
+
+      ctx.save();
+      ctx.translate(cellX, cellY);
+
+      // Shadow for depth
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+
+      // Chest body (brown wooden box)
+      const chestWidth = size * 0.8;
+      const chestHeight = size * 0.55;
+      const chestX = -chestWidth / 2;
+      const chestY = -chestHeight / 2 + size * 0.1;
+
+      // Main chest body
+      ctx.fillStyle = '#8B4513';
+      ctx.fillRect(chestX, chestY, chestWidth, chestHeight);
+
+      // Chest lid (darker brown, slightly curved look)
+      const lidHeight = size * 0.25;
+      ctx.fillStyle = '#654321';
+      ctx.beginPath();
+      ctx.moveTo(chestX - size * 0.05, chestY);
+      ctx.lineTo(chestX + chestWidth + size * 0.05, chestY);
+      ctx.lineTo(chestX + chestWidth, chestY - lidHeight * 0.3);
+      ctx.quadraticCurveTo(chestX + chestWidth / 2, chestY - lidHeight, chestX, chestY - lidHeight * 0.3);
+      ctx.closePath();
+      ctx.fill();
+
+      // Metal bands on chest
+      ctx.fillStyle = '#4a4a4a';
+      ctx.fillRect(chestX, chestY, chestWidth, size * 0.05);
+      ctx.fillRect(chestX, chestY + chestHeight - size * 0.05, chestWidth, size * 0.05);
+      ctx.fillRect(chestX + chestWidth * 0.15, chestY, size * 0.05, chestHeight);
+      ctx.fillRect(chestX + chestWidth * 0.8, chestY, size * 0.05, chestHeight);
+
+      // Lock (golden padlock)
+      const lockSize = size * 0.2;
+      const lockX = -lockSize / 2;
+      const lockY = chestY + chestHeight * 0.3;
+
+      // Lock body
+      ctx.fillStyle = '#FFD700';
+      ctx.fillRect(lockX, lockY, lockSize, lockSize * 0.8);
+
+      // Lock shackle (the curved part)
+      ctx.strokeStyle = '#FFD700';
+      ctx.lineWidth = size * 0.05;
+      ctx.beginPath();
+      ctx.arc(0, lockY, lockSize * 0.35, Math.PI, 0, false);
+      ctx.stroke();
+
+      // Keyhole
+      ctx.fillStyle = '#1a1a1a';
+      ctx.beginPath();
+      ctx.arc(0, lockY + lockSize * 0.35, lockSize * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(-lockSize * 0.06, lockY + lockSize * 0.4, lockSize * 0.12, lockSize * 0.25);
+
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+      ctx.restore();
+    };
+
+    // Helper to draw emoji/icon centered in cell (fully opaque)
+    const drawIcon = (pos: Position, icon: string, scale = 0.65) => {
+      const cellX = pos.x * cellSize;
+      const cellY = pos.y * cellSize;
+      const fontSize = cellSize * scale;
+
+      ctx.font = `${fontSize}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Draw with shadow for better visibility
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+      ctx.globalAlpha = 1.0;
+      ctx.fillText(icon, cellX + cellSize / 2, cellY + cellSize / 2);
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+    };
+
+    // Draw treasure chest with enhanced glow (icons render AFTER arrows, so on top)
+    const glowRadius = cellSize * 0.8;
+
+    // Draw multiple glow layers for the treasure chest to make it stand out
+    // Uses chestAuraColor which changes based on hasKey
+    drawGlow(doorPos, chestAuraColor, glowRadius * 2.0);
+    drawGlow(doorPos, chestAuraColor, glowRadius * 1.5);
+    drawGlow(doorPos, chestAuraColor, glowRadius);
+
+    // Draw a colored square behind the treasure chest for extra visibility
+    const doorCellX = doorPos.x * cellSize;
+    const doorCellY = doorPos.y * cellSize;
+    const chestBgColor = hasKey ? 'rgba(144, 238, 144, 0.3)' : 'rgba(180, 50, 50, 0.3)';
+    ctx.fillStyle = chestBgColor;
+    ctx.fillRect(doorCellX + cellSize * 0.1, doorCellY + cellSize * 0.1, cellSize * 0.8, cellSize * 0.8);
+
+    // Draw custom locked treasure chest icon
+    drawLockedChest(doorPos, 0.9);
+
+    // Draw key with glow (if not collected)
+    if (keyPos !== null) {
+      drawGlow(keyPos, goldAuraColor, glowRadius);
+      drawIcon(keyPos, '🔑', 0.65);
+    }
+
+    // Draw player (crown) with stronger glow
+    drawGlow(playerPos, goldAuraColor, glowRadius * 1.2);
+    drawIcon(playerPos, '👑', 0.75);
 
     ctx.restore();
   }, [maze, playerPos, keyPos, doorPos, hasKey, colors, zoom, visited]);
