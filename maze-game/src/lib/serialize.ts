@@ -132,7 +132,8 @@ export function deserializeMaze(data: string): {
       cells[y][x] = {
         southWall: (cellValue & 4) !== 0,
         eastWall: (cellValue & 2) !== 0,
-        isTextCell: (cellValue & 1) !== 0
+        isTextCell: (cellValue & 1) !== 0,
+        isZkCell: false // ZK cells are determined at generation time, not stored in serialization
       };
 
       bitOffset += 3;

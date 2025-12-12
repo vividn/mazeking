@@ -24,6 +24,9 @@ export interface Cell {
 
   /** True if this cell is part of embedded text in the maze */
   isTextCell: boolean;
+
+  /** True if this cell is part of a Z or K letter (zero-knowledge highlight) */
+  isZkCell: boolean;
 }
 
 /**
@@ -127,6 +130,12 @@ export interface ColorScheme {
 
   /** Color for visited text cells */
   textVisitedColor: string;
+
+  /** Background color for Z/K letters (zero-knowledge highlight) */
+  zkBackgroundColor: string;
+
+  /** Visited color for Z/K letters */
+  zkVisitedColor: string;
 
   /** Color for the player (king) sprite/indicator */
   playerColor: string;

@@ -81,7 +81,8 @@ function createEmptyMaze(width: number, height: number): MazeData {
       cells[y][x] = {
         southWall: true,
         eastWall: true,
-        isTextCell: false
+        isTextCell: false,
+        isZkCell: false
       };
     }
   }
@@ -120,6 +121,9 @@ function embedTextCells(maze: MazeData, textLayout: TextLayout): CharPlacement[]
         height: CHAR_HEIGHT
       });
 
+      // Check if this is a Z or K letter (case-insensitive) for ZK highlight
+      const isZkLetter = char.toUpperCase() === 'Z' || char.toUpperCase() === 'K';
+
       // Mark all filled cells as text cells
       for (let py = 0; py < charPattern.length; py++) {
         for (let px = 0; px < charPattern[py].length; px++) {
@@ -129,6 +133,10 @@ function embedTextCells(maze: MazeData, textLayout: TextLayout): CharPlacement[]
           if (cellX >= 0 && cellX < width && cellY >= 0 && cellY < height) {
             if (charPattern[py][px]) {
               cells[cellY][cellX].isTextCell = true;
+              // Mark Z and K letters specially for zero-knowledge highlight
+              if (isZkLetter) {
+                cells[cellY][cellX].isZkCell = true;
+              }
             }
           }
         }

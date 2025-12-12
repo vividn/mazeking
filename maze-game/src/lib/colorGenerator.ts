@@ -8,6 +8,8 @@ export interface ColorScheme {
   textWallColor: string;
   textBackgroundColor: string;
   textVisitedColor: string;     // Visited color for text cells
+  zkBackgroundColor: string;    // Special background for Z/K letters (zero-knowledge highlight)
+  zkVisitedColor: string;       // Visited color for Z/K letters
   playerColor: string;
   keyColor: string;
   doorColor: string;
@@ -57,6 +59,11 @@ export function generateColorScheme(seed: string): ColorScheme {
   // Text visited color: slightly darker/desaturated version of text background
   const textVisitedColor = hsl(textBgHue, 50 + rng.next() * 20, 42 + rng.next() * 10);
 
+  // ZK highlight colors: distinct purple/magenta for Z and K letters (zero-knowledge)
+  const zkHue = 280 + rng.next() * 40; // Purple-magenta range
+  const zkBackgroundColor = hsl(zkHue, 80 + rng.next() * 15, 50 + rng.next() * 15);
+  const zkVisitedColor = hsl(zkHue, 60 + rng.next() * 15, 35 + rng.next() * 10);
+
   // Player color: golden crown feel
   const playerHue = 45 + rng.next() * 15; // Gold range
   const playerColor = hsl(playerHue, 90 + rng.next() * 10, 55 + rng.next() * 10);
@@ -84,6 +91,8 @@ export function generateColorScheme(seed: string): ColorScheme {
     textWallColor,
     textBackgroundColor,
     textVisitedColor,
+    zkBackgroundColor,
+    zkVisitedColor,
     playerColor,
     keyColor,
     doorColor,

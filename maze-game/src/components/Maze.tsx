@@ -89,8 +89,11 @@ export const Maze: React.FC<MazeProps> = ({
 
         // Determine cell background color
         let bgColor: string;
-        if (cell.isTextCell) {
-          // Text cells also show visited state with a different shade
+        if (cell.isZkCell) {
+          // Z and K letters get special purple/magenta highlight for zero-knowledge
+          bgColor = isVisited ? colors.zkVisitedColor : colors.zkBackgroundColor;
+        } else if (cell.isTextCell) {
+          // Other text cells show visited state with a different shade
           bgColor = isVisited ? colors.textVisitedColor : colors.textBackgroundColor;
         } else if (isVisited) {
           bgColor = colors.visitedColor;
@@ -185,22 +188,22 @@ export const Maze: React.FC<MazeProps> = ({
       ctx.shadowOffsetY = 0;
     };
 
-    // Draw door with enhanced glow and pulsing effect
+    // Draw treasure chest with enhanced glow
     const glowRadius = cellSize * 0.8;
 
-    // Draw multiple glow layers for the door to make it stand out more
+    // Draw multiple glow layers for the treasure chest to make it stand out
     drawGlow(doorPos, colors.doorGlowColor, glowRadius * 2.0);
     drawGlow(doorPos, colors.doorGlowColor, glowRadius * 1.5);
     drawGlow(doorPos, colors.doorGlowColor, glowRadius);
 
-    // Draw a colored square behind the door for extra visibility
+    // Draw a colored square behind the treasure chest for extra visibility
     const doorCellX = doorPos.x * cellSize;
     const doorCellY = doorPos.y * cellSize;
     ctx.fillStyle = colors.doorGlowColor;
     ctx.fillRect(doorCellX + cellSize * 0.1, doorCellY + cellSize * 0.1, cellSize * 0.8, cellSize * 0.8);
 
-    // Draw door icon larger
-    drawIcon(doorPos, '🚪', 0.8);
+    // Draw treasure chest icon
+    drawIcon(doorPos, '💰', 0.8);
 
     // Draw key with glow (if not collected)
     if (keyPos !== null) {
@@ -219,8 +222,9 @@ export const Maze: React.FC<MazeProps> = ({
     // Generate distinct colors for arrow pairs based on position
     const getArrowColor = (index: number): string => {
       // Use golden ratio to distribute hues evenly
+      // Darker colors (35% lightness) for better contrast
       const hue = (index * 137.508) % 360;
-      return `hsla(${hue}, 90%, 60%, 0.95)`;
+      return `hsla(${hue}, 85%, 35%, 0.95)`;
     };
 
     // Helper to draw a small arrow with high visibility
