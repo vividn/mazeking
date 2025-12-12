@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { GameState, MazeData, Move, ColorScheme } from '../types';
 import { generateMaze, canMove, getNewPosition } from '../lib/mazeGenerator';
 import { generateColorScheme } from '../lib/colorGenerator';
@@ -24,8 +24,11 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   const [maze, setMaze] = useState<MazeData | null>(null);
   const [colors, setColors] = useState<ColorScheme | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const [visited, setVisited] = useState<Set<string>>(new Set());
   const [zoom, setZoom] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
+  const gameContainerRef = useRef<HTMLDivElement>(null);
 
   // Detect mobile
   useEffect(() => {
@@ -44,6 +47,11 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
 
     setMaze(generated.maze);
     setColors(newColors);
+
+    // Initialize visited with starting position
+    const startKey = `${generated.kingPos.x},${generated.kingPos.y}`;
+    setVisited(new Set([startKey]));
+
     setGameState({
       playerPos: { ...generated.kingPos },
       keyPos: { ...generated.keyPos },
@@ -68,6 +76,10 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
 
     if (canMove(maze, gameState.playerPos, direction)) {
       const newPos = getNewPosition(maze, gameState.playerPos, direction);
+
+      // Add new position to visited
+      const posKey = `${newPos.x},${newPos.y}`;
+      setVisited(prev => new Set([...prev, posKey]));
 
       setGameState(prev => {
         if (!prev) return prev;
@@ -95,9 +107,11 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
     }
   }, [maze, gameState]);
 
-  // Keyboard controls
+  // Keyboard controls - only when input is not focused
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle movement keys when typing in an input
+      if (inputFocused) return;
       if (gameState?.gameWon) return;
 
       switch (e.key) {
@@ -130,7 +144,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleMove, gameState?.gameWon]);
+  }, [handleMove, gameState?.gameWon, inputFocused]);
 
   const handleSeedChange = (newSeed: string) => {
     initGame(newSeed);
@@ -158,12 +172,13 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   }
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} ref={gameContainerRef}>
       <div style={styles.header}>
         <SeedInput
           currentSeed={seed}
           onSeedChange={handleSeedChange}
           accentColor={colors.uiAccentColor}
+          onFocusChange={setInputFocused}
         />
         <div style={styles.stats}>
           <span style={styles.stat}>
@@ -190,6 +205,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
           hasKey={gameState.hasKey}
           colors={colors}
           zoom={zoom}
+          visited={visited}
         />
       </div>
 

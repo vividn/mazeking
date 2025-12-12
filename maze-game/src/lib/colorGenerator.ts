@@ -3,12 +3,18 @@ import { createRng } from './seededRandom';
 export interface ColorScheme {
   wallColor: string;
   pathColor: string;
+  mazeBackgroundColor: string;  // Background for non-text maze areas
+  visitedColor: string;         // Slightly different color for visited squares
   textWallColor: string;
   textBackgroundColor: string;
   playerColor: string;
   keyColor: string;
   doorColor: string;
   uiAccentColor: string;
+  // Highlight colors for entities
+  playerGlowColor: string;
+  keyGlowColor: string;
+  doorGlowColor: string;
 }
 
 /**
@@ -20,37 +26,47 @@ export function generateColorScheme(seed: string): ColorScheme {
 
   // Helper to generate HSL color
   const hsl = (h: number, s: number, l: number) => `hsl(${h}, ${s}%, ${l}%)`;
+  const hsla = (h: number, s: number, l: number, a: number) => `hsla(${h}, ${s}%, ${l}%, ${a})`;
 
   // Generate base hue (0-360) for the color scheme
   const baseHue = rng.next() * 360;
 
-  // Wall color: dark, desaturated
+  // Wall color: dark, slightly saturated
   const wallHue = baseHue;
-  const wallColor = hsl(wallHue, 15 + rng.next() * 15, 20 + rng.next() * 10);
+  const wallColor = hsl(wallHue, 20 + rng.next() * 15, 18 + rng.next() * 8);
 
-  // Path color: very light, low saturation
-  const pathHue = (baseHue + 30 + rng.next() * 60) % 360;
-  const pathColor = hsl(pathHue, 5 + rng.next() * 10, 85 + rng.next() * 10);
+  // Maze background: soft, muted color that complements text background
+  const mazeBgHue = (baseHue + 30 + rng.next() * 30) % 360;
+  const mazeBackgroundColor = hsl(mazeBgHue, 15 + rng.next() * 20, 75 + rng.next() * 10);
 
-  // Text wall color: complementary to base, medium-dark
+  // Path color: slightly lighter than maze background
+  const pathColor = hsl(mazeBgHue, 10 + rng.next() * 15, 82 + rng.next() * 10);
+
+  // Visited color: slightly darker/different tint than path
+  const visitedColor = hsl(mazeBgHue, 20 + rng.next() * 15, 68 + rng.next() * 8);
+
+  // Text wall color: darker, more saturated - stands out
   const textWallHue = (baseHue + 180 + rng.next() * 40 - 20) % 360;
-  const textWallColor = hsl(textWallHue, 40 + rng.next() * 20, 30 + rng.next() * 15);
+  const textWallColor = hsl(textWallHue, 50 + rng.next() * 25, 25 + rng.next() * 10);
 
-  // Text background: VIBRANT and glowing - high saturation, medium-high lightness
-  const textBgHue = (baseHue + 120 + rng.next() * 80 - 40) % 360;
-  const textBackgroundColor = hsl(textBgHue, 85 + rng.next() * 15, 60 + rng.next() * 15);
+  // Text background: VIBRANT and glowing - contrasts nicely with maze background
+  const textBgHue = (baseHue + 180 + rng.next() * 60 - 30) % 360; // Complementary
+  const textBackgroundColor = hsl(textBgHue, 70 + rng.next() * 25, 55 + rng.next() * 15);
 
-  // Player color: bright, saturated (crown/royal feel)
-  const playerHue = (baseHue + 270 + rng.next() * 60 - 30) % 360;
-  const playerColor = hsl(playerHue, 70 + rng.next() * 25, 50 + rng.next() * 15);
+  // Player color: golden crown feel
+  const playerHue = 45 + rng.next() * 15; // Gold range
+  const playerColor = hsl(playerHue, 90 + rng.next() * 10, 55 + rng.next() * 10);
+  const playerGlowColor = hsla(playerHue, 100, 60, 0.6);
 
-  // Key color: golden/yellow tones (45-65 hue range)
-  const keyHue = 45 + rng.next() * 20;
-  const keyColor = hsl(keyHue, 85 + rng.next() * 15, 55 + rng.next() * 10);
+  // Key color: golden/yellow tones
+  const keyHue = 50 + rng.next() * 15;
+  const keyColor = hsl(keyHue, 85 + rng.next() * 15, 50 + rng.next() * 10);
+  const keyGlowColor = hsla(keyHue, 100, 55, 0.5);
 
-  // Door color: contrasting, medium saturation
+  // Door color: distinct, inviting
   const doorHue = (baseHue + 90 + rng.next() * 60 - 30) % 360;
-  const doorColor = hsl(doorHue, 50 + rng.next() * 25, 45 + rng.next() * 15);
+  const doorColor = hsl(doorHue, 60 + rng.next() * 25, 45 + rng.next() * 15);
+  const doorGlowColor = hsla(doorHue, 80, 50, 0.5);
 
   // UI accent: vibrant, distinct from other colors
   const uiHue = (baseHue + 210 + rng.next() * 60 - 30) % 360;
@@ -59,11 +75,16 @@ export function generateColorScheme(seed: string): ColorScheme {
   return {
     wallColor,
     pathColor,
+    mazeBackgroundColor,
+    visitedColor,
     textWallColor,
     textBackgroundColor,
     playerColor,
     keyColor,
     doorColor,
     uiAccentColor,
+    playerGlowColor,
+    keyGlowColor,
+    doorGlowColor,
   };
 }

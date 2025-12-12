@@ -4,12 +4,14 @@ interface SeedInputProps {
   currentSeed: string;
   onSeedChange: (seed: string) => void;
   accentColor: string;
+  onFocusChange?: (focused: boolean) => void;
 }
 
 export const SeedInput: React.FC<SeedInputProps> = ({
   currentSeed,
   onSeedChange,
   accentColor,
+  onFocusChange,
 }) => {
   const [inputValue, setInputValue] = useState(currentSeed);
 
@@ -38,6 +40,8 @@ export const SeedInput: React.FC<SeedInputProps> = ({
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={handleKeyDown}
+        onFocus={() => onFocusChange?.(true)}
+        onBlur={() => onFocusChange?.(false)}
         placeholder="Enter seed"
         style={{
           ...styles.input,

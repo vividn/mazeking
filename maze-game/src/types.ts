@@ -113,6 +113,12 @@ export interface ColorScheme {
   /** Color for walkable paths */
   pathColor: string;
 
+  /** Background color for non-text maze areas */
+  mazeBackgroundColor: string;
+
+  /** Color for visited squares */
+  visitedColor: string;
+
   /** Color for walls that form embedded text */
   textWallColor: string;
 
@@ -130,4 +136,13 @@ export interface ColorScheme {
 
   /** Accent color for UI elements */
   uiAccentColor: string;
+
+  /** Glow color for player highlight */
+  playerGlowColor: string;
+
+  /** Glow color for key highlight */
+  keyGlowColor: string;
+
+  /** Glow color for door highlight */
+  doorGlowColor: string;
 }

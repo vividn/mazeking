@@ -4,7 +4,7 @@ import type { Cell, MazeData, Position } from '../types';
 
 const CHAR_HEIGHT = 8;
 const CHAR_SPACING = 1;
-const MARGIN_CHARS = 3; // 3 character-widths of margin
+const MARGIN_CHARS = 1.5; // 1.5 character-widths of margin
 
 interface TextLayout {
   lines: string[];
@@ -54,14 +54,14 @@ function calculateMazeDimensions(text: string): { width: number; height: number;
   const maxTextWidthChars = 20;
   const textLayout = layoutText(text, maxTextWidthChars);
 
-  // Add margins (in cells, not characters)
-  const marginCells = MARGIN_CHARS * 6; // ~6 cells per character width
+  // Add margins (in cells) - 1.5 characters ~ 9 cells
+  const marginCells = Math.ceil(MARGIN_CHARS * 6);
 
   const width = textLayout.width + marginCells * 2;
   const height = textLayout.height + marginCells * 2;
 
-  // Ensure minimum size for complexity
-  const minSize = 30;
+  // Ensure minimum size for playability
+  const minSize = 20;
 
   return {
     width: Math.max(width, minSize),
@@ -85,7 +85,8 @@ function createEmptyMaze(width: number, height: number): MazeData {
   return { cells, width, height };
 }
 
-function embedTextInMaze(maze: MazeData, textLayout: TextLayout): void {
+// Mark text cells AND set up walls to trace letter shapes
+function embedTextWithWalls(maze: MazeData, textLayout: TextLayout): void {
   const { width, height, cells } = maze;
 
   // Calculate where to place text (centered)
@@ -108,15 +109,65 @@ function embedTextInMaze(maze: MazeData, textLayout: TextLayout): void {
 
       const charWidth = getCharWidth(char);
 
-      // Draw the character
+      // Draw the character and set up walls to trace letter edges
       for (let py = 0; py < charPattern.length; py++) {
         for (let px = 0; px < charPattern[py].length; px++) {
           const cellX = currentX + px;
           const cellY = currentY + py;
 
           if (cellX >= 0 && cellX < width && cellY >= 0 && cellY < height) {
-            if (charPattern[py][px]) {
+            const isFilled = charPattern[py][px];
+
+            if (isFilled) {
               cells[cellY][cellX].isTextCell = true;
+
+              // Check if we need walls to trace the letter edges
+              // South wall: if cell below is NOT filled (or out of pattern)
+              const belowInPattern = py + 1 < charPattern.length && charPattern[py + 1][px];
+              if (!belowInPattern) {
+                cells[cellY][cellX].southWall = true;
+              }
+
+              // East wall: if cell to right is NOT filled (or out of pattern)
+              const rightInPattern = px + 1 < charPattern[py].length && charPattern[py][px + 1];
+              if (!rightInPattern) {
+                cells[cellY][cellX].eastWall = true;
+              }
+
+              // Also need to handle incoming walls from neighbors
+              // North wall comes from cell above's south wall
+              if (py > 0) {
+                const aboveInPattern = charPattern[py - 1][px];
+                if (!aboveInPattern) {
+                  const aboveCellY = cellY - 1;
+                  if (aboveCellY >= 0) {
+                    cells[aboveCellY][cellX].southWall = true;
+                  }
+                }
+              } else {
+                // First row of character - need wall from cell above
+                const aboveCellY = cellY - 1;
+                if (aboveCellY >= 0) {
+                  cells[aboveCellY][cellX].southWall = true;
+                }
+              }
+
+              // West wall comes from cell to left's east wall
+              if (px > 0) {
+                const leftInPattern = charPattern[py][px - 1];
+                if (!leftInPattern) {
+                  const leftCellX = cellX - 1;
+                  if (leftCellX >= 0) {
+                    cells[cellY][leftCellX].eastWall = true;
+                  }
+                }
+              } else {
+                // First column of character - need wall from cell to left
+                const leftCellX = cellX - 1;
+                if (leftCellX >= 0) {
+                  cells[cellY][leftCellX].eastWall = true;
+                }
+              }
             }
           }
         }
@@ -129,8 +180,8 @@ function embedTextInMaze(maze: MazeData, textLayout: TextLayout): void {
   }
 }
 
-// Modified Kruskal's algorithm for maze generation with wraparound
-function generateMazePaths(maze: MazeData, rng: Rng): void {
+// Modified Kruskal's algorithm - skip walls that are part of text tracing
+function generateMazePaths(maze: MazeData, rng: Rng, _textLayout: TextLayout): void {
   const { width, height, cells } = maze;
 
   // Union-Find data structure
@@ -169,7 +220,35 @@ function generateMazePaths(maze: MazeData, rng: Rng): void {
     return y * width + x;
   }
 
-  // Create list of all walls (edges)
+  // Check if a wall is part of text boundary (should be preserved)
+  function isTextBoundaryWall(x: number, y: number, direction: 'S' | 'E'): boolean {
+    const cell = cells[y][x];
+
+    if (direction === 'S') {
+      const ny = (y + 1) % height;
+      const neighborCell = cells[ny][x];
+      // Wall between text cell and non-text cell should be preserved
+      if (cell.isTextCell !== neighborCell.isTextCell) {
+        return true;
+      }
+      // Walls already set on text cells (tracing letters) should be preserved
+      if (cell.isTextCell && cell.southWall) {
+        return true;
+      }
+    } else {
+      const nx = (x + 1) % width;
+      const neighborCell = cells[y][nx];
+      if (cell.isTextCell !== neighborCell.isTextCell) {
+        return true;
+      }
+      if (cell.isTextCell && cell.eastWall) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Create list of all walls (edges) that are NOT text boundary walls
   interface Wall {
     x: number;
     y: number;
@@ -181,16 +260,41 @@ function generateMazePaths(maze: MazeData, rng: Rng): void {
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       // South wall (wraps to top)
-      walls.push({ x, y, direction: 'S' });
+      if (!isTextBoundaryWall(x, y, 'S')) {
+        walls.push({ x, y, direction: 'S' });
+      }
       // East wall (wraps to left)
-      walls.push({ x, y, direction: 'E' });
+      if (!isTextBoundaryWall(x, y, 'E')) {
+        walls.push({ x, y, direction: 'E' });
+      }
+    }
+  }
+
+  // Pre-union text cells that share removed walls (internal connections)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (cells[y][x].isTextCell) {
+        const idx1 = cellIndex(x, y);
+
+        // Check south neighbor
+        const sy = (y + 1) % height;
+        if (cells[sy][x].isTextCell && !cells[y][x].southWall) {
+          union(idx1, cellIndex(x, sy));
+        }
+
+        // Check east neighbor
+        const ex = (x + 1) % width;
+        if (cells[y][ex].isTextCell && !cells[y][x].eastWall) {
+          union(idx1, cellIndex(ex, y));
+        }
+      }
     }
   }
 
   // Shuffle walls
   const shuffledWalls = rng.shuffle(walls);
 
-  // Process walls
+  // Process walls using Kruskal's
   for (const wall of shuffledWalls) {
     const { x, y, direction } = wall;
     const idx1 = cellIndex(x, y);
@@ -198,9 +302,9 @@ function generateMazePaths(maze: MazeData, rng: Rng): void {
     let nx: number, ny: number;
     if (direction === 'S') {
       nx = x;
-      ny = (y + 1) % height; // Wrap around
+      ny = (y + 1) % height;
     } else {
-      nx = (x + 1) % width; // Wrap around
+      nx = (x + 1) % width;
       ny = y;
     }
 
@@ -217,29 +321,33 @@ function generateMazePaths(maze: MazeData, rng: Rng): void {
   }
 }
 
-// Add extra passages through text cells to ensure connectivity
-function ensureTextAccessibility(maze: MazeData, rng: Rng): void {
+// Add some passages within text area to ensure it's not completely blocked
+function addTextPassages(maze: MazeData, rng: Rng): void {
   const { width, height, cells } = maze;
 
-  // Find text cell clusters and add some passages through them
-  const textWalls: Array<{ x: number; y: number; direction: 'S' | 'E' }> = [];
+  // Find internal text walls (both sides are text cells)
+  const internalTextWalls: Array<{ x: number; y: number; direction: 'S' | 'E' }> = [];
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       if (cells[y][x].isTextCell) {
-        if (cells[y][x].southWall) {
-          textWalls.push({ x, y, direction: 'S' });
+        // South
+        const sy = (y + 1) % height;
+        if (cells[sy][x].isTextCell && cells[y][x].southWall) {
+          internalTextWalls.push({ x, y, direction: 'S' });
         }
-        if (cells[y][x].eastWall) {
-          textWalls.push({ x, y, direction: 'E' });
+        // East
+        const ex = (x + 1) % width;
+        if (cells[y][ex].isTextCell && cells[y][x].eastWall) {
+          internalTextWalls.push({ x, y, direction: 'E' });
         }
       }
     }
   }
 
-  // Remove some walls in text areas to create passages (about 20%)
-  const shuffled = rng.shuffle(textWalls);
-  const toRemove = Math.floor(shuffled.length * 0.2);
+  // Remove about 30% of internal text walls to create passages
+  const shuffled = rng.shuffle(internalTextWalls);
+  const toRemove = Math.floor(shuffled.length * 0.3);
 
   for (let i = 0; i < toRemove; i++) {
     const wall = shuffled[i];
@@ -313,14 +421,14 @@ export function generateMaze(seed: string): GeneratedMaze {
   // Create empty maze with all walls
   const maze = createEmptyMaze(width, height);
 
-  // Embed text into maze (mark text cells)
-  embedTextInMaze(maze, textLayout);
+  // FIRST: Embed text into maze with walls tracing letter shapes
+  embedTextWithWalls(maze, textLayout);
 
-  // Generate maze paths using modified Kruskal's
-  generateMazePaths(maze, rng);
+  // THEN: Generate maze paths around text (preserving text boundary walls)
+  generateMazePaths(maze, rng, textLayout);
 
-  // Ensure text areas are accessible
-  ensureTextAccessibility(maze, rng);
+  // Add some passages within text for accessibility
+  addTextPassages(maze, rng);
 
   // Find positions for king, key, door
   const { kingPos, keyPos, doorPos } = findValidPositions(maze, rng);
@@ -335,21 +443,17 @@ export function canMove(maze: MazeData, from: Position, direction: 'up' | 'down'
 
   switch (direction) {
     case 'up': {
-      // Going up means crossing the south wall of the cell above
       const aboveY = (y - 1 + height) % height;
       return !cells[aboveY][x].southWall;
     }
     case 'down': {
-      // Going down means crossing our south wall
       return !cells[y][x].southWall;
     }
     case 'left': {
-      // Going left means crossing the east wall of the cell to the left
       const leftX = (x - 1 + width) % width;
       return !cells[y][leftX].eastWall;
     }
     case 'right': {
-      // Going right means crossing our east wall
       return !cells[y][x].eastWall;
     }
   }

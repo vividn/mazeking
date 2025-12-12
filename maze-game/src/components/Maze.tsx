@@ -9,6 +9,7 @@ interface MazeProps {
   hasKey: boolean;
   colors: ColorScheme;
   zoom: number;
+  visited: Set<string>;
 }
 
 /**
@@ -22,7 +23,8 @@ export const Maze: React.FC<MazeProps> = ({
   doorPos,
   hasKey,
   colors,
-  zoom
+  zoom,
+  visited
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -67,12 +69,15 @@ export const Maze: React.FC<MazeProps> = ({
       offsetY = (rect.height - maze.height * cellSize) / 2;
     }
 
-    // Clear canvas
+    // Clear canvas with dark background
     ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(0, 0, rect.width, rect.height);
 
     ctx.save();
     ctx.translate(offsetX, offsetY);
+
+    // Wall thickness
+    const wallThickness = Math.max(2, cellSize * 0.1);
 
     // Draw all cells
     for (let y = 0; y < maze.height; y++) {
@@ -80,15 +85,26 @@ export const Maze: React.FC<MazeProps> = ({
         const cell = maze.cells[y][x];
         const cellX = x * cellSize;
         const cellY = y * cellSize;
+        const isVisited = visited.has(`${x},${y}`);
+
+        // Determine cell background color
+        let bgColor: string;
+        if (cell.isTextCell) {
+          bgColor = colors.textBackgroundColor;
+        } else if (isVisited) {
+          bgColor = colors.visitedColor;
+        } else {
+          bgColor = colors.mazeBackgroundColor;
+        }
 
         // Fill cell background
-        ctx.fillStyle = cell.isTextCell ? colors.textBackgroundColor : colors.pathColor;
+        ctx.fillStyle = bgColor;
         ctx.fillRect(cellX, cellY, cellSize, cellSize);
 
         // Draw walls
         const wallColor = cell.isTextCell ? colors.textWallColor : colors.wallColor;
         ctx.strokeStyle = wallColor;
-        ctx.lineWidth = Math.max(2, cellSize * 0.08);
+        ctx.lineWidth = wallThickness;
         ctx.lineCap = 'square';
 
         // South wall
@@ -129,8 +145,26 @@ export const Maze: React.FC<MazeProps> = ({
       }
     }
 
+    // Helper to draw a glowing highlight circle behind entities
+    const drawGlow = (pos: Position, glowColor: string, radius: number) => {
+      const cellX = pos.x * cellSize + cellSize / 2;
+      const cellY = pos.y * cellSize + cellSize / 2;
+
+      const gradient = ctx.createRadialGradient(
+        cellX, cellY, 0,
+        cellX, cellY, radius
+      );
+      gradient.addColorStop(0, glowColor);
+      gradient.addColorStop(1, 'transparent');
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(cellX, cellY, radius, 0, Math.PI * 2);
+      ctx.fill();
+    };
+
     // Helper to draw emoji/icon centered in cell
-    const drawIcon = (pos: Position, icon: string, color: string, scale = 0.6) => {
+    const drawIcon = (pos: Position, icon: string, scale = 0.65) => {
       const cellX = pos.x * cellSize;
       const cellY = pos.y * cellSize;
       const fontSize = cellSize * scale;
@@ -138,28 +172,35 @@ export const Maze: React.FC<MazeProps> = ({
       ctx.font = `${fontSize}px Arial`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = color;
 
-      // Draw with slight glow for visibility
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-      ctx.shadowBlur = 4;
+      // Draw with shadow for better visibility
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
       ctx.fillText(icon, cellX + cellSize / 2, cellY + cellSize / 2);
       ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
     };
 
-    // Draw door
-    drawIcon(doorPos, '🚪', colors.doorColor, 0.7);
+    // Draw door with glow
+    const glowRadius = cellSize * 0.8;
+    drawGlow(doorPos, colors.doorGlowColor, glowRadius);
+    drawIcon(doorPos, '🚪', 0.7);
 
-    // Draw key (if not collected)
+    // Draw key with glow (if not collected)
     if (keyPos !== null) {
-      drawIcon(keyPos, '🔑', colors.keyColor, 0.6);
+      drawGlow(keyPos, colors.keyGlowColor, glowRadius);
+      drawIcon(keyPos, '🔑', 0.65);
     }
 
-    // Draw player (crown for king)
-    drawIcon(playerPos, '👑', colors.playerColor, 0.7);
+    // Draw player (crown) with stronger glow
+    drawGlow(playerPos, colors.playerGlowColor, glowRadius * 1.2);
+    drawIcon(playerPos, '👑', 0.75);
 
     ctx.restore();
-  }, [maze, playerPos, keyPos, doorPos, hasKey, colors, zoom]);
+  }, [maze, playerPos, keyPos, doorPos, hasKey, colors, zoom, visited]);
 
   // Handle window resize
   useEffect(() => {
