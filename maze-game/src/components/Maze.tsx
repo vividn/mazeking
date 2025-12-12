@@ -369,8 +369,8 @@ export const Maze: React.FC<MazeProps> = ({
     const chestColor = hasKey ? { r: 100, g: 200, b: 100 } : { r: 200, g: 60, b: 60 };
     drawAccessibleHighlight(doorPos, chestColor, 2);
 
-    // Draw custom locked treasure chest icon
-    drawChest(ctx, doorPos.x * cellSize + cellSize / 2, doorPos.y * cellSize + cellSize / 2, cellSize * 0.9);
+    // Draw treasure chest icon (open with gold when player has key)
+    drawChest(ctx, doorPos.x * cellSize + cellSize / 2, doorPos.y * cellSize + cellSize / 2, cellSize * 0.9, hasKey);
 
     // Draw key with gold accessible square highlights (if not collected)
     if (keyPos !== null) {
