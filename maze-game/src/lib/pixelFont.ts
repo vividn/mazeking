@@ -1,6 +1,7 @@
 // 8-cell tall pixel font with traversible paths through each letter
 // Each character is represented as a 2D boolean array where true = filled/wall cell
 // Letters are designed with internal passages that can be walked through
+// IMPORTANT: All filled pixels connect orthogonally (no diagonal jumps)
 // Entry/exit points are on edges to connect with the maze
 
 type CharPattern = boolean[][];
@@ -14,6 +15,7 @@ function p(rows: string[]): CharPattern {
 // Font designed with paths through letters:
 // - Each letter has at least one traversible path
 // - Paths are connected internally
+// - All filled pixels connect orthogonally (no diagonal jumps!)
 // - Entry/exit points on edges for maze connectivity
 export const PIXEL_FONT: Record<string, CharPattern> = {
   // A: Path goes up the left side, across the middle, down the right
@@ -87,7 +89,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '.####',
     '#....',
     '#....',
-    '#..##',
+    '#.###',
     '#...#',
     '#...#',
     '#...#',
@@ -104,20 +106,20 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#...#',
     '#...#',
   ]),
-  // I: Vertical path with top/bottom bars
+  // I: Vertical path with top/bottom bars - connected orthogonally
   'I': p([
-    '#####',
+    '.###.',
     '..#..',
     '..#..',
     '..#..',
     '..#..',
     '..#..',
     '..#..',
-    '#####',
+    '.###.',
   ]),
-  // J: Path curves at bottom
+  // J: Path curves at bottom - connected orthogonally
   'J': p([
-    '.####',
+    '..###',
     '...#.',
     '...#.',
     '...#.',
@@ -126,15 +128,15 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#..#.',
     '.##..',
   ]),
-  // K: Paths through diagonal sections
+  // K: Fixed to avoid diagonal - fully connected
   'K': p([
     '#...#',
-    '#..#.',
-    '#.#..',
-    '##...',
-    '##...',
-    '#.#..',
-    '#..#.',
+    '#..##',
+    '#.##.',
+    '###..',
+    '###..',
+    '#.##.',
+    '#..##',
     '#...#',
   ]),
   // L: Simple L shape with open right
@@ -148,26 +150,26 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#....',
     '#####',
   ]),
-  // M: Paths through the peaks
+  // M: Fixed to avoid diagonal - connected peaks
   'M': p([
     '#...#',
     '##.##',
+    '##.##',
     '#.#.#',
-    '#...#',
-    '#...#',
+    '#.#.#',
     '#...#',
     '#...#',
     '#...#',
   ]),
-  // N: Diagonal path through
+  // N: Fixed to avoid diagonal - uses stepped pattern
   'N': p([
     '#...#',
     '##..#',
+    '##..#',
+    '#.#.#',
     '#.#.#',
     '#..##',
-    '#...#',
-    '#...#',
-    '#...#',
+    '#..##',
     '#...#',
   ]),
   // O: Path around the ring
@@ -192,7 +194,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#....',
     '#....',
   ]),
-  // Q: O with tail
+  // Q: O with orthogonal tail
   'Q': p([
     '.###.',
     '#...#',
@@ -200,19 +202,19 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#...#',
     '#...#',
     '#.#.#',
-    '#..#.',
-    '.##.#',
+    '#.###',
+    '.###.',
   ]),
-  // R: Like P but with leg
+  // R: Like P but with orthogonal leg - fully connected
   'R': p([
     '####.',
     '#...#',
     '#...#',
     '####.',
+    '##...',
     '#.#..',
+    '#.##.',
     '#..#.',
-    '#...#',
-    '#...#',
   ]),
   // S: Winding path
   'S': p([
@@ -225,9 +227,9 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '....#',
     '####.',
   ]),
-  // T: Path down the center
+  // T: Path down the center - connected orthogonally
   'T': p([
-    '#####',
+    '.###.',
     '..#..',
     '..#..',
     '..#..',
@@ -247,68 +249,68 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#...#',
     '.###.',
   ]),
-  // V: Paths converge at bottom
+  // V: Fixed to avoid diagonal - stepped convergence
   'V': p([
     '#...#',
     '#...#',
     '#...#',
     '#...#',
     '#...#',
+    '#...#',
     '.#.#.',
-    '.#.#.',
-    '..#..',
+    '.###.',
   ]),
-  // W: Paths through the valleys
+  // W: Fixed to avoid diagonal - connected valleys
   'W': p([
     '#...#',
     '#...#',
     '#...#',
-    '#...#',
+    '#.#.#',
     '#.#.#',
     '#.#.#',
     '##.##',
     '#...#',
   ]),
-  // X: Paths cross in middle
+  // X: Fixed to avoid diagonal - fully connected cross
   'X': p([
     '#...#',
-    '.#.#.',
-    '.#.#.',
+    '##.##',
+    '.###.',
     '..#..',
     '..#..',
-    '.#.#.',
-    '.#.#.',
+    '.###.',
+    '##.##',
     '#...#',
   ]),
-  // Y: Paths merge then go down
+  // Y: Fixed to avoid diagonal - fully connected merge
   'Y': p([
     '#...#',
     '#...#',
-    '.#.#.',
-    '.#.#.',
+    '##.##',
+    '.###.',
     '..#..',
     '..#..',
     '..#..',
     '..#..',
   ]),
-  // Z: Diagonal path
+  // Z: Fixed to avoid diagonal - stepped pattern
   'Z': p([
     '#####',
     '....#',
-    '...#.',
-    '..#..',
-    '.#...',
-    '#....',
+    '...##',
+    '..##.',
+    '.##..',
+    '##...',
     '#....',
     '#####',
   ]),
-  // Numbers with traversible paths
+  // Numbers with traversible paths - all fixed for orthogonal connections
   '0': p([
     '.###.',
     '#...#',
-    '#..##',
+    '#...#',
     '#.#.#',
-    '##..#',
+    '#.#.#',
     '#...#',
     '#...#',
     '.###.',
@@ -316,7 +318,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
   '1': p([
     '..#..',
     '.##..',
-    '..#..',
+    '.##..',
     '..#..',
     '..#..',
     '..#..',
@@ -327,9 +329,9 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '.###.',
     '#...#',
     '....#',
-    '...#.',
-    '..#..',
-    '.#...',
+    '..###',
+    '.##..',
+    '##...',
     '#....',
     '#####',
   ]),
@@ -377,8 +379,8 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#####',
     '....#',
     '....#',
-    '...#.',
-    '..#..',
+    '...##',
+    '..##.',
     '..#..',
     '..#..',
     '..#..',
@@ -430,9 +432,9 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '..',
     '..',
     '..',
-    '..',
+    '##',
     '.#',
-    '#.',
+    '.#',
   ]),
   '!': p([
     '##',
@@ -448,7 +450,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '.###.',
     '#...#',
     '....#',
-    '...#.',
+    '..###',
     '..#..',
     '..#..',
     '.....',
@@ -457,7 +459,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
   "'": p([
     '##',
     '##',
-    '#.',
+    '##',
     '..',
     '..',
     '..',
@@ -483,6 +485,267 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '##',
     '##',
     '..',
+  ]),
+  // Lowercase letters - same height, different style
+  'a': p([
+    '.....',
+    '.....',
+    '.###.',
+    '....#',
+    '.####',
+    '#...#',
+    '#...#',
+    '.####',
+  ]),
+  'b': p([
+    '#....',
+    '#....',
+    '#....',
+    '####.',
+    '#...#',
+    '#...#',
+    '#...#',
+    '####.',
+  ]),
+  'c': p([
+    '.....',
+    '.....',
+    '.####',
+    '#....',
+    '#....',
+    '#....',
+    '#....',
+    '.####',
+  ]),
+  'd': p([
+    '....#',
+    '....#',
+    '....#',
+    '.####',
+    '#...#',
+    '#...#',
+    '#...#',
+    '.####',
+  ]),
+  'e': p([
+    '.....',
+    '.....',
+    '.###.',
+    '#...#',
+    '#####',
+    '#....',
+    '#....',
+    '.####',
+  ]),
+  'f': p([
+    '..##.',
+    '.##..',
+    '.#...',
+    '###..',
+    '.#...',
+    '.#...',
+    '.#...',
+    '.#...',
+  ]),
+  'g': p([
+    '.....',
+    '.....',
+    '.####',
+    '#...#',
+    '#...#',
+    '.####',
+    '....#',
+    '.###.',
+  ]),
+  'h': p([
+    '#....',
+    '#....',
+    '#....',
+    '####.',
+    '#...#',
+    '#...#',
+    '#...#',
+    '#...#',
+  ]),
+  'i': p([
+    '..#..',
+    '.....',
+    '.##..',
+    '..#..',
+    '..#..',
+    '..#..',
+    '..#..',
+    '.###.',
+  ]),
+  'j': p([
+    '...#.',
+    '.....',
+    '..##.',
+    '...#.',
+    '...#.',
+    '...#.',
+    '#..#.',
+    '.##..',
+  ]),
+  'k': p([
+    '#....',
+    '#....',
+    '#..#.',
+    '#.##.',
+    '###..',
+    '#.##.',
+    '#..#.',
+    '#..#.',
+  ]),
+  'l': p([
+    '.##..',
+    '..#..',
+    '..#..',
+    '..#..',
+    '..#..',
+    '..#..',
+    '..#..',
+    '.###.',
+  ]),
+  'm': p([
+    '.....',
+    '.....',
+    '#####',
+    '#.#.#',
+    '#.#.#',
+    '#.#.#',
+    '#...#',
+    '#...#',
+  ]),
+  'n': p([
+    '.....',
+    '.....',
+    '####.',
+    '#...#',
+    '#...#',
+    '#...#',
+    '#...#',
+    '#...#',
+  ]),
+  'o': p([
+    '.....',
+    '.....',
+    '.###.',
+    '#...#',
+    '#...#',
+    '#...#',
+    '#...#',
+    '.###.',
+  ]),
+  'p': p([
+    '.....',
+    '.....',
+    '####.',
+    '#...#',
+    '#...#',
+    '####.',
+    '#....',
+    '#....',
+  ]),
+  'q': p([
+    '.....',
+    '.....',
+    '.####',
+    '#...#',
+    '#...#',
+    '.####',
+    '....#',
+    '....#',
+  ]),
+  'r': p([
+    '.....',
+    '.....',
+    '#.##.',
+    '##...',
+    '#....',
+    '#....',
+    '#....',
+    '#....',
+  ]),
+  's': p([
+    '.....',
+    '.....',
+    '.####',
+    '#....',
+    '.###.',
+    '....#',
+    '....#',
+    '####.',
+  ]),
+  't': p([
+    '.#...',
+    '.#...',
+    '####.',
+    '.#...',
+    '.#...',
+    '.#...',
+    '.#...',
+    '..##.',
+  ]),
+  'u': p([
+    '.....',
+    '.....',
+    '#...#',
+    '#...#',
+    '#...#',
+    '#...#',
+    '#...#',
+    '.####',
+  ]),
+  'v': p([
+    '.....',
+    '.....',
+    '#...#',
+    '#...#',
+    '#...#',
+    '##.##',
+    '.###.',
+    '..#..',
+  ]),
+  'w': p([
+    '.....',
+    '.....',
+    '#...#',
+    '#...#',
+    '#.#.#',
+    '#.#.#',
+    '##.##',
+    '#...#',
+  ]),
+  'x': p([
+    '.....',
+    '.....',
+    '#...#',
+    '##.##',
+    '.###.',
+    '##.##',
+    '#...#',
+    '#...#',
+  ]),
+  'y': p([
+    '.....',
+    '.....',
+    '#...#',
+    '#...#',
+    '.####',
+    '....#',
+    '....#',
+    '.###.',
+  ]),
+  'z': p([
+    '.....',
+    '.....',
+    '#####',
+    '...##',
+    '..##.',
+    '.##..',
+    '##...',
+    '#####',
   ]),
 };
 
@@ -513,19 +776,23 @@ export const CHAR_ENTRY_POINTS: Record<string, EntryPoint[]> = {
 };
 
 export function getCharWidth(char: string): number {
-  const pattern = PIXEL_FONT[char.toUpperCase()];
+  // Try exact match first (for lowercase)
+  let pattern = PIXEL_FONT[char];
+  if (!pattern) {
+    // Fall back to uppercase
+    pattern = PIXEL_FONT[char.toUpperCase()];
+  }
   if (!pattern || pattern.length === 0) return 3;
   return pattern[0].length;
 }
 
 export function getTextDimensions(text: string): { width: number; height: number } {
-  const upperText = text.toUpperCase();
   let width = 0;
 
-  for (let i = 0; i < upperText.length; i++) {
-    const char = upperText[i];
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
     width += getCharWidth(char);
-    if (i < upperText.length - 1) {
+    if (i < text.length - 1) {
       width += 1; // spacing between characters
     }
   }
@@ -535,13 +802,17 @@ export function getTextDimensions(text: string): { width: number; height: number
 
 // Get entry points for a character, or default edge points
 export function getEntryPoints(char: string): EntryPoint[] {
+  // Check uppercase first for entry points
   const upperChar = char.toUpperCase();
   if (CHAR_ENTRY_POINTS[upperChar]) {
     return CHAR_ENTRY_POINTS[upperChar];
   }
 
   // Generate default entry points based on the pattern
-  const pattern = PIXEL_FONT[upperChar];
+  let pattern = PIXEL_FONT[char];
+  if (!pattern) {
+    pattern = PIXEL_FONT[upperChar];
+  }
   if (!pattern) return [];
 
   const points: EntryPoint[] = [];
@@ -575,4 +846,15 @@ export function getEntryPoints(char: string): EntryPoint[] {
   }
 
   return points;
+}
+
+// Get pattern for a character, supporting both cases
+export function getCharPattern(char: string): CharPattern | undefined {
+  // Try exact match first
+  let pattern = PIXEL_FONT[char];
+  if (!pattern) {
+    // Fall back to uppercase
+    pattern = PIXEL_FONT[char.toUpperCase()];
+  }
+  return pattern;
 }

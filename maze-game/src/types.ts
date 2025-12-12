@@ -125,6 +125,9 @@ export interface ColorScheme {
   /** Background color for text cell areas */
   textBackgroundColor: string;
 
+  /** Color for visited text cells */
+  textVisitedColor: string;
+
   /** Color for the player (king) sprite/indicator */
   playerColor: string;
 

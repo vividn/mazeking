@@ -1,5 +1,5 @@
 import { createRng, type Rng } from './seededRandom';
-import { PIXEL_FONT, getCharWidth, getTextDimensions, getEntryPoints } from './pixelFont';
+import { getCharWidth, getTextDimensions, getEntryPoints, getCharPattern } from './pixelFont';
 import type { Cell, MazeData, Position } from '../types';
 
 const CHAR_HEIGHT = 8;
@@ -22,7 +22,8 @@ interface CharPlacement {
 }
 
 function layoutText(text: string, maxWidthChars: number): TextLayout {
-  const words = text.toUpperCase().split(/\s+/);
+  // Keep original case - we now support both uppercase and lowercase
+  const words = text.split(/\s+/);
   const lines: string[] = [];
   let currentLine = '';
 
@@ -102,7 +103,7 @@ function embedTextCells(maze: MazeData, textLayout: TextLayout): CharPlacement[]
     let currentX = startX + Math.floor((textLayout.width - lineDims.width) / 2);
 
     for (const char of line) {
-      const charPattern = PIXEL_FONT[char];
+      const charPattern = getCharPattern(char);
       if (!charPattern) {
         currentX += 4;
         continue;
@@ -147,7 +148,7 @@ function createInternalLetterPaths(maze: MazeData, placements: CharPlacement[], 
   const { width, height, cells } = maze;
 
   for (const placement of placements) {
-    const charPattern = PIXEL_FONT[placement.char];
+    const charPattern = getCharPattern(placement.char);
     if (!charPattern) continue;
 
     // Collect all text cells within this character

@@ -90,7 +90,8 @@ export const Maze: React.FC<MazeProps> = ({
         // Determine cell background color
         let bgColor: string;
         if (cell.isTextCell) {
-          bgColor = colors.textBackgroundColor;
+          // Text cells also show visited state with a different shade
+          bgColor = isVisited ? colors.textVisitedColor : colors.textBackgroundColor;
         } else if (isVisited) {
           bgColor = colors.visitedColor;
         } else {
@@ -184,10 +185,22 @@ export const Maze: React.FC<MazeProps> = ({
       ctx.shadowOffsetY = 0;
     };
 
-    // Draw door with glow
+    // Draw door with enhanced glow and pulsing effect
     const glowRadius = cellSize * 0.8;
+
+    // Draw multiple glow layers for the door to make it stand out more
+    drawGlow(doorPos, colors.doorGlowColor, glowRadius * 2.0);
+    drawGlow(doorPos, colors.doorGlowColor, glowRadius * 1.5);
     drawGlow(doorPos, colors.doorGlowColor, glowRadius);
-    drawIcon(doorPos, '🚪', 0.7);
+
+    // Draw a colored square behind the door for extra visibility
+    const doorCellX = doorPos.x * cellSize;
+    const doorCellY = doorPos.y * cellSize;
+    ctx.fillStyle = colors.doorGlowColor;
+    ctx.fillRect(doorCellX + cellSize * 0.1, doorCellY + cellSize * 0.1, cellSize * 0.8, cellSize * 0.8);
+
+    // Draw door icon larger
+    drawIcon(doorPos, '🚪', 0.8);
 
     // Draw key with glow (if not collected)
     if (keyPos !== null) {
@@ -200,12 +213,18 @@ export const Maze: React.FC<MazeProps> = ({
     drawIcon(playerPos, '👑', 0.75);
 
     // Draw wraparound arrows at edges where passages exist
-    const arrowSize = cellSize * 0.25;
-    const arrowColor = 'rgba(255, 255, 255, 0.4)';
-    ctx.fillStyle = arrowColor;
+    // Each pair of matching arrows (top/bottom or left/right at same position) gets a unique color
+    const arrowSize = cellSize * 0.35;
 
-    // Helper to draw a small arrow
-    const drawArrow = (x: number, y: number, direction: 'up' | 'down' | 'left' | 'right') => {
+    // Generate distinct colors for arrow pairs based on position
+    const getArrowColor = (index: number): string => {
+      // Use golden ratio to distribute hues evenly
+      const hue = (index * 137.508) % 360;
+      return `hsla(${hue}, 90%, 60%, 0.95)`;
+    };
+
+    // Helper to draw a small arrow with high visibility
+    const drawArrow = (x: number, y: number, direction: 'up' | 'down' | 'left' | 'right', color: string) => {
       ctx.save();
       ctx.translate(x, y);
 
@@ -214,58 +233,79 @@ export const Maze: React.FC<MazeProps> = ({
       ctx.rotate(rotations[direction]);
 
       // Draw arrow pointing up (will be rotated)
+      // White outer glow for visibility
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(0, -arrowSize / 2);
       ctx.lineTo(arrowSize / 2, arrowSize / 2);
       ctx.lineTo(-arrowSize / 2, arrowSize / 2);
       ctx.closePath();
+      ctx.stroke();
+
+      // Dark inner stroke
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Fill with the unique color
+      ctx.fillStyle = color;
       ctx.fill();
 
       ctx.restore();
     };
 
-    // Check top edge (y=0) for passages that wrap from bottom
+    // Collect vertical wraparound passages and assign colors
+    let verticalIndex = 0;
+    const verticalArrows: { x: number; color: string }[] = [];
     for (let x = 0; x < maze.width; x++) {
       const bottomCell = maze.cells[maze.height - 1][x];
       if (!bottomCell.southWall) {
-        // Passage wraps from bottom to top - draw down arrow at top
-        const cellX = x * cellSize + cellSize / 2;
-        const cellY = arrowSize * 0.8;
-        drawArrow(cellX, cellY, 'down');
+        const color = getArrowColor(verticalIndex);
+        verticalArrows.push({ x, color });
+        verticalIndex++;
       }
     }
 
-    // Check bottom edge for passages that wrap to top
-    for (let x = 0; x < maze.width; x++) {
-      const bottomCell = maze.cells[maze.height - 1][x];
-      if (!bottomCell.southWall) {
-        // Passage wraps to top - draw up arrow at bottom
-        const cellX = x * cellSize + cellSize / 2;
-        const cellY = maze.height * cellSize - arrowSize * 0.8;
-        drawArrow(cellX, cellY, 'up');
-      }
+    // Draw top arrows (pointing up)
+    for (const arrow of verticalArrows) {
+      const cellX = arrow.x * cellSize + cellSize / 2;
+      const cellY = arrowSize * 1.2;
+      drawArrow(cellX, cellY, 'up', arrow.color);
     }
 
-    // Check left edge (x=0) for passages that wrap from right
+    // Draw bottom arrows (pointing down) with matching colors
+    for (const arrow of verticalArrows) {
+      const cellX = arrow.x * cellSize + cellSize / 2;
+      const cellY = maze.height * cellSize - arrowSize * 1.2;
+      drawArrow(cellX, cellY, 'down', arrow.color);
+    }
+
+    // Collect horizontal wraparound passages and assign colors
+    let horizontalIndex = 0;
+    const horizontalArrows: { y: number; color: string }[] = [];
     for (let y = 0; y < maze.height; y++) {
       const rightCell = maze.cells[y][maze.width - 1];
       if (!rightCell.eastWall) {
-        // Passage wraps from right to left - draw right arrow at left
-        const cellX = arrowSize * 0.8;
-        const cellY = y * cellSize + cellSize / 2;
-        drawArrow(cellX, cellY, 'right');
+        // Offset the starting hue to differentiate from vertical arrows
+        const color = getArrowColor(horizontalIndex + 50);
+        horizontalArrows.push({ y, color });
+        horizontalIndex++;
       }
     }
 
-    // Check right edge for passages that wrap to left
-    for (let y = 0; y < maze.height; y++) {
-      const rightCell = maze.cells[y][maze.width - 1];
-      if (!rightCell.eastWall) {
-        // Passage wraps to left - draw left arrow at right
-        const cellX = maze.width * cellSize - arrowSize * 0.8;
-        const cellY = y * cellSize + cellSize / 2;
-        drawArrow(cellX, cellY, 'left');
-      }
+    // Draw left arrows (pointing left)
+    for (const arrow of horizontalArrows) {
+      const cellX = arrowSize * 1.2;
+      const cellY = arrow.y * cellSize + cellSize / 2;
+      drawArrow(cellX, cellY, 'left', arrow.color);
+    }
+
+    // Draw right arrows (pointing right) with matching colors
+    for (const arrow of horizontalArrows) {
+      const cellX = maze.width * cellSize - arrowSize * 1.2;
+      const cellY = arrow.y * cellSize + cellSize / 2;
+      drawArrow(cellX, cellY, 'right', arrow.color);
     }
 
     ctx.restore();

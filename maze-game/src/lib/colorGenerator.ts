@@ -7,6 +7,7 @@ export interface ColorScheme {
   visitedColor: string;         // Slightly different color for visited squares
   textWallColor: string;
   textBackgroundColor: string;
+  textVisitedColor: string;     // Visited color for text cells
   playerColor: string;
   keyColor: string;
   doorColor: string;
@@ -53,6 +54,9 @@ export function generateColorScheme(seed: string): ColorScheme {
   const textBgHue = (baseHue + 180 + rng.next() * 60 - 30) % 360; // Complementary
   const textBackgroundColor = hsl(textBgHue, 70 + rng.next() * 25, 55 + rng.next() * 15);
 
+  // Text visited color: slightly darker/desaturated version of text background
+  const textVisitedColor = hsl(textBgHue, 50 + rng.next() * 20, 42 + rng.next() * 10);
+
   // Player color: golden crown feel
   const playerHue = 45 + rng.next() * 15; // Gold range
   const playerColor = hsl(playerHue, 90 + rng.next() * 10, 55 + rng.next() * 10);
@@ -79,6 +83,7 @@ export function generateColorScheme(seed: string): ColorScheme {
     visitedColor,
     textWallColor,
     textBackgroundColor,
+    textVisitedColor,
     playerColor,
     keyColor,
     doorColor,
