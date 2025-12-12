@@ -76,9 +76,9 @@ export const Maze: React.FC<MazeProps> = ({
     ctx.save();
     ctx.translate(offsetX, offsetY);
 
-    // Wall thickness - thicker for outer perimeter
+    // Wall thickness - slightly thicker for outer perimeter
     const wallThickness = Math.max(2, cellSize * 0.1);
-    const perimeterWallThickness = Math.max(4, cellSize * 0.18);
+    const perimeterWallThickness = Math.max(3, cellSize * 0.13);
 
     // Draw all cells
     for (let y = 0; y < maze.height; y++) {
@@ -106,9 +106,8 @@ export const Maze: React.FC<MazeProps> = ({
         ctx.fillStyle = bgColor;
         ctx.fillRect(cellX, cellY, cellSize, cellSize);
 
-        // Draw walls
-        const wallColor = cell.isTextCell ? colors.textWallColor : colors.wallColor;
-        ctx.strokeStyle = wallColor;
+        // Draw walls - use same color for all walls
+        ctx.strokeStyle = colors.wallColor;
         ctx.lineWidth = wallThickness;
         ctx.lineCap = 'square';
 
@@ -131,7 +130,6 @@ export const Maze: React.FC<MazeProps> = ({
         // North wall (wraps from bottom)
         const northCell = maze.cells[(y - 1 + maze.height) % maze.height][x];
         if (northCell.southWall) {
-          ctx.strokeStyle = northCell.isTextCell ? colors.textWallColor : colors.wallColor;
           ctx.beginPath();
           ctx.moveTo(cellX, cellY);
           ctx.lineTo(cellX + cellSize, cellY);
@@ -141,7 +139,6 @@ export const Maze: React.FC<MazeProps> = ({
         // West wall (wraps from right)
         const westCell = maze.cells[y][(x - 1 + maze.width) % maze.width];
         if (westCell.eastWall) {
-          ctx.strokeStyle = westCell.isTextCell ? colors.textWallColor : colors.wallColor;
           ctx.beginPath();
           ctx.moveTo(cellX, cellY);
           ctx.lineTo(cellX, cellY + cellSize);
@@ -246,6 +243,62 @@ export const Maze: React.FC<MazeProps> = ({
       ctx.restore();
     };
 
+    // Helper to draw a corner warp indicator (4-way star/cross shape)
+    const drawCornerWarp = (x: number, y: number, vColor: string, hColor: string) => {
+      ctx.save();
+      ctx.translate(x, y);
+      const size = arrowSize * 0.9;
+
+      // Draw a 4-pointed star shape with both colors
+      // White outer glow
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.lineWidth = 3;
+
+      // Vertical arrows (up and down)
+      ctx.beginPath();
+      // Up arrow
+      ctx.moveTo(0, -size);
+      ctx.lineTo(size * 0.4, -size * 0.3);
+      ctx.lineTo(-size * 0.4, -size * 0.3);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fillStyle = vColor;
+      ctx.fill();
+
+      // Down arrow
+      ctx.beginPath();
+      ctx.moveTo(0, size);
+      ctx.lineTo(size * 0.4, size * 0.3);
+      ctx.lineTo(-size * 0.4, size * 0.3);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fillStyle = vColor;
+      ctx.fill();
+
+      // Horizontal arrows (left and right)
+      // Left arrow
+      ctx.beginPath();
+      ctx.moveTo(-size, 0);
+      ctx.lineTo(-size * 0.3, size * 0.4);
+      ctx.lineTo(-size * 0.3, -size * 0.4);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fillStyle = hColor;
+      ctx.fill();
+
+      // Right arrow
+      ctx.beginPath();
+      ctx.moveTo(size, 0);
+      ctx.lineTo(size * 0.3, size * 0.4);
+      ctx.lineTo(size * 0.3, -size * 0.4);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fillStyle = hColor;
+      ctx.fill();
+
+      ctx.restore();
+    };
+
     // Collect vertical wraparound passages and assign colors
     let verticalIndex = 0;
     const verticalArrows: { x: number; color: string }[] = [];
@@ -256,20 +309,6 @@ export const Maze: React.FC<MazeProps> = ({
         verticalArrows.push({ x, color });
         verticalIndex++;
       }
-    }
-
-    // Draw top arrows (pointing up)
-    for (const arrow of verticalArrows) {
-      const cellX = arrow.x * cellSize + cellSize / 2;
-      const cellY = arrowSize * 1.2;
-      drawArrow(cellX, cellY, 'up', arrow.color);
-    }
-
-    // Draw bottom arrows (pointing down) with matching colors
-    for (const arrow of verticalArrows) {
-      const cellX = arrow.x * cellSize + cellSize / 2;
-      const cellY = maze.height * cellSize - arrowSize * 1.2;
-      drawArrow(cellX, cellY, 'down', arrow.color);
     }
 
     // Collect horizontal wraparound passages and assign colors
@@ -285,18 +324,68 @@ export const Maze: React.FC<MazeProps> = ({
       }
     }
 
-    // Draw left arrows (pointing left)
-    for (const arrow of horizontalArrows) {
-      const cellX = arrowSize * 1.2;
-      const cellY = arrow.y * cellSize + cellSize / 2;
-      drawArrow(cellX, cellY, 'left', arrow.color);
+    // Identify corner positions (where both vertical and horizontal warps exist)
+    const topLeftCornerV = verticalArrows.find(a => a.x === 0);
+    const topLeftCornerH = horizontalArrows.find(a => a.y === 0);
+    const topRightCornerV = verticalArrows.find(a => a.x === maze.width - 1);
+    const topRightCornerH = horizontalArrows.find(a => a.y === 0);
+    const bottomLeftCornerV = verticalArrows.find(a => a.x === 0);
+    const bottomLeftCornerH = horizontalArrows.find(a => a.y === maze.height - 1);
+    const bottomRightCornerV = verticalArrows.find(a => a.x === maze.width - 1);
+    const bottomRightCornerH = horizontalArrows.find(a => a.y === maze.height - 1);
+
+    // Draw corner warps with special 4-way indicator
+    if (topLeftCornerV && topLeftCornerH) {
+      drawCornerWarp(arrowSize * 1.2, arrowSize * 1.2, topLeftCornerV.color, topLeftCornerH.color);
+    }
+    if (topRightCornerV && topRightCornerH) {
+      drawCornerWarp(maze.width * cellSize - arrowSize * 1.2, arrowSize * 1.2, topRightCornerV.color, topRightCornerH.color);
+    }
+    if (bottomLeftCornerV && bottomLeftCornerH) {
+      drawCornerWarp(arrowSize * 1.2, maze.height * cellSize - arrowSize * 1.2, bottomLeftCornerV.color, bottomLeftCornerH.color);
+    }
+    if (bottomRightCornerV && bottomRightCornerH) {
+      drawCornerWarp(maze.width * cellSize - arrowSize * 1.2, maze.height * cellSize - arrowSize * 1.2, bottomRightCornerV.color, bottomRightCornerH.color);
     }
 
-    // Draw right arrows (pointing right) with matching colors
+    // Draw top arrows (pointing up) - skip corners that have both warps
+    for (const arrow of verticalArrows) {
+      const isCorner = (arrow.x === 0 && topLeftCornerH) || (arrow.x === maze.width - 1 && topRightCornerH);
+      if (!isCorner) {
+        const cellX = arrow.x * cellSize + cellSize / 2;
+        const cellY = arrowSize * 1.2;
+        drawArrow(cellX, cellY, 'up', arrow.color);
+      }
+    }
+
+    // Draw bottom arrows (pointing down) - skip corners that have both warps
+    for (const arrow of verticalArrows) {
+      const isCorner = (arrow.x === 0 && bottomLeftCornerH) || (arrow.x === maze.width - 1 && bottomRightCornerH);
+      if (!isCorner) {
+        const cellX = arrow.x * cellSize + cellSize / 2;
+        const cellY = maze.height * cellSize - arrowSize * 1.2;
+        drawArrow(cellX, cellY, 'down', arrow.color);
+      }
+    }
+
+    // Draw left arrows (pointing left) - skip corners that have both warps
     for (const arrow of horizontalArrows) {
-      const cellX = maze.width * cellSize - arrowSize * 1.2;
-      const cellY = arrow.y * cellSize + cellSize / 2;
-      drawArrow(cellX, cellY, 'right', arrow.color);
+      const isCorner = (arrow.y === 0 && topLeftCornerV) || (arrow.y === maze.height - 1 && bottomLeftCornerV);
+      if (!isCorner) {
+        const cellX = arrowSize * 1.2;
+        const cellY = arrow.y * cellSize + cellSize / 2;
+        drawArrow(cellX, cellY, 'left', arrow.color);
+      }
+    }
+
+    // Draw right arrows (pointing right) - skip corners that have both warps
+    for (const arrow of horizontalArrows) {
+      const isCorner = (arrow.y === 0 && topRightCornerV) || (arrow.y === maze.height - 1 && bottomRightCornerV);
+      if (!isCorner) {
+        const cellX = maze.width * cellSize - arrowSize * 1.2;
+        const cellY = arrow.y * cellSize + cellSize / 2;
+        drawArrow(cellX, cellY, 'right', arrow.color);
+      }
     }
 
     // Aura colors for different entities
