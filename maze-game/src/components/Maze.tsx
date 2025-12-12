@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import type { MazeData, Position, ColorScheme } from '../types';
+import { drawCrown, drawKey, drawChest, drawArrow, drawCornerWarp, getArrowColor } from '../glyphs';
 
 interface MazeProps {
   maze: MazeData;
@@ -203,102 +204,6 @@ export const Maze: React.FC<MazeProps> = ({
     // Each pair of matching arrows (top/bottom or left/right at same position) gets a unique color
     const arrowSize = cellSize * 0.35;
 
-    // Generate distinct colors for arrow pairs based on position
-    const getArrowColor = (index: number): string => {
-      // Use golden ratio to distribute hues evenly
-      // Brighter colors (60% lightness) for better visibility
-      const hue = (index * 137.508) % 360;
-      return `hsla(${hue}, 90%, 60%, 1.0)`;
-    };
-
-    // Helper to draw a small arrow with high visibility
-    const drawArrow = (x: number, y: number, direction: 'up' | 'down' | 'left' | 'right', color: string) => {
-      ctx.save();
-      ctx.translate(x, y);
-
-      // Rotate based on direction
-      const rotations = { up: 0, right: Math.PI / 2, down: Math.PI, left: -Math.PI / 2 };
-      ctx.rotate(rotations[direction]);
-
-      // Draw arrow pointing up (will be rotated)
-      // White outer glow for visibility
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(0, -arrowSize / 2);
-      ctx.lineTo(arrowSize / 2, arrowSize / 2);
-      ctx.lineTo(-arrowSize / 2, arrowSize / 2);
-      ctx.closePath();
-      ctx.stroke();
-
-      // Dark inner stroke
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      // Fill with the unique color
-      ctx.fillStyle = color;
-      ctx.fill();
-
-      ctx.restore();
-    };
-
-    // Helper to draw a corner warp indicator (4-way star/cross shape)
-    const drawCornerWarp = (x: number, y: number, vColor: string, hColor: string) => {
-      ctx.save();
-      ctx.translate(x, y);
-      const size = arrowSize * 0.9;
-
-      // Draw a 4-pointed star shape with both colors
-      // White outer glow
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-      ctx.lineWidth = 3;
-
-      // Vertical arrows (up and down)
-      ctx.beginPath();
-      // Up arrow
-      ctx.moveTo(0, -size);
-      ctx.lineTo(size * 0.4, -size * 0.3);
-      ctx.lineTo(-size * 0.4, -size * 0.3);
-      ctx.closePath();
-      ctx.stroke();
-      ctx.fillStyle = vColor;
-      ctx.fill();
-
-      // Down arrow
-      ctx.beginPath();
-      ctx.moveTo(0, size);
-      ctx.lineTo(size * 0.4, size * 0.3);
-      ctx.lineTo(-size * 0.4, size * 0.3);
-      ctx.closePath();
-      ctx.stroke();
-      ctx.fillStyle = vColor;
-      ctx.fill();
-
-      // Horizontal arrows (left and right)
-      // Left arrow
-      ctx.beginPath();
-      ctx.moveTo(-size, 0);
-      ctx.lineTo(-size * 0.3, size * 0.4);
-      ctx.lineTo(-size * 0.3, -size * 0.4);
-      ctx.closePath();
-      ctx.stroke();
-      ctx.fillStyle = hColor;
-      ctx.fill();
-
-      // Right arrow
-      ctx.beginPath();
-      ctx.moveTo(size, 0);
-      ctx.lineTo(size * 0.3, size * 0.4);
-      ctx.lineTo(size * 0.3, -size * 0.4);
-      ctx.closePath();
-      ctx.stroke();
-      ctx.fillStyle = hColor;
-      ctx.fill();
-
-      ctx.restore();
-    };
-
     // Collect vertical wraparound passages and assign colors
     let verticalIndex = 0;
     const verticalArrows: { x: number; color: string }[] = [];
@@ -336,16 +241,16 @@ export const Maze: React.FC<MazeProps> = ({
 
     // Draw corner warps with special 4-way indicator
     if (topLeftCornerV && topLeftCornerH) {
-      drawCornerWarp(arrowSize * 1.2, arrowSize * 1.2, topLeftCornerV.color, topLeftCornerH.color);
+      drawCornerWarp(ctx, arrowSize * 1.2, arrowSize * 1.2, topLeftCornerV.color, topLeftCornerH.color, arrowSize);
     }
     if (topRightCornerV && topRightCornerH) {
-      drawCornerWarp(maze.width * cellSize - arrowSize * 1.2, arrowSize * 1.2, topRightCornerV.color, topRightCornerH.color);
+      drawCornerWarp(ctx, maze.width * cellSize - arrowSize * 1.2, arrowSize * 1.2, topRightCornerV.color, topRightCornerH.color, arrowSize);
     }
     if (bottomLeftCornerV && bottomLeftCornerH) {
-      drawCornerWarp(arrowSize * 1.2, maze.height * cellSize - arrowSize * 1.2, bottomLeftCornerV.color, bottomLeftCornerH.color);
+      drawCornerWarp(ctx, arrowSize * 1.2, maze.height * cellSize - arrowSize * 1.2, bottomLeftCornerV.color, bottomLeftCornerH.color, arrowSize);
     }
     if (bottomRightCornerV && bottomRightCornerH) {
-      drawCornerWarp(maze.width * cellSize - arrowSize * 1.2, maze.height * cellSize - arrowSize * 1.2, bottomRightCornerV.color, bottomRightCornerH.color);
+      drawCornerWarp(ctx, maze.width * cellSize - arrowSize * 1.2, maze.height * cellSize - arrowSize * 1.2, bottomRightCornerV.color, bottomRightCornerH.color, arrowSize);
     }
 
     // Draw top arrows (pointing up) - skip corners that have both warps
@@ -354,7 +259,7 @@ export const Maze: React.FC<MazeProps> = ({
       if (!isCorner) {
         const cellX = arrow.x * cellSize + cellSize / 2;
         const cellY = arrowSize * 1.2;
-        drawArrow(cellX, cellY, 'up', arrow.color);
+        drawArrow(ctx, cellX, cellY, 'up', arrow.color, arrowSize);
       }
     }
 
@@ -364,7 +269,7 @@ export const Maze: React.FC<MazeProps> = ({
       if (!isCorner) {
         const cellX = arrow.x * cellSize + cellSize / 2;
         const cellY = maze.height * cellSize - arrowSize * 1.2;
-        drawArrow(cellX, cellY, 'down', arrow.color);
+        drawArrow(ctx, cellX, cellY, 'down', arrow.color, arrowSize);
       }
     }
 
@@ -374,7 +279,7 @@ export const Maze: React.FC<MazeProps> = ({
       if (!isCorner) {
         const cellX = arrowSize * 1.2;
         const cellY = arrow.y * cellSize + cellSize / 2;
-        drawArrow(cellX, cellY, 'left', arrow.color);
+        drawArrow(ctx, cellX, cellY, 'left', arrow.color, arrowSize);
       }
     }
 
@@ -384,7 +289,7 @@ export const Maze: React.FC<MazeProps> = ({
       if (!isCorner) {
         const cellX = maze.width * cellSize - arrowSize * 1.2;
         const cellY = arrow.y * cellSize + cellSize / 2;
-        drawArrow(cellX, cellY, 'right', arrow.color);
+        drawArrow(ctx, cellX, cellY, 'right', arrow.color, arrowSize);
       }
     }
 
@@ -459,375 +364,23 @@ export const Maze: React.FC<MazeProps> = ({
       }
     };
 
-    // Helper to draw a custom locked treasure chest
-    const drawLockedChest = (pos: Position, scale: number) => {
-      const cellX = pos.x * cellSize + cellSize / 2;
-      const cellY = pos.y * cellSize + cellSize / 2;
-      const size = cellSize * scale;
-
-      ctx.save();
-      ctx.translate(cellX, cellY);
-
-      // Shadow for depth
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-      ctx.shadowBlur = 5;
-      ctx.shadowOffsetX = 2;
-      ctx.shadowOffsetY = 2;
-
-      const woodMain = '#8B4513';
-      const woodDark = '#5D2E0C';
-      const woodLight = '#A0522D';
-      const metalDark = '#2a2a2a';
-      const metalLight = '#5a5a5a';
-      const outline = '#1a0a00';
-
-      // Chest body dimensions
-      const chestWidth = size * 0.8;
-      const chestHeight = size * 0.5;
-      const chestX = -chestWidth / 2;
-      const chestY = -chestHeight / 2 + size * 0.12;
-
-      // Body outline
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(chestX, chestY, chestWidth, chestHeight);
-
-      // Body fill with gradient
-      const bodyGrad = ctx.createLinearGradient(chestX, chestY, chestX, chestY + chestHeight);
-      bodyGrad.addColorStop(0, woodLight);
-      bodyGrad.addColorStop(0.5, woodMain);
-      bodyGrad.addColorStop(1, woodDark);
-      ctx.fillStyle = bodyGrad;
-      ctx.fillRect(chestX, chestY, chestWidth, chestHeight);
-
-      // Chest lid (curved top)
-      const lidHeight = size * 0.22;
-      ctx.beginPath();
-      ctx.moveTo(chestX - size * 0.03, chestY);
-      ctx.lineTo(chestX + chestWidth + size * 0.03, chestY);
-      ctx.lineTo(chestX + chestWidth, chestY - lidHeight * 0.4);
-      ctx.quadraticCurveTo(chestX + chestWidth / 2, chestY - lidHeight, chestX, chestY - lidHeight * 0.4);
-      ctx.closePath();
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      const lidGrad = ctx.createLinearGradient(0, chestY - lidHeight, 0, chestY);
-      lidGrad.addColorStop(0, woodDark);
-      lidGrad.addColorStop(0.5, woodMain);
-      lidGrad.addColorStop(1, woodLight);
-      ctx.fillStyle = lidGrad;
-      ctx.fill();
-
-      // Metal bands with outlines
-      ctx.fillStyle = metalDark;
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = 1.5;
-
-      // Top band
-      ctx.fillRect(chestX, chestY, chestWidth, size * 0.045);
-      ctx.strokeRect(chestX, chestY, chestWidth, size * 0.045);
-      // Bottom band
-      ctx.fillRect(chestX, chestY + chestHeight - size * 0.045, chestWidth, size * 0.045);
-      ctx.strokeRect(chestX, chestY + chestHeight - size * 0.045, chestWidth, size * 0.045);
-      // Vertical bands
-      ctx.fillRect(chestX + chestWidth * 0.12, chestY, size * 0.04, chestHeight);
-      ctx.strokeRect(chestX + chestWidth * 0.12, chestY, size * 0.04, chestHeight);
-      ctx.fillRect(chestX + chestWidth * 0.84, chestY, size * 0.04, chestHeight);
-      ctx.strokeRect(chestX + chestWidth * 0.84, chestY, size * 0.04, chestHeight);
-
-      // Metal highlights
-      ctx.fillStyle = metalLight;
-      ctx.fillRect(chestX + chestWidth * 0.12, chestY, size * 0.015, chestHeight);
-      ctx.fillRect(chestX + chestWidth * 0.84, chestY, size * 0.015, chestHeight);
-
-      // Lock (golden padlock)
-      const lockSize = size * 0.18;
-      const lockY = chestY + chestHeight * 0.35;
-      const goldMain = '#FFD700';
-      const goldDark = '#B8860B';
-      const goldLight = '#FFF8DC';
-
-      // Lock shackle outline and fill
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, lockY, lockSize * 0.38, Math.PI, 0, false);
-      ctx.stroke();
-      ctx.strokeStyle = goldMain;
-      ctx.lineWidth = size * 0.045;
-      ctx.beginPath();
-      ctx.arc(0, lockY, lockSize * 0.38, Math.PI, 0, false);
-      ctx.stroke();
-
-      // Lock body outline
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(-lockSize / 2, lockY, lockSize, lockSize * 0.75);
-      // Lock body fill
-      const lockGrad = ctx.createLinearGradient(-lockSize / 2, lockY, lockSize / 2, lockY);
-      lockGrad.addColorStop(0, goldDark);
-      lockGrad.addColorStop(0.3, goldMain);
-      lockGrad.addColorStop(0.5, goldLight);
-      lockGrad.addColorStop(0.7, goldMain);
-      lockGrad.addColorStop(1, goldDark);
-      ctx.fillStyle = lockGrad;
-      ctx.fillRect(-lockSize / 2, lockY, lockSize, lockSize * 0.75);
-
-      // Keyhole
-      ctx.fillStyle = '#1a1a1a';
-      ctx.beginPath();
-      ctx.arc(0, lockY + lockSize * 0.3, lockSize * 0.12, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillRect(-lockSize * 0.05, lockY + lockSize * 0.35, lockSize * 0.1, lockSize * 0.25);
-
-      ctx.shadowBlur = 0;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-      ctx.restore();
-    };
-
-    // Helper to draw a custom ornate key
-    const drawKey = (pos: Position, scale: number) => {
-      const cellX = pos.x * cellSize + cellSize / 2;
-      const cellY = pos.y * cellSize + cellSize / 2;
-      const size = cellSize * scale;
-
-      ctx.save();
-      ctx.translate(cellX, cellY);
-      ctx.rotate(-Math.PI / 4); // Rotate 45 degrees for dynamic look
-
-      // Shadow for depth
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-      ctx.shadowBlur = 5;
-      ctx.shadowOffsetX = 2;
-      ctx.shadowOffsetY = 2;
-
-      const goldMain = '#FFD700';
-      const goldDark = '#B8860B';
-      const goldLight = '#FFF8DC';
-      const outline = '#4a3000';
-
-      // Key shaft (the long part)
-      const shaftLength = size * 0.55;
-      const shaftWidth = size * 0.12;
-
-      // Draw outline first (slightly larger)
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = 3;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-
-      // Shaft outline
-      ctx.beginPath();
-      ctx.roundRect(-shaftWidth / 2, -size * 0.1, shaftWidth, shaftLength, 2);
-      ctx.stroke();
-
-      // Shaft fill with gradient
-      const shaftGrad = ctx.createLinearGradient(-shaftWidth / 2, 0, shaftWidth / 2, 0);
-      shaftGrad.addColorStop(0, goldDark);
-      shaftGrad.addColorStop(0.3, goldMain);
-      shaftGrad.addColorStop(0.5, goldLight);
-      shaftGrad.addColorStop(0.7, goldMain);
-      shaftGrad.addColorStop(1, goldDark);
-      ctx.fillStyle = shaftGrad;
-      ctx.beginPath();
-      ctx.roundRect(-shaftWidth / 2, -size * 0.1, shaftWidth, shaftLength, 2);
-      ctx.fill();
-
-      // Key bow (the decorative round part at top)
-      const bowRadius = size * 0.22;
-      const bowY = -size * 0.1 - bowRadius * 0.7;
-
-      // Bow outline
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(0, bowY, bowRadius, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Bow fill with gradient
-      const bowGrad = ctx.createRadialGradient(
-        -bowRadius * 0.3, bowY - bowRadius * 0.3, 0,
-        0, bowY, bowRadius
-      );
-      bowGrad.addColorStop(0, goldLight);
-      bowGrad.addColorStop(0.4, goldMain);
-      bowGrad.addColorStop(1, goldDark);
-      ctx.fillStyle = bowGrad;
-      ctx.beginPath();
-      ctx.arc(0, bowY, bowRadius, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Inner hole in bow (decorative)
-      ctx.fillStyle = '#1a1a1a';
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(0, bowY, bowRadius * 0.4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // Key teeth (the bits at the end)
-      const teethY = -size * 0.1 + shaftLength;
-      const toothWidth = size * 0.08;
-      const toothHeight = size * 0.12;
-
-      // Tooth 1 (left)
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.rect(-shaftWidth / 2 - toothWidth, teethY - toothHeight, toothWidth, toothHeight);
-      ctx.stroke();
-      ctx.fillStyle = goldMain;
-      ctx.fill();
-
-      // Tooth 2 (bottom left)
-      ctx.beginPath();
-      ctx.rect(-shaftWidth / 2 - toothWidth * 0.7, teethY - toothHeight * 0.5, toothWidth * 0.7, toothHeight * 0.5);
-      ctx.stroke();
-      ctx.fillStyle = goldDark;
-      ctx.fill();
-
-      // Notch in shaft (decorative detail)
-      ctx.fillStyle = goldDark;
-      ctx.fillRect(-shaftWidth / 2, teethY - toothHeight * 1.8, shaftWidth, size * 0.04);
-
-      // Highlight line on shaft
-      ctx.strokeStyle = goldLight;
-      ctx.lineWidth = 1;
-      ctx.globalAlpha = 0.7;
-      ctx.beginPath();
-      ctx.moveTo(0, -size * 0.05);
-      ctx.lineTo(0, teethY - toothHeight * 2);
-      ctx.stroke();
-      ctx.globalAlpha = 1.0;
-
-      ctx.shadowBlur = 0;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-      ctx.restore();
-    };
-
-    // Helper to draw a custom royal crown
-    const drawCrown = (pos: Position, scale: number) => {
-      const cellX = pos.x * cellSize + cellSize / 2;
-      const cellY = pos.y * cellSize + cellSize / 2;
-      const size = cellSize * scale;
-
-      ctx.save();
-      ctx.translate(cellX, cellY);
-
-      // Shadow for depth
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-      ctx.shadowBlur = 5;
-      ctx.shadowOffsetX = 2;
-      ctx.shadowOffsetY = 2;
-
-      const goldMain = '#FFD700';
-      const goldDark = '#B8860B';
-      const goldLight = '#FFF8DC';
-      const outline = '#4a3000';
-      const gemRed = '#DC143C';
-
-      // Crown dimensions - wider and bolder
-      const baseWidth = size * 0.9;
-      const baseHeight = size * 0.2;
-      const baseY = size * 0.15;
-      const crownHeight = size * 0.5;
-
-      // Draw crown body with 3 bold points (simpler, more readable)
-      ctx.beginPath();
-      ctx.moveTo(-baseWidth / 2, baseY);
-      // Left point
-      ctx.lineTo(-baseWidth * 0.35, baseY - crownHeight * 0.7);
-      // Left valley
-      ctx.lineTo(-baseWidth * 0.17, baseY - crownHeight * 0.3);
-      // Center point (tallest)
-      ctx.lineTo(0, baseY - crownHeight);
-      // Right valley
-      ctx.lineTo(baseWidth * 0.17, baseY - crownHeight * 0.3);
-      // Right point
-      ctx.lineTo(baseWidth * 0.35, baseY - crownHeight * 0.7);
-      ctx.lineTo(baseWidth / 2, baseY);
-      ctx.closePath();
-
-      // Crown outline - thicker for visibility
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = 3;
-      ctx.stroke();
-
-      // Crown fill with gradient
-      const crownGrad = ctx.createLinearGradient(0, baseY - crownHeight, 0, baseY);
-      crownGrad.addColorStop(0, goldLight);
-      crownGrad.addColorStop(0.4, goldMain);
-      crownGrad.addColorStop(1, goldDark);
-      ctx.fillStyle = crownGrad;
-      ctx.fill();
-
-      // Base band outline and fill
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.roundRect(-baseWidth / 2, baseY, baseWidth, baseHeight, 3);
-      ctx.stroke();
-
-      const baseGrad = ctx.createLinearGradient(-baseWidth / 2, baseY, baseWidth / 2, baseY);
-      baseGrad.addColorStop(0, goldDark);
-      baseGrad.addColorStop(0.3, goldMain);
-      baseGrad.addColorStop(0.5, goldLight);
-      baseGrad.addColorStop(0.7, goldMain);
-      baseGrad.addColorStop(1, goldDark);
-      ctx.fillStyle = baseGrad;
-      ctx.fill();
-
-      // Large center gem (ruby) - more visible
-      const gemSize = size * 0.1;
-      ctx.fillStyle = gemRed;
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, baseY - crownHeight + gemSize * 2, gemSize, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // Gem highlight
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.beginPath();
-      ctx.arc(-gemSize * 0.3, baseY - crownHeight + gemSize * 1.7, gemSize * 0.35, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Base band center gem
-      ctx.fillStyle = gemRed;
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(0, baseY + baseHeight / 2, gemSize * 0.7, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.shadowBlur = 0;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-      ctx.restore();
-    };
-
     // Draw treasure chest with accessible square highlights
     // Chest color: red when locked, green when unlocked
     const chestColor = hasKey ? { r: 100, g: 200, b: 100 } : { r: 200, g: 60, b: 60 };
     drawAccessibleHighlight(doorPos, chestColor, 2);
 
     // Draw custom locked treasure chest icon
-    drawLockedChest(doorPos, 0.9);
+    drawChest(ctx, doorPos.x * cellSize + cellSize / 2, doorPos.y * cellSize + cellSize / 2, cellSize * 0.9);
 
     // Draw key with gold accessible square highlights (if not collected)
     if (keyPos !== null) {
       const keyColor = { r: 255, g: 200, b: 50 };
       drawAccessibleHighlight(keyPos, keyColor, 2);
-      drawKey(keyPos, 0.85);
+      drawKey(ctx, keyPos.x * cellSize + cellSize / 2, keyPos.y * cellSize + cellSize / 2, cellSize * 0.85);
     }
 
     // Draw player (crown)
-    drawCrown(playerPos, 0.85);
+    drawCrown(ctx, playerPos.x * cellSize + cellSize / 2, playerPos.y * cellSize + cellSize / 2, cellSize * 0.85);
 
     ctx.restore();
   }, [maze, playerPos, keyPos, doorPos, hasKey, colors, zoom, visited]);
