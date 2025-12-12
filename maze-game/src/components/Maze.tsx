@@ -388,27 +388,75 @@ export const Maze: React.FC<MazeProps> = ({
       }
     }
 
-    // Aura colors for different entities
-    const goldAuraColor = 'rgba(255, 215, 0, 0.6)';
-    // Treasure chest aura: dark red when locked, light green when unlocked
-    const chestAuraColor = hasKey ? 'rgba(144, 238, 144, 0.7)' : 'rgba(180, 50, 50, 0.7)';
+    // Helper to check if movement from one cell to another is blocked by a wall
+    const canMove = (fromX: number, fromY: number, toX: number, toY: number): boolean => {
+      const dx = toX - fromX;
+      const dy = toY - fromY;
 
-    // Helper to draw a glowing highlight circle behind entities
-    const drawGlow = (pos: Position, glowColor: string, radius: number) => {
-      const cellX = pos.x * cellSize + cellSize / 2;
-      const cellY = pos.y * cellSize + cellSize / 2;
+      // Check movement direction and corresponding wall
+      if (dx === 1 || (dx === -(maze.width - 1))) {
+        // Moving east (or wrapping from right edge to left)
+        return !maze.cells[fromY][fromX].eastWall;
+      } else if (dx === -1 || (dx === maze.width - 1)) {
+        // Moving west (or wrapping from left edge to right)
+        return !maze.cells[fromY][(fromX - 1 + maze.width) % maze.width].eastWall;
+      } else if (dy === 1 || (dy === -(maze.height - 1))) {
+        // Moving south (or wrapping from bottom to top)
+        return !maze.cells[fromY][fromX].southWall;
+      } else if (dy === -1 || (dy === maze.height - 1)) {
+        // Moving north (or wrapping from top to bottom)
+        return !maze.cells[(fromY - 1 + maze.height) % maze.height][fromX].southWall;
+      }
+      return false;
+    };
 
-      const gradient = ctx.createRadialGradient(
-        cellX, cellY, 0,
-        cellX, cellY, radius
-      );
-      gradient.addColorStop(0, glowColor);
-      gradient.addColorStop(1, 'transparent');
+    // BFS to find accessible cells within distance, respecting walls
+    const getAccessibleCells = (startX: number, startY: number, maxDist: number): Map<string, number> => {
+      const distances = new Map<string, number>();
+      const queue: { x: number; y: number; dist: number }[] = [{ x: startX, y: startY, dist: 0 }];
+      distances.set(`${startX},${startY}`, 0);
 
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(cellX, cellY, radius, 0, Math.PI * 2);
-      ctx.fill();
+      while (queue.length > 0) {
+        const { x, y, dist } = queue.shift()!;
+        if (dist >= maxDist) continue;
+
+        // Check all 4 directions
+        const dirs = [
+          { dx: 0, dy: -1 }, // north
+          { dx: 1, dy: 0 },  // east
+          { dx: 0, dy: 1 },  // south
+          { dx: -1, dy: 0 }  // west
+        ];
+
+        for (const { dx, dy } of dirs) {
+          const nx = (x + dx + maze.width) % maze.width;
+          const ny = (y + dy + maze.height) % maze.height;
+          const key = `${nx},${ny}`;
+
+          if (!distances.has(key) && canMove(x, y, x + dx, y + dy)) {
+            distances.set(key, dist + 1);
+            queue.push({ x: nx, y: ny, dist: dist + 1 });
+          }
+        }
+      }
+
+      return distances;
+    };
+
+    // Helper to draw colored square under an entity with distance-based transparency
+    const drawAccessibleHighlight = (pos: Position, baseColor: { r: number; g: number; b: number }, maxDist: number) => {
+      const accessible = getAccessibleCells(pos.x, pos.y, maxDist);
+
+      for (const [key, dist] of accessible) {
+        const [x, y] = key.split(',').map(Number);
+        const cellX = x * cellSize;
+        const cellY = y * cellSize;
+
+        // Opacity decreases with distance: 0.5 for dist 0, 0.3 for dist 1, 0.15 for dist 2
+        const opacity = dist === 0 ? 0.5 : dist === 1 ? 0.3 : 0.15;
+        ctx.fillStyle = `rgba(${baseColor.r}, ${baseColor.g}, ${baseColor.b}, ${opacity})`;
+        ctx.fillRect(cellX, cellY, cellSize, cellSize);
+      }
     };
 
     // Helper to draw a custom locked treasure chest
@@ -421,61 +469,116 @@ export const Maze: React.FC<MazeProps> = ({
       ctx.translate(cellX, cellY);
 
       // Shadow for depth
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-      ctx.shadowBlur = 4;
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+      ctx.shadowBlur = 5;
       ctx.shadowOffsetX = 2;
       ctx.shadowOffsetY = 2;
 
-      // Chest body (brown wooden box)
-      const chestWidth = size * 0.8;
-      const chestHeight = size * 0.55;
-      const chestX = -chestWidth / 2;
-      const chestY = -chestHeight / 2 + size * 0.1;
+      const woodMain = '#8B4513';
+      const woodDark = '#5D2E0C';
+      const woodLight = '#A0522D';
+      const metalDark = '#2a2a2a';
+      const metalLight = '#5a5a5a';
+      const outline = '#1a0a00';
 
-      // Main chest body
-      ctx.fillStyle = '#8B4513';
+      // Chest body dimensions
+      const chestWidth = size * 0.8;
+      const chestHeight = size * 0.5;
+      const chestX = -chestWidth / 2;
+      const chestY = -chestHeight / 2 + size * 0.12;
+
+      // Body outline
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(chestX, chestY, chestWidth, chestHeight);
+
+      // Body fill with gradient
+      const bodyGrad = ctx.createLinearGradient(chestX, chestY, chestX, chestY + chestHeight);
+      bodyGrad.addColorStop(0, woodLight);
+      bodyGrad.addColorStop(0.5, woodMain);
+      bodyGrad.addColorStop(1, woodDark);
+      ctx.fillStyle = bodyGrad;
       ctx.fillRect(chestX, chestY, chestWidth, chestHeight);
 
-      // Chest lid (darker brown, slightly curved look)
-      const lidHeight = size * 0.25;
-      ctx.fillStyle = '#654321';
+      // Chest lid (curved top)
+      const lidHeight = size * 0.22;
       ctx.beginPath();
-      ctx.moveTo(chestX - size * 0.05, chestY);
-      ctx.lineTo(chestX + chestWidth + size * 0.05, chestY);
-      ctx.lineTo(chestX + chestWidth, chestY - lidHeight * 0.3);
-      ctx.quadraticCurveTo(chestX + chestWidth / 2, chestY - lidHeight, chestX, chestY - lidHeight * 0.3);
+      ctx.moveTo(chestX - size * 0.03, chestY);
+      ctx.lineTo(chestX + chestWidth + size * 0.03, chestY);
+      ctx.lineTo(chestX + chestWidth, chestY - lidHeight * 0.4);
+      ctx.quadraticCurveTo(chestX + chestWidth / 2, chestY - lidHeight, chestX, chestY - lidHeight * 0.4);
       ctx.closePath();
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      const lidGrad = ctx.createLinearGradient(0, chestY - lidHeight, 0, chestY);
+      lidGrad.addColorStop(0, woodDark);
+      lidGrad.addColorStop(0.5, woodMain);
+      lidGrad.addColorStop(1, woodLight);
+      ctx.fillStyle = lidGrad;
       ctx.fill();
 
-      // Metal bands on chest
-      ctx.fillStyle = '#4a4a4a';
-      ctx.fillRect(chestX, chestY, chestWidth, size * 0.05);
-      ctx.fillRect(chestX, chestY + chestHeight - size * 0.05, chestWidth, size * 0.05);
-      ctx.fillRect(chestX + chestWidth * 0.15, chestY, size * 0.05, chestHeight);
-      ctx.fillRect(chestX + chestWidth * 0.8, chestY, size * 0.05, chestHeight);
+      // Metal bands with outlines
+      ctx.fillStyle = metalDark;
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 1.5;
+
+      // Top band
+      ctx.fillRect(chestX, chestY, chestWidth, size * 0.045);
+      ctx.strokeRect(chestX, chestY, chestWidth, size * 0.045);
+      // Bottom band
+      ctx.fillRect(chestX, chestY + chestHeight - size * 0.045, chestWidth, size * 0.045);
+      ctx.strokeRect(chestX, chestY + chestHeight - size * 0.045, chestWidth, size * 0.045);
+      // Vertical bands
+      ctx.fillRect(chestX + chestWidth * 0.12, chestY, size * 0.04, chestHeight);
+      ctx.strokeRect(chestX + chestWidth * 0.12, chestY, size * 0.04, chestHeight);
+      ctx.fillRect(chestX + chestWidth * 0.84, chestY, size * 0.04, chestHeight);
+      ctx.strokeRect(chestX + chestWidth * 0.84, chestY, size * 0.04, chestHeight);
+
+      // Metal highlights
+      ctx.fillStyle = metalLight;
+      ctx.fillRect(chestX + chestWidth * 0.12, chestY, size * 0.015, chestHeight);
+      ctx.fillRect(chestX + chestWidth * 0.84, chestY, size * 0.015, chestHeight);
 
       // Lock (golden padlock)
-      const lockSize = size * 0.2;
-      const lockX = -lockSize / 2;
-      const lockY = chestY + chestHeight * 0.3;
+      const lockSize = size * 0.18;
+      const lockY = chestY + chestHeight * 0.35;
+      const goldMain = '#FFD700';
+      const goldDark = '#B8860B';
+      const goldLight = '#FFF8DC';
 
-      // Lock body
-      ctx.fillStyle = '#FFD700';
-      ctx.fillRect(lockX, lockY, lockSize, lockSize * 0.8);
-
-      // Lock shackle (the curved part)
-      ctx.strokeStyle = '#FFD700';
-      ctx.lineWidth = size * 0.05;
+      // Lock shackle outline and fill
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(0, lockY, lockSize * 0.35, Math.PI, 0, false);
+      ctx.arc(0, lockY, lockSize * 0.38, Math.PI, 0, false);
       ctx.stroke();
+      ctx.strokeStyle = goldMain;
+      ctx.lineWidth = size * 0.045;
+      ctx.beginPath();
+      ctx.arc(0, lockY, lockSize * 0.38, Math.PI, 0, false);
+      ctx.stroke();
+
+      // Lock body outline
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-lockSize / 2, lockY, lockSize, lockSize * 0.75);
+      // Lock body fill
+      const lockGrad = ctx.createLinearGradient(-lockSize / 2, lockY, lockSize / 2, lockY);
+      lockGrad.addColorStop(0, goldDark);
+      lockGrad.addColorStop(0.3, goldMain);
+      lockGrad.addColorStop(0.5, goldLight);
+      lockGrad.addColorStop(0.7, goldMain);
+      lockGrad.addColorStop(1, goldDark);
+      ctx.fillStyle = lockGrad;
+      ctx.fillRect(-lockSize / 2, lockY, lockSize, lockSize * 0.75);
 
       // Keyhole
       ctx.fillStyle = '#1a1a1a';
       ctx.beginPath();
-      ctx.arc(0, lockY + lockSize * 0.35, lockSize * 0.12, 0, Math.PI * 2);
+      ctx.arc(0, lockY + lockSize * 0.3, lockSize * 0.12, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillRect(-lockSize * 0.06, lockY + lockSize * 0.4, lockSize * 0.12, lockSize * 0.25);
+      ctx.fillRect(-lockSize * 0.05, lockY + lockSize * 0.35, lockSize * 0.1, lockSize * 0.25);
 
       ctx.shadowBlur = 0;
       ctx.shadowOffsetX = 0;
@@ -483,56 +586,248 @@ export const Maze: React.FC<MazeProps> = ({
       ctx.restore();
     };
 
-    // Helper to draw emoji/icon centered in cell (fully opaque)
-    const drawIcon = (pos: Position, icon: string, scale = 0.65) => {
-      const cellX = pos.x * cellSize;
-      const cellY = pos.y * cellSize;
-      const fontSize = cellSize * scale;
+    // Helper to draw a custom ornate key
+    const drawKey = (pos: Position, scale: number) => {
+      const cellX = pos.x * cellSize + cellSize / 2;
+      const cellY = pos.y * cellSize + cellSize / 2;
+      const size = cellSize * scale;
 
-      ctx.font = `${fontSize}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      ctx.save();
+      ctx.translate(cellX, cellY);
+      ctx.rotate(-Math.PI / 4); // Rotate 45 degrees for dynamic look
 
-      // Draw with shadow for better visibility
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
-      ctx.shadowBlur = 6;
+      // Shadow for depth
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+      ctx.shadowBlur = 5;
       ctx.shadowOffsetX = 2;
       ctx.shadowOffsetY = 2;
+
+      const goldMain = '#FFD700';
+      const goldDark = '#B8860B';
+      const goldLight = '#FFF8DC';
+      const outline = '#4a3000';
+
+      // Key shaft (the long part)
+      const shaftLength = size * 0.55;
+      const shaftWidth = size * 0.12;
+
+      // Draw outline first (slightly larger)
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      // Shaft outline
+      ctx.beginPath();
+      ctx.roundRect(-shaftWidth / 2, -size * 0.1, shaftWidth, shaftLength, 2);
+      ctx.stroke();
+
+      // Shaft fill with gradient
+      const shaftGrad = ctx.createLinearGradient(-shaftWidth / 2, 0, shaftWidth / 2, 0);
+      shaftGrad.addColorStop(0, goldDark);
+      shaftGrad.addColorStop(0.3, goldMain);
+      shaftGrad.addColorStop(0.5, goldLight);
+      shaftGrad.addColorStop(0.7, goldMain);
+      shaftGrad.addColorStop(1, goldDark);
+      ctx.fillStyle = shaftGrad;
+      ctx.beginPath();
+      ctx.roundRect(-shaftWidth / 2, -size * 0.1, shaftWidth, shaftLength, 2);
+      ctx.fill();
+
+      // Key bow (the decorative round part at top)
+      const bowRadius = size * 0.22;
+      const bowY = -size * 0.1 - bowRadius * 0.7;
+
+      // Bow outline
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, bowY, bowRadius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Bow fill with gradient
+      const bowGrad = ctx.createRadialGradient(
+        -bowRadius * 0.3, bowY - bowRadius * 0.3, 0,
+        0, bowY, bowRadius
+      );
+      bowGrad.addColorStop(0, goldLight);
+      bowGrad.addColorStop(0.4, goldMain);
+      bowGrad.addColorStop(1, goldDark);
+      ctx.fillStyle = bowGrad;
+      ctx.beginPath();
+      ctx.arc(0, bowY, bowRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Inner hole in bow (decorative)
+      ctx.fillStyle = '#1a1a1a';
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, bowY, bowRadius * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Key teeth (the bits at the end)
+      const teethY = -size * 0.1 + shaftLength;
+      const toothWidth = size * 0.08;
+      const toothHeight = size * 0.12;
+
+      // Tooth 1 (left)
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.rect(-shaftWidth / 2 - toothWidth, teethY - toothHeight, toothWidth, toothHeight);
+      ctx.stroke();
+      ctx.fillStyle = goldMain;
+      ctx.fill();
+
+      // Tooth 2 (bottom left)
+      ctx.beginPath();
+      ctx.rect(-shaftWidth / 2 - toothWidth * 0.7, teethY - toothHeight * 0.5, toothWidth * 0.7, toothHeight * 0.5);
+      ctx.stroke();
+      ctx.fillStyle = goldDark;
+      ctx.fill();
+
+      // Notch in shaft (decorative detail)
+      ctx.fillStyle = goldDark;
+      ctx.fillRect(-shaftWidth / 2, teethY - toothHeight * 1.8, shaftWidth, size * 0.04);
+
+      // Highlight line on shaft
+      ctx.strokeStyle = goldLight;
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath();
+      ctx.moveTo(0, -size * 0.05);
+      ctx.lineTo(0, teethY - toothHeight * 2);
+      ctx.stroke();
       ctx.globalAlpha = 1.0;
-      ctx.fillText(icon, cellX + cellSize / 2, cellY + cellSize / 2);
+
       ctx.shadowBlur = 0;
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 0;
+      ctx.restore();
     };
 
-    // Draw treasure chest with enhanced glow (icons render AFTER arrows, so on top)
-    const glowRadius = cellSize * 0.8;
+    // Helper to draw a custom royal crown
+    const drawCrown = (pos: Position, scale: number) => {
+      const cellX = pos.x * cellSize + cellSize / 2;
+      const cellY = pos.y * cellSize + cellSize / 2;
+      const size = cellSize * scale;
 
-    // Draw multiple glow layers for the treasure chest to make it stand out
-    // Uses chestAuraColor which changes based on hasKey
-    drawGlow(doorPos, chestAuraColor, glowRadius * 2.0);
-    drawGlow(doorPos, chestAuraColor, glowRadius * 1.5);
-    drawGlow(doorPos, chestAuraColor, glowRadius);
+      ctx.save();
+      ctx.translate(cellX, cellY);
 
-    // Draw a colored square behind the treasure chest for extra visibility
-    const doorCellX = doorPos.x * cellSize;
-    const doorCellY = doorPos.y * cellSize;
-    const chestBgColor = hasKey ? 'rgba(144, 238, 144, 0.3)' : 'rgba(180, 50, 50, 0.3)';
-    ctx.fillStyle = chestBgColor;
-    ctx.fillRect(doorCellX + cellSize * 0.1, doorCellY + cellSize * 0.1, cellSize * 0.8, cellSize * 0.8);
+      // Shadow for depth
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+      ctx.shadowBlur = 5;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+
+      const goldMain = '#FFD700';
+      const goldDark = '#B8860B';
+      const goldLight = '#FFF8DC';
+      const outline = '#4a3000';
+      const gemRed = '#DC143C';
+
+      // Crown dimensions - wider and bolder
+      const baseWidth = size * 0.9;
+      const baseHeight = size * 0.2;
+      const baseY = size * 0.15;
+      const crownHeight = size * 0.5;
+
+      // Draw crown body with 3 bold points (simpler, more readable)
+      ctx.beginPath();
+      ctx.moveTo(-baseWidth / 2, baseY);
+      // Left point
+      ctx.lineTo(-baseWidth * 0.35, baseY - crownHeight * 0.7);
+      // Left valley
+      ctx.lineTo(-baseWidth * 0.17, baseY - crownHeight * 0.3);
+      // Center point (tallest)
+      ctx.lineTo(0, baseY - crownHeight);
+      // Right valley
+      ctx.lineTo(baseWidth * 0.17, baseY - crownHeight * 0.3);
+      // Right point
+      ctx.lineTo(baseWidth * 0.35, baseY - crownHeight * 0.7);
+      ctx.lineTo(baseWidth / 2, baseY);
+      ctx.closePath();
+
+      // Crown outline - thicker for visibility
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Crown fill with gradient
+      const crownGrad = ctx.createLinearGradient(0, baseY - crownHeight, 0, baseY);
+      crownGrad.addColorStop(0, goldLight);
+      crownGrad.addColorStop(0.4, goldMain);
+      crownGrad.addColorStop(1, goldDark);
+      ctx.fillStyle = crownGrad;
+      ctx.fill();
+
+      // Base band outline and fill
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(-baseWidth / 2, baseY, baseWidth, baseHeight, 3);
+      ctx.stroke();
+
+      const baseGrad = ctx.createLinearGradient(-baseWidth / 2, baseY, baseWidth / 2, baseY);
+      baseGrad.addColorStop(0, goldDark);
+      baseGrad.addColorStop(0.3, goldMain);
+      baseGrad.addColorStop(0.5, goldLight);
+      baseGrad.addColorStop(0.7, goldMain);
+      baseGrad.addColorStop(1, goldDark);
+      ctx.fillStyle = baseGrad;
+      ctx.fill();
+
+      // Large center gem (ruby) - more visible
+      const gemSize = size * 0.1;
+      ctx.fillStyle = gemRed;
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, baseY - crownHeight + gemSize * 2, gemSize, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Gem highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.beginPath();
+      ctx.arc(-gemSize * 0.3, baseY - crownHeight + gemSize * 1.7, gemSize * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Base band center gem
+      ctx.fillStyle = gemRed;
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, baseY + baseHeight / 2, gemSize * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+      ctx.restore();
+    };
+
+    // Draw treasure chest with accessible square highlights
+    // Chest color: red when locked, green when unlocked
+    const chestColor = hasKey ? { r: 100, g: 200, b: 100 } : { r: 200, g: 60, b: 60 };
+    drawAccessibleHighlight(doorPos, chestColor, 2);
 
     // Draw custom locked treasure chest icon
     drawLockedChest(doorPos, 0.9);
 
-    // Draw key with glow (if not collected)
+    // Draw key with gold accessible square highlights (if not collected)
     if (keyPos !== null) {
-      drawGlow(keyPos, goldAuraColor, glowRadius);
-      drawIcon(keyPos, '🔑', 0.65);
+      const keyColor = { r: 255, g: 200, b: 50 };
+      drawAccessibleHighlight(keyPos, keyColor, 2);
+      drawKey(keyPos, 0.85);
     }
 
-    // Draw player (crown) with stronger glow
-    drawGlow(playerPos, goldAuraColor, glowRadius * 1.2);
-    drawIcon(playerPos, '👑', 0.75);
+    // Draw player (crown)
+    drawCrown(playerPos, 0.85);
 
     ctx.restore();
   }, [maze, playerPos, keyPos, doorPos, hasKey, colors, zoom, visited]);
