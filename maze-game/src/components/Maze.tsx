@@ -199,6 +199,75 @@ export const Maze: React.FC<MazeProps> = ({
     drawGlow(playerPos, colors.playerGlowColor, glowRadius * 1.2);
     drawIcon(playerPos, '👑', 0.75);
 
+    // Draw wraparound arrows at edges where passages exist
+    const arrowSize = cellSize * 0.25;
+    const arrowColor = 'rgba(255, 255, 255, 0.4)';
+    ctx.fillStyle = arrowColor;
+
+    // Helper to draw a small arrow
+    const drawArrow = (x: number, y: number, direction: 'up' | 'down' | 'left' | 'right') => {
+      ctx.save();
+      ctx.translate(x, y);
+
+      // Rotate based on direction
+      const rotations = { up: 0, right: Math.PI / 2, down: Math.PI, left: -Math.PI / 2 };
+      ctx.rotate(rotations[direction]);
+
+      // Draw arrow pointing up (will be rotated)
+      ctx.beginPath();
+      ctx.moveTo(0, -arrowSize / 2);
+      ctx.lineTo(arrowSize / 2, arrowSize / 2);
+      ctx.lineTo(-arrowSize / 2, arrowSize / 2);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+    };
+
+    // Check top edge (y=0) for passages that wrap from bottom
+    for (let x = 0; x < maze.width; x++) {
+      const bottomCell = maze.cells[maze.height - 1][x];
+      if (!bottomCell.southWall) {
+        // Passage wraps from bottom to top - draw down arrow at top
+        const cellX = x * cellSize + cellSize / 2;
+        const cellY = arrowSize * 0.8;
+        drawArrow(cellX, cellY, 'down');
+      }
+    }
+
+    // Check bottom edge for passages that wrap to top
+    for (let x = 0; x < maze.width; x++) {
+      const bottomCell = maze.cells[maze.height - 1][x];
+      if (!bottomCell.southWall) {
+        // Passage wraps to top - draw up arrow at bottom
+        const cellX = x * cellSize + cellSize / 2;
+        const cellY = maze.height * cellSize - arrowSize * 0.8;
+        drawArrow(cellX, cellY, 'up');
+      }
+    }
+
+    // Check left edge (x=0) for passages that wrap from right
+    for (let y = 0; y < maze.height; y++) {
+      const rightCell = maze.cells[y][maze.width - 1];
+      if (!rightCell.eastWall) {
+        // Passage wraps from right to left - draw right arrow at left
+        const cellX = arrowSize * 0.8;
+        const cellY = y * cellSize + cellSize / 2;
+        drawArrow(cellX, cellY, 'right');
+      }
+    }
+
+    // Check right edge for passages that wrap to left
+    for (let y = 0; y < maze.height; y++) {
+      const rightCell = maze.cells[y][maze.width - 1];
+      if (!rightCell.eastWall) {
+        // Passage wraps to left - draw left arrow at right
+        const cellX = maze.width * cellSize - arrowSize * 0.8;
+        const cellY = y * cellSize + cellSize / 2;
+        drawArrow(cellX, cellY, 'left');
+      }
+    }
+
     ctx.restore();
   }, [maze, playerPos, keyPos, doorPos, hasKey, colors, zoom, visited]);
 
