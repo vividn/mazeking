@@ -488,7 +488,7 @@ function generateNonTextMazePaths(maze: MazeData, rng: Rng): void {
   }
 }
 
-function findValidPositions(maze: MazeData, rng: Rng): { kingPos: Position; keyPos: Position; doorPos: Position } {
+function findValidPositions(maze: MazeData, rng: Rng): { kingPos: Position; keyPos: Position; goalPos: Position } {
   const { width, height, cells } = maze;
 
   const candidates: Position[] = [];
@@ -516,24 +516,24 @@ function findValidPositions(maze: MazeData, rng: Rng): { kingPos: Position; keyP
     }
   }
 
-  let doorPos = shuffled[2];
+  let goalPos = shuffled[2];
   for (const pos of shuffled.slice(2)) {
     const distKing = Math.abs(pos.x - kingPos.x) + Math.abs(pos.y - kingPos.y);
     const distKey = Math.abs(pos.x - keyPos.x) + Math.abs(pos.y - keyPos.y);
     if (distKing > width / 4 && distKey > width / 4) {
-      doorPos = pos;
+      goalPos = pos;
       break;
     }
   }
 
-  return { kingPos, keyPos, doorPos };
+  return { kingPos, keyPos, goalPos };
 }
 
 export interface GeneratedMaze {
   maze: MazeData;
   kingPos: Position;
   keyPos: Position;
-  doorPos: Position;
+  goalPos: Position;
 }
 
 export function generateMaze(seed: string): GeneratedMaze {
@@ -557,10 +557,10 @@ export function generateMaze(seed: string): GeneratedMaze {
   // 5. Generate maze paths for non-text areas
   generateNonTextMazePaths(maze, rng);
 
-  // 6. Find positions for king, key, door
-  const { kingPos, keyPos, doorPos } = findValidPositions(maze, rng);
+  // 6. Find positions for king, key, goal
+  const { kingPos, keyPos, goalPos } = findValidPositions(maze, rng);
 
-  return { maze, kingPos, keyPos, doorPos };
+  return { maze, kingPos, keyPos, goalPos };
 }
 
 export function canMove(maze: MazeData, from: Position, direction: 'up' | 'down' | 'left' | 'right'): boolean {

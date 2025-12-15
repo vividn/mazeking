@@ -12,7 +12,7 @@ describe('generateMaze', () => {
       expect(result1.maze.height).toBe(result2.maze.height);
       expect(result1.kingPos).toEqual(result2.kingPos);
       expect(result1.keyPos).toEqual(result2.keyPos);
-      expect(result1.doorPos).toEqual(result2.doorPos);
+      expect(result1.goalPos).toEqual(result2.goalPos);
 
       // Check all cells are identical
       for (let y = 0; y < result1.maze.height; y++) {
@@ -59,7 +59,7 @@ describe('generateMaze', () => {
 
         expect(result1.kingPos).toEqual(result2.kingPos);
         expect(result1.keyPos).toEqual(result2.keyPos);
-        expect(result1.doorPos).toEqual(result2.doorPos);
+        expect(result1.goalPos).toEqual(result2.goalPos);
       }
     });
   });
@@ -146,14 +146,14 @@ describe('generateMaze', () => {
       expect(reachable.has(keyKey)).toBe(true);
     });
 
-    it('door position is reachable from king position', () => {
-      const result = generateMaze('door-reachable-test');
-      const { maze, kingPos, doorPos } = result;
+    it('goal position is reachable from king position', () => {
+      const result = generateMaze('goal-reachable-test');
+      const { maze, kingPos, goalPos } = result;
 
       const reachable = findReachableCells(maze, kingPos);
-      const doorKey = `${doorPos.x},${doorPos.y}`;
+      const goalKey = `${goalPos.x},${goalPos.y}`;
 
-      expect(reachable.has(doorKey)).toBe(true);
+      expect(reachable.has(goalKey)).toBe(true);
     });
 
     it('enclosed regions are accessible for seeds with O', () => {
@@ -234,7 +234,7 @@ describe('generateMaze', () => {
 
     it('all positions are within maze bounds', () => {
       const result = generateMaze('bounds-test');
-      const { maze, kingPos, keyPos, doorPos } = result;
+      const { maze, kingPos, keyPos, goalPos } = result;
 
       expect(kingPos.x).toBeGreaterThanOrEqual(0);
       expect(kingPos.x).toBeLessThan(maze.width);
@@ -246,23 +246,23 @@ describe('generateMaze', () => {
       expect(keyPos.y).toBeGreaterThanOrEqual(0);
       expect(keyPos.y).toBeLessThan(maze.height);
 
-      expect(doorPos.x).toBeGreaterThanOrEqual(0);
-      expect(doorPos.x).toBeLessThan(maze.width);
-      expect(doorPos.y).toBeGreaterThanOrEqual(0);
-      expect(doorPos.y).toBeLessThan(maze.height);
+      expect(goalPos.x).toBeGreaterThanOrEqual(0);
+      expect(goalPos.x).toBeLessThan(maze.width);
+      expect(goalPos.y).toBeGreaterThanOrEqual(0);
+      expect(goalPos.y).toBeLessThan(maze.height);
     });
 
-    it('king, key, and door are at different positions', () => {
+    it('king, key, and goal are at different positions', () => {
       const result = generateMaze('positions-test');
-      const { kingPos, keyPos, doorPos } = result;
+      const { kingPos, keyPos, goalPos } = result;
 
       const kingKey = `${kingPos.x},${kingPos.y}`;
       const keyKey = `${keyPos.x},${keyPos.y}`;
-      const doorKey = `${doorPos.x},${doorPos.y}`;
+      const goalKey = `${goalPos.x},${goalPos.y}`;
 
       expect(kingKey).not.toBe(keyKey);
-      expect(kingKey).not.toBe(doorKey);
-      expect(keyKey).not.toBe(doorKey);
+      expect(kingKey).not.toBe(goalKey);
+      expect(keyKey).not.toBe(goalKey);
     });
 
     it('text cells are marked correctly', () => {

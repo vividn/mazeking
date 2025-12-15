@@ -6,7 +6,7 @@ interface MazeProps {
   maze: MazeData;
   playerPos: Position;
   keyPos: Position | null;
-  doorPos: Position;
+  goalPos: Position;
   hasKey: boolean;
   colors: ColorScheme;
   zoom: number;
@@ -14,14 +14,14 @@ interface MazeProps {
 }
 
 /**
- * Maze renderer component that displays the toroidal maze with player, key, and door.
+ * Maze renderer component that displays the toroidal maze with player, key, and goal.
  * Uses Canvas for performant rendering with zoom support centered on player.
  */
 export const Maze: React.FC<MazeProps> = ({
   maze,
   playerPos,
   keyPos,
-  doorPos,
+  goalPos,
   hasKey,
   colors,
   zoom,
@@ -367,10 +367,10 @@ export const Maze: React.FC<MazeProps> = ({
     // Draw treasure chest with accessible square highlights
     // Chest color: red when locked, green when unlocked
     const chestColor = hasKey ? { r: 100, g: 200, b: 100 } : { r: 200, g: 60, b: 60 };
-    drawAccessibleHighlight(doorPos, chestColor, 2);
+    drawAccessibleHighlight(goalPos, chestColor, 2);
 
     // Draw treasure chest icon (open with gold when player has key)
-    drawChest(ctx, doorPos.x * cellSize + cellSize / 2, doorPos.y * cellSize + cellSize / 2, cellSize * 0.9, hasKey);
+    drawChest(ctx, goalPos.x * cellSize + cellSize / 2, goalPos.y * cellSize + cellSize / 2, cellSize * 0.9, hasKey);
 
     // Draw key with gold accessible square highlights (if not collected)
     if (keyPos !== null) {
@@ -383,7 +383,7 @@ export const Maze: React.FC<MazeProps> = ({
     drawCrown(ctx, playerPos.x * cellSize + cellSize / 2, playerPos.y * cellSize + cellSize / 2, cellSize * 0.85);
 
     ctx.restore();
-  }, [maze, playerPos, keyPos, doorPos, hasKey, colors, zoom, visited]);
+  }, [maze, playerPos, keyPos, goalPos, hasKey, colors, zoom, visited]);
 
   // Handle window resize
   useEffect(() => {
@@ -423,7 +423,7 @@ export const Maze: React.FC<MazeProps> = ({
           display: 'block',
           imageRendering: 'crisp-edges'
         }}
-        aria-label={`Maze grid ${maze.width} by ${maze.height}. Player at ${playerPos.x}, ${playerPos.y}. ${hasKey ? 'Key collected' : `Key at ${keyPos?.x}, ${keyPos?.y}`}. Door at ${doorPos.x}, ${doorPos.y}.`}
+        aria-label={`Maze grid ${maze.width} by ${maze.height}. Player at ${playerPos.x}, ${playerPos.y}. ${hasKey ? 'Key collected' : `Key at ${keyPos?.x}, ${keyPos?.y}`}. Goal at ${goalPos.x}, ${goalPos.y}.`}
         role="img"
       />
     </div>

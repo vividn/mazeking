@@ -98,7 +98,7 @@ export function WinModal({
   const moveCountStyle: React.CSSProperties = {
     fontSize: '48px',
     fontWeight: 'bold',
-    color: colors.doorColor,
+    color: colors.goalColor,
     lineHeight: 1,
     textShadow: `2px 2px 4px rgba(0, 0, 0, 0.15)`,
   };

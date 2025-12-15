@@ -3,13 +3,13 @@ import type { Cell, Position, MazeData, Move } from '../types';
 /**
  * Serializes a maze and its key positions into a compact binary format.
  * Each cell uses 3 bits: southWall (1 bit) + eastWall (1 bit) + isTextCell (1 bit)
- * Format: [width: 2 bytes][height: 2 bytes][kingPos: 4 bytes][keyPos: 4 bytes][doorPos: 4 bytes][cells: variable]
+ * Format: [width: 2 bytes][height: 2 bytes][kingPos: 4 bytes][keyPos: 4 bytes][goalPos: 4 bytes][cells: variable]
  */
 export function serializeMaze(
   maze: MazeData,
   kingPos: Position,
   keyPos: Position,
-  doorPos: Position
+  goalPos: Position
 ): string {
   const { width, height, cells } = maze;
 
@@ -18,7 +18,7 @@ export function serializeMaze(
   const cellBits = totalCells * 3;
   const cellBytes = Math.ceil(cellBits / 8);
 
-  // Total buffer: 2 (width) + 2 (height) + 4 (kingPos) + 4 (keyPos) + 4 (doorPos) + cellBytes
+  // Total buffer: 2 (width) + 2 (height) + 4 (kingPos) + 4 (keyPos) + 4 (goalPos) + cellBytes
   const buffer = new ArrayBuffer(2 + 2 + 4 + 4 + 4 + cellBytes);
   const view = new DataView(buffer);
   const byteArray = new Uint8Array(buffer);
@@ -42,9 +42,9 @@ export function serializeMaze(
   view.setUint16(offset, keyPos.y, false);
   offset += 2;
 
-  view.setUint16(offset, doorPos.x, false);
+  view.setUint16(offset, goalPos.x, false);
   offset += 2;
-  view.setUint16(offset, doorPos.y, false);
+  view.setUint16(offset, goalPos.y, false);
   offset += 2;
 
   // Pack cell data into bits
@@ -83,7 +83,7 @@ export function deserializeMaze(data: string): {
   maze: MazeData;
   kingPos: Position;
   keyPos: Position;
-  doorPos: Position;
+  goalPos: Position;
 } {
   // Convert hex string to buffer
   const bytes = new Uint8Array(data.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
@@ -111,7 +111,7 @@ export function deserializeMaze(data: string): {
   };
   offset += 4;
 
-  const doorPos: Position = {
+  const goalPos: Position = {
     x: view.getUint16(offset, false),
     y: view.getUint16(offset + 2, false)
   };
@@ -144,7 +144,7 @@ export function deserializeMaze(data: string): {
     maze: { cells, width, height },
     kingPos,
     keyPos,
-    doorPos
+    goalPos
   };
 }
 

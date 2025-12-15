@@ -12,12 +12,12 @@ export interface ColorScheme {
   zkVisitedColor: string;       // Visited color for Z/K letters
   playerColor: string;
   keyColor: string;
-  doorColor: string;
+  goalColor: string;
   uiAccentColor: string;
   // Highlight colors for entities
   playerGlowColor: string;
   keyGlowColor: string;
-  doorGlowColor: string;
+  goalGlowColor: string;
 }
 
 /**
@@ -77,10 +77,10 @@ export function generateColorScheme(seed: string): ColorScheme {
   const keyColor = hsl(keyHue, 85 + rng.next() * 15, 50 + rng.next() * 10);
   const keyGlowColor = hsla(keyHue, 100, 55, 0.5);
 
-  // Door color: distinct, inviting
-  const doorHue = (baseHue + 90 + rng.next() * 60 - 30) % 360;
-  const doorColor = hsl(doorHue, 60 + rng.next() * 25, 45 + rng.next() * 15);
-  const doorGlowColor = hsla(doorHue, 80, 50, 0.5);
+  // Goal color: distinct, inviting
+  const goalHue = (baseHue + 90 + rng.next() * 60 - 30) % 360;
+  const goalColor = hsl(goalHue, 60 + rng.next() * 25, 45 + rng.next() * 15);
+  const goalGlowColor = hsla(goalHue, 80, 50, 0.5);
 
   // UI accent: vibrant, distinct from other colors
   const uiHue = (baseHue + 210 + rng.next() * 60 - 30) % 360;
@@ -98,10 +98,10 @@ export function generateColorScheme(seed: string): ColorScheme {
     zkVisitedColor,
     playerColor,
     keyColor,
-    doorColor,
+    goalColor,
     uiAccentColor,
     playerGlowColor,
     keyGlowColor,
-    doorGlowColor,
+    goalGlowColor,
   };
 }

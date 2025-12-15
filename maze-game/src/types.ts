@@ -2,8 +2,8 @@
  * Type definitions for the toroidal maze game.
  *
  * The maze is a toroidal (wrapping) grid where the player (king) must:
- * 1. Collect a key
- * 2. Reach the door to win
+ * 1. Collect the key
+ * 2. Reach the goal to win
  *
  * Move history is tracked for future zero-knowledge proof generation.
  */
@@ -71,8 +71,8 @@ export interface GameState {
   /** Position of the key to collect */
   keyPos: Position;
 
-  /** Position of the door (win condition) */
-  doorPos: Position;
+  /** Position of the goal (win condition) */
+  goalPos: Position;
 
   /** True if the player has collected the key */
   hasKey: boolean;
@@ -83,7 +83,7 @@ export interface GameState {
   /** Array of all moves made (for ZK proof) */
   moves: Move[];
 
-  /** True if the player has won (collected key and reached door) */
+  /** True if the player has won (collected key and reached goal) */
   gameWon: boolean;
 }
 
@@ -101,8 +101,8 @@ export interface SerializedMaze {
   /** Key position */
   startKeyPos: Position;
 
-  /** Door position */
-  startDoorPos: Position;
+  /** Goal position */
+  startGoalPos: Position;
 }
 
 /**
@@ -143,8 +143,8 @@ export interface ColorScheme {
   /** Color for the key sprite/indicator */
   keyColor: string;
 
-  /** Color for the door sprite/indicator */
-  doorColor: string;
+  /** Color for the goal sprite/indicator */
+  goalColor: string;
 
   /** Accent color for UI elements */
   uiAccentColor: string;
@@ -155,6 +155,6 @@ export interface ColorScheme {
   /** Glow color for key highlight */
   keyGlowColor: string;
 
-  /** Glow color for door highlight */
-  doorGlowColor: string;
+  /** Glow color for goal highlight */
+  goalGlowColor: string;
 }

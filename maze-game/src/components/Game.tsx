@@ -55,7 +55,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
     setGameState({
       playerPos: { ...generated.kingPos },
       keyPos: { ...generated.keyPos },
-      doorPos: { ...generated.doorPos },
+      goalPos: { ...generated.goalPos },
       hasKey: false,
       moveCount: 0,
       moves: [],
@@ -97,8 +97,8 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
           newState.keyPos = { x: -1, y: -1 }; // Mark as collected
         }
 
-        // Check if reached door with key
-        if (newState.hasKey && newPos.x === prev.doorPos.x && newPos.y === prev.doorPos.y) {
+        // Check if reached goal with key
+        if (newState.hasKey && newPos.x === prev.goalPos.x && newPos.y === prev.goalPos.y) {
           newState.gameWon = true;
         }
 
@@ -213,7 +213,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
           maze={maze}
           playerPos={gameState.playerPos}
           keyPos={gameState.keyPos.x >= 0 ? gameState.keyPos : null}
-          doorPos={gameState.doorPos}
+          goalPos={gameState.goalPos}
           hasKey={gameState.hasKey}
           colors={colors}
           zoom={zoom}
