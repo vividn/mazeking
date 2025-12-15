@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { GameState, MazeData, Move, ColorScheme } from '../types';
 import { generateMaze, canMove, getNewPosition } from '../lib/mazeGenerator';
 import { generateColorScheme } from '../lib/colorGenerator';
+import { addSeedToHistory } from '../lib/seedHistory';
 import { Maze } from './Maze';
 import { Controls } from './Controls';
-import { SeedInput } from './SeedInput';
 import { WinModal } from './WinModal';
+import { NewGameModal } from './NewGameModal';
 
 interface GameProps {
   initialSeed: string;
@@ -27,7 +28,8 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   const [visited, setVisited] = useState<Set<string>>(new Set());
   const [zoom, setZoom] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
-  const [inputFocused, setInputFocused] = useState(false);
+  const [newGameModalOpen, setNewGameModalOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const gameContainerRef = useRef<HTMLDivElement>(null);
 
   // Detect mobile
@@ -63,6 +65,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
     });
     setSeed(newSeed);
     onSeedChange(newSeed);
+    addSeedToHistory(newSeed);
   }, [onSeedChange]);
 
   // Initialize on mount or seed change
@@ -107,16 +110,23 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
     }
   }, [maze, gameState]);
 
-  // Keyboard controls - only when input is not focused
+  // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle keys when typing in an input
-      if (inputFocused) return;
+      // Don't handle keys when modal is open
+      if (newGameModalOpen) return;
 
       // R key restarts the game (works even when won)
       if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
         initGame(seed);
+        return;
+      }
+
+      // N key opens new game modal
+      if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        setNewGameModalOpen(true);
         return;
       }
 
@@ -156,10 +166,11 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleMove, gameState?.gameWon, inputFocused, initGame, seed]);
+  }, [handleMove, gameState?.gameWon, newGameModalOpen, initGame, seed]);
 
-  const handleSeedChange = (newSeed: string) => {
+  const handleNewGameStart = (newSeed: string) => {
     initGame(newSeed);
+    setNewGameModalOpen(false);
   };
 
   const handlePlayAgain = () => {
@@ -167,13 +178,30 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   };
 
   const handleNewMaze = () => {
-    const randomSeed = 'MAZE' + Date.now().toString(36).toUpperCase();
-    initGame(randomSeed);
+    setNewGameModalOpen(true);
   };
 
   const toggleZoom = () => {
     setZoom(prev => prev === 1 ? 2 : 1);
   };
+
+  const handleCopyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textarea = document.createElement('textarea');
+      textarea.value = window.location.href;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, []);
 
   if (!maze || !colors || !gameState) {
     return (
@@ -183,28 +211,58 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
     );
   }
 
+  // Calculate contrasting text color for buttons
+  const getContrastColor = (bgColor: string): string => {
+    // Parse hex color
+    const hex = bgColor.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    // Calculate luminance
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5 ? '#000000' : '#ffffff';
+  };
+
+  const buttonTextColor = getContrastColor(colors.uiAccentColor);
+
   return (
     <div style={styles.container} ref={gameContainerRef}>
       <div style={styles.header}>
-        <SeedInput
-          currentSeed={seed}
-          onSeedChange={handleSeedChange}
-          accentColor={colors.uiAccentColor}
-          onFocusChange={setInputFocused}
-        />
-        <div style={styles.stats}>
-          <span style={styles.stat}>
-            Moves: {gameState.moveCount}
-          </span>
-          <span style={{ ...styles.stat, color: gameState.hasKey ? colors.keyColor : '#666' }}>
-            {gameState.hasKey ? '🔑 Key collected!' : '🔑 Find the key'}
-          </span>
-          <button
-            onClick={toggleZoom}
-            style={{ ...styles.zoomButton, borderColor: colors.uiAccentColor }}
-          >
-            {zoom === 1 ? '🔍 Zoom In' : '🔍 Zoom Out'}
-          </button>
+        <div style={styles.headerRow}>
+          <div style={styles.statsGroup}>
+            <span style={styles.stat}>
+              Moves: <strong>{gameState.moveCount}</strong>
+            </span>
+            <span style={{ ...styles.stat, color: gameState.hasKey ? colors.keyColor : '#888' }}>
+              {gameState.hasKey ? 'Key collected!' : 'Find the key'}
+            </span>
+          </div>
+          <div style={styles.keymap}>
+            <span style={styles.keymapItem}>Move: <kbd style={styles.kbd}>Arrows</kbd> <kbd style={styles.kbd}>WASD</kbd></span>
+            <span style={styles.keymapItem}>Restart: <kbd style={styles.kbd}>R</kbd></span>
+            <span style={styles.keymapItem}>New: <kbd style={styles.kbd}>N</kbd></span>
+          </div>
+          <div style={styles.headerButtons}>
+            <button
+              onClick={toggleZoom}
+              style={{ ...styles.actionButton, backgroundColor: colors.wallColor, color: getContrastColor(colors.wallColor) }}
+            >
+              {zoom === 1 ? 'Zoom In' : 'Zoom Out'}
+            </button>
+            <button
+              onClick={handleCopyLink}
+              style={{ ...styles.actionButton, backgroundColor: colors.textBackgroundColor, color: getContrastColor(colors.textBackgroundColor) }}
+              title="Copy link to clipboard"
+            >
+              {copied ? 'Copied!' : 'Share'}
+            </button>
+            <button
+              onClick={() => setNewGameModalOpen(true)}
+              style={{ ...styles.actionButton, backgroundColor: colors.uiAccentColor, color: buttonTextColor }}
+            >
+              New Game
+            </button>
+          </div>
         </div>
       </div>
 
@@ -236,6 +294,15 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         onPlayAgain={handlePlayAgain}
         onNewMaze={handleNewMaze}
         colors={colors}
+        onCopyLink={handleCopyLink}
+        copied={copied}
+      />
+
+      <NewGameModal
+        isOpen={newGameModalOpen}
+        currentSeed={seed}
+        onStartGame={handleNewGameStart}
+        onCancel={() => setNewGameModalOpen(false)}
       />
     </div>
   );
@@ -253,28 +320,63 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: '8px',
-    padding: '12px',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    padding: '12px 16px',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     flexShrink: 0,
   },
-  stats: {
+  headerRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '16px',
+    flexWrap: 'wrap',
+  },
+  statsGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '20px',
+  },
+  stat: {
+    fontSize: '15px',
+    color: '#ddd',
+  },
+  keymap: {
     display: 'flex',
     alignItems: 'center',
     gap: '16px',
     flexWrap: 'wrap',
   },
-  stat: {
-    fontSize: '14px',
-    color: '#ccc',
+  keymapItem: {
+    fontSize: '13px',
+    color: 'rgba(255, 255, 255, 0.6)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
   },
-  zoomButton: {
-    padding: '6px 12px',
-    backgroundColor: 'transparent',
-    border: '1px solid',
-    borderRadius: '4px',
-    color: '#fff',
+  kbd: {
+    display: 'inline-block',
+    padding: '2px 6px',
+    fontSize: '11px',
+    fontFamily: 'monospace',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: '3px',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  headerButtons: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  actionButton: {
+    padding: '10px 18px',
+    border: 'none',
+    borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '12px',
+    fontSize: '14px',
+    fontWeight: 600,
+    transition: 'filter 0.15s ease, transform 0.1s ease',
+    whiteSpace: 'nowrap',
   },
   mazeContainer: {
     flex: 1,
@@ -282,6 +384,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
   loading: {
     display: 'flex',

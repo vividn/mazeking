@@ -8,6 +8,8 @@ interface WinModalProps {
   onPlayAgain: () => void;
   onNewMaze: () => void;
   colors: ColorScheme;
+  onCopyLink: () => void;
+  copied: boolean;
 }
 
 /**
@@ -22,6 +24,8 @@ export function WinModal({
   onPlayAgain,
   onNewMaze,
   colors,
+  onCopyLink,
+  copied,
 }: WinModalProps) {
   if (!isOpen) return null;
 
@@ -150,6 +154,14 @@ export function WinModal({
     color: colors.pathColor,
   };
 
+  const shareButtonStyle: React.CSSProperties = {
+    ...baseButtonStyle,
+    backgroundColor: 'transparent',
+    color: colors.uiAccentColor,
+    border: `2px solid ${colors.uiAccentColor}`,
+    boxShadow: 'none',
+  };
+
   const seedInfoStyle: React.CSSProperties = {
     marginTop: '24px',
     fontSize: '12px',
@@ -251,6 +263,15 @@ export function WinModal({
               aria-label="Generate a new maze"
             >
               New Maze
+            </button>
+
+            <button
+              className="win-button"
+              style={shareButtonStyle}
+              onClick={onCopyLink}
+              aria-label="Share this maze"
+            >
+              {copied ? 'Link Copied!' : 'Share Maze'}
             </button>
           </div>
 

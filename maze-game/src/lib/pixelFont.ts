@@ -1054,3 +1054,16 @@ export function calculateEntryCountRange(boundarySize: number, isInternal: boole
 
   return { min, max };
 }
+
+// Set of valid characters that exist in the pixel font
+export const VALID_CHARS = new Set(Object.keys(PIXEL_FONT));
+
+// Check if a character is valid for use in seeds
+export function isValidChar(char: string): boolean {
+  return VALID_CHARS.has(char) || VALID_CHARS.has(char.toUpperCase());
+}
+
+// Filter a string to only include valid characters
+export function filterToValidChars(str: string): string {
+  return str.split('').filter(char => isValidChar(char)).join('');
+}
