@@ -126,24 +126,28 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         case 'ArrowUp':
         case 'w':
         case 'W':
+        case 'k':
           e.preventDefault();
           handleMove('up');
           break;
         case 'ArrowDown':
         case 's':
         case 'S':
+        case 'j':
           e.preventDefault();
           handleMove('down');
           break;
         case 'ArrowLeft':
         case 'a':
         case 'A':
+        case 'h':
           e.preventDefault();
           handleMove('left');
           break;
         case 'ArrowRight':
         case 'd':
         case 'D':
+        case 'l':
           e.preventDefault();
           handleMove('right');
           break;

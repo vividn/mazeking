@@ -785,9 +785,6 @@ export function getTextDimensions(text: string): { width: number; height: number
 // Get entry points for a character based on filled edge cells
 export function getEntryPoints(char: string): EntryPoint[] {
   let pattern = PIXEL_FONT[char];
-  if (!pattern) {
-    pattern = PIXEL_FONT[char.toUpperCase()];
-  }
   if (!pattern) return [];
 
   const points: EntryPoint[] = [];
