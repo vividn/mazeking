@@ -3,7 +3,8 @@ import { getCharWidth, getTextDimensions, getCharPattern, getCharacterBoundaries
 import type { Cell, MazeData, Position } from '../types';
 
 const CHAR_HEIGHT = 8;
-const CHAR_SPACING = 1;
+const CHAR_SPACING = 1; 
+const LINE_SPACING = 3;
 const MARGIN_CHARS = 1.5; // 1.5 character-widths of margin
 
 const WRAP_WIDTH_CELLS = 50;
@@ -56,7 +57,7 @@ function layoutText(text: string): TextLayout {
   return {
     lines,
     width: maxWidth,
-    height: lines.length * (CHAR_HEIGHT + CHAR_SPACING) - CHAR_SPACING
+    height: lines.length * (CHAR_HEIGHT + LINE_SPACING) - LINE_SPACING
   };
 }
 
@@ -146,7 +147,7 @@ function embedTextCells(maze: MazeData, textLayout: TextLayout): CharPlacement[]
       currentX += charWidth + CHAR_SPACING;
     }
 
-    currentY += CHAR_HEIGHT + CHAR_SPACING;
+    currentY += CHAR_HEIGHT + LINE_SPACING;
   }
 
   return placements;
