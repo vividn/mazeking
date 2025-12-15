@@ -1027,15 +1027,8 @@ export function getCharacterBoundaries(char: string): CharacterBoundaries {
 export function calculateEntryCountRange(boundarySize: number, isInternal: boolean): { min: number; max: number } {
   if (boundarySize === 0) return { min: 0, max: 0 };
 
-  if (isInternal) {
-    // Internal: min 1, max scales up to ~1 per 4 boundary cells
-    const min = 1;
-    const max = Math.max(1, Math.floor(boundarySize / 4));
-    return { min, max };
-  } else {
-    // External: min 3, max scales up to ~1 per 3 boundary cells
-    const min = 3;
-    const max = Math.max(3, Math.floor(boundarySize / 3));
-    return { min, max };
-  }
+  const min = isInternal ? 1 : 3;
+  const max = min + Math.floor(boundarySize / 6);
+
+  return { min, max };
 }

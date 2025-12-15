@@ -221,6 +221,8 @@ describe('getCharacterBoundaries', () => {
 });
 
 describe('calculateEntryCountRange', () => {
+  // New logic: min = isInternal ? 1 : 3, max = min + floor(boundarySize / 6)
+
   describe('external entries', () => {
     it('returns min 3 for all non-empty boundaries', () => {
       expect(calculateEntryCountRange(1, false).min).toBe(3);
@@ -228,18 +230,17 @@ describe('calculateEntryCountRange', () => {
       expect(calculateEntryCountRange(100, false).min).toBe(3);
     });
 
-    it('returns max 3 for small boundaries (max >= min)', () => {
-      // floor(5/3) = 1, but max must be >= min (3)
+    it('returns max = 3 + floor(boundarySize/6)', () => {
+      // floor(5/6) = 0, so max = 3 + 0 = 3
       expect(calculateEntryCountRange(5, false).max).toBe(3);
-    });
-
-    it('scales max proportionally for larger boundaries', () => {
-      // floor(12/3) = 4
-      expect(calculateEntryCountRange(12, false).max).toBe(4);
-      // floor(18/3) = 6
+      // floor(6/6) = 1, so max = 3 + 1 = 4
+      expect(calculateEntryCountRange(6, false).max).toBe(4);
+      // floor(12/6) = 2, so max = 3 + 2 = 5
+      expect(calculateEntryCountRange(12, false).max).toBe(5);
+      // floor(18/6) = 3, so max = 3 + 3 = 6
       expect(calculateEntryCountRange(18, false).max).toBe(6);
-      // floor(30/3) = 10
-      expect(calculateEntryCountRange(30, false).max).toBe(10);
+      // floor(30/6) = 5, so max = 3 + 5 = 8
+      expect(calculateEntryCountRange(30, false).max).toBe(8);
     });
 
     it('returns 0 for empty boundary', () => {
@@ -256,16 +257,15 @@ describe('calculateEntryCountRange', () => {
       expect(calculateEntryCountRange(100, true).min).toBe(1);
     });
 
-    it('returns max 1 for small regions (max >= min)', () => {
-      // floor(3/4) = 0, but max must be >= 1
-      expect(calculateEntryCountRange(3, true).max).toBe(1);
-    });
-
-    it('scales max proportionally for larger regions', () => {
-      // floor(8/4) = 2
-      expect(calculateEntryCountRange(8, true).max).toBe(2);
-      // floor(20/4) = 5
-      expect(calculateEntryCountRange(20, true).max).toBe(5);
+    it('returns max = 1 + floor(boundarySize/6)', () => {
+      // floor(5/6) = 0, so max = 1 + 0 = 1
+      expect(calculateEntryCountRange(5, true).max).toBe(1);
+      // floor(6/6) = 1, so max = 1 + 1 = 2
+      expect(calculateEntryCountRange(6, true).max).toBe(2);
+      // floor(12/6) = 2, so max = 1 + 2 = 3
+      expect(calculateEntryCountRange(12, true).max).toBe(3);
+      // floor(18/6) = 3, so max = 1 + 3 = 4
+      expect(calculateEntryCountRange(18, true).max).toBe(4);
     });
 
     it('returns 0 for empty region', () => {
