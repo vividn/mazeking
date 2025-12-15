@@ -40,13 +40,15 @@ export function generateColorScheme(seed: string): ColorScheme {
 
   // Maze background: soft, muted color that complements text background
   const mazeBgHue = (baseHue + 30 + rng.next() * 30) % 360;
-  const mazeBackgroundColor = hsl(mazeBgHue, 15 + rng.next() * 20, 75 + rng.next() * 10);
+  const mazeBgSaturation = 15 + rng.next() * 20;
+  const mazeBgLightness = 75 + rng.next() * 10;
+  const mazeBackgroundColor = hsl(mazeBgHue, mazeBgSaturation, mazeBgLightness);
 
   // Path color: slightly lighter than maze background
   const pathColor = hsl(mazeBgHue, 10 + rng.next() * 15, 82 + rng.next() * 10);
 
-  // Visited color: slightly darker/different tint than path
-  const visitedColor = hsl(mazeBgHue, 20 + rng.next() * 15, 68 + rng.next() * 8);
+  // Visited color: derived from mazeBackgroundColor - 12% darker, 12% more saturated
+  const visitedColor = hsl(mazeBgHue, Math.min(mazeBgSaturation + 12, 100), Math.max(mazeBgLightness - 8, 0));
 
   // Text wall color: darker, more saturated - stands out
   const textWallHue = (baseHue + 180 + rng.next() * 40 - 20) % 360;
