@@ -1,5 +1,5 @@
 import { createRng, type Rng } from './seededRandom';
-import { getCharWidth, getTextDimensions, getEntryPoints, getCharPattern } from './pixelFont';
+import { getCharWidth, getTextDimensions, getCharPattern, getCharacterBoundaries, calculateEntryCount } from './pixelFont';
 import type { Cell, MazeData, Position } from '../types';
 
 const CHAR_HEIGHT = 8;
@@ -276,58 +276,95 @@ function createLetterBoundaryWalls(maze: MazeData): void {
   }
 }
 
-// Create entry points connecting letters to the maze
+// Create entry points connecting letters to the maze (external boundaries)
+// and connecting letter cells to enclosed regions (internal boundaries)
 function createLetterEntryPoints(maze: MazeData, placements: CharPlacement[], rng: Rng): void {
   const { width, height, cells } = maze;
 
   for (const placement of placements) {
-    const entryPoints = getEntryPoints(placement.char);
+    const boundaries = getCharacterBoundaries(placement.char);
 
-    // Pick 2-4 entry points randomly
-    const numEntries = Math.min(entryPoints.length, 2 + Math.floor(rng.next() * 3));
-    const selectedEntries = rng.shuffle(entryPoints).slice(0, numEntries);
+    // External entries: proportional to external boundary size (3-6 entries)
+    const numExternal = calculateEntryCount(boundaries.external.length, false);
+    const selectedExternal = rng.shuffle(boundaries.external).slice(0, numExternal);
 
-    for (const entry of selectedEntries) {
+    for (const entry of selectedExternal) {
       const cellX = placement.startX + entry.x;
       const cellY = placement.startY + entry.y;
 
       if (cellX < 0 || cellX >= width || cellY < 0 || cellY >= height) continue;
 
       // Remove the wall in the direction specified by the entry point
-      switch (entry.side) {
-        case 'top': {
-          // Remove wall from cell above (its south wall)
-          const aboveY = cellY - 1;
-          if (aboveY >= 0 && !cells[aboveY][cellX].isTextCell) {
-            cells[aboveY][cellX].southWall = false;
-          }
-          break;
-        }
-        case 'bottom': {
-          // Remove this cell's south wall
-          const belowY = (cellY + 1) % height;
-          if (!cells[belowY][cellX].isTextCell) {
-            cells[cellY][cellX].southWall = false;
-          }
-          break;
-        }
-        case 'left': {
-          // Remove wall from cell to left (its east wall)
-          const leftX = cellX - 1;
-          if (leftX >= 0 && !cells[cellY][leftX].isTextCell) {
-            cells[cellY][leftX].eastWall = false;
-          }
-          break;
-        }
-        case 'right': {
-          // Remove this cell's east wall
-          const rightX = (cellX + 1) % width;
-          if (!cells[cellY][rightX].isTextCell) {
-            cells[cellY][cellX].eastWall = false;
-          }
-          break;
+      removeWallForEntry(cells, cellX, cellY, entry.side, width, height, false);
+    }
+
+    // Internal entries: 1-2 per enclosed region
+    // These connect letter cells TO enclosed empty regions (like inside 'o' or 'B')
+    for (const region of boundaries.internal) {
+      const numInternal = calculateEntryCount(region.length, true);
+      const selectedInternal = rng.shuffle(region).slice(0, numInternal);
+
+      for (const entry of selectedInternal) {
+        const cellX = placement.startX + entry.x;
+        const cellY = placement.startY + entry.y;
+
+        if (cellX < 0 || cellX >= width || cellY < 0 || cellY >= height) continue;
+
+        // Remove wall between letter cell and enclosed region
+        removeWallForEntry(cells, cellX, cellY, entry.side, width, height, true);
+      }
+    }
+  }
+}
+
+// Helper to remove wall for an entry point
+function removeWallForEntry(
+  cells: Cell[][],
+  cellX: number,
+  cellY: number,
+  side: 'top' | 'bottom' | 'left' | 'right',
+  width: number,
+  height: number,
+  isInternal: boolean
+): void {
+  switch (side) {
+    case 'top': {
+      // Remove wall from cell above (its south wall)
+      const aboveY = cellY - 1;
+      if (aboveY >= 0) {
+        // For internal entries, we allow connecting to non-text cells (the enclosed region)
+        // For external entries, we only connect if neighbor is not a text cell
+        if (isInternal || !cells[aboveY][cellX].isTextCell) {
+          cells[aboveY][cellX].southWall = false;
         }
       }
+      break;
+    }
+    case 'bottom': {
+      // Remove this cell's south wall
+      const belowY = (cellY + 1) % height;
+      if (isInternal || !cells[belowY][cellX].isTextCell) {
+        cells[cellY][cellX].southWall = false;
+      }
+      break;
+    }
+    case 'left': {
+      // Remove wall from cell to left (its east wall)
+      const leftX = cellX - 1;
+      if (leftX >= 0) {
+        if (isInternal || !cells[cellY][leftX].isTextCell) {
+          cells[cellY][leftX].eastWall = false;
+        }
+      }
+      break;
+    }
+    case 'right': {
+      // Remove this cell's east wall
+      const rightX = (cellX + 1) % width;
+      if (isInternal || !cells[cellY][rightX].isTextCell) {
+        cells[cellY][cellX].eastWall = false;
+      }
+      break;
     }
   }
 }
