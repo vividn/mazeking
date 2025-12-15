@@ -759,8 +759,8 @@ export interface EntryPoint {
 
 // Character boundaries including external and internal (enclosed) regions
 export interface CharacterBoundaries {
-  external: EntryPoint[];        // All filled cells bordering external empty space
-  internal: EntryPoint[][];      // Array of enclosed regions, each with boundary cells
+  external: EntryPoint[][];      // Array of disconnected filled regions, each with their external boundary cells
+  internal: EntryPoint[][];      // Array of enclosed empty regions, each with boundary cells
 }
 
 export function getCharWidth(char: string): number {
@@ -804,8 +804,11 @@ const boundariesCache = new Map<string, CharacterBoundaries>();
 
 /**
  * Get all boundary cells for a character using flood-fill detection.
- * Returns both external boundaries (cells bordering outside empty space)
+ * Returns both external boundaries (cells bordering outside empty space, grouped by disconnected filled regions)
  * and internal boundaries (cells bordering enclosed regions like inside 'o' or 'B').
+ *
+ * For characters like '?' or ':' with disconnected filled regions, each region gets its own
+ * external boundary array to ensure all regions are accessible.
  */
 export function getCharacterBoundaries(char: string): CharacterBoundaries {
   // Check cache first
@@ -867,8 +870,6 @@ export function getCharacterBoundaries(char: string): CharacterBoundaries {
     }
   }
 
-  // Find external boundary cells: filled cells adjacent to external empty cells
-  const externalBoundary: EntryPoint[] = [];
   const sideMap: [number, number, 'top' | 'bottom' | 'left' | 'right'][] = [
     [-1, 0, 'top'],    // N neighbor means entry from top
     [0, 1, 'right'],   // E neighbor means entry from right
@@ -876,23 +877,68 @@ export function getCharacterBoundaries(char: string): CharacterBoundaries {
     [0, -1, 'left'],   // W neighbor means entry from left
   ];
 
-  // Iterate in consistent order (row-major) for determinism
+  // Find disconnected filled regions using flood-fill
+  // Each disconnected region will get its own external boundary array
+  const filledRegionAssigned: number[][] = [];
+  for (let y = 0; y < height; y++) {
+    filledRegionAssigned[y] = new Array(width).fill(-1);
+  }
+
+  const filledRegions: [number, number][][] = []; // Each region is a list of [y, x] cells
+  let filledRegionId = 0;
+
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      if (pattern[y][x]) {
-        // This is a filled cell - check if any neighbor is external empty
-        const py = y + 1; // Padded coordinates
-        const px = x + 1;
+      if (pattern[y][x] && filledRegionAssigned[y][x] === -1) {
+        // Found a new filled region - flood-fill to find all connected filled cells
+        const regionCells: [number, number][] = [];
+        const regionQueue: [number, number][] = [[y, x]];
+        filledRegionAssigned[y][x] = filledRegionId;
 
-        for (const [dy, dx, side] of sideMap) {
-          const ny = py + dy;
-          const nx = px + dx;
-          if (external[ny][nx]) {
-            // This filled cell borders external empty space on this side
-            externalBoundary.push({ x, y, side });
+        while (regionQueue.length > 0) {
+          const [cy, cx] = regionQueue.shift()!;
+          regionCells.push([cy, cx]);
+
+          for (const [dy, dx] of dirs) {
+            const ny = cy + dy;
+            const nx = cx + dx;
+            if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
+              if (pattern[ny][nx] && filledRegionAssigned[ny][nx] === -1) {
+                filledRegionAssigned[ny][nx] = filledRegionId;
+                regionQueue.push([ny, nx]);
+              }
+            }
           }
         }
+
+        filledRegions.push(regionCells);
+        filledRegionId++;
       }
+    }
+  }
+
+  // For each filled region, find external boundary cells (filled cells adjacent to external empty)
+  const externalBoundaries: EntryPoint[][] = [];
+
+  for (const regionCells of filledRegions) {
+    const regionBoundary: EntryPoint[] = [];
+
+    for (const [y, x] of regionCells) {
+      const py = y + 1; // Padded coordinates
+      const px = x + 1;
+
+      for (const [dy, dx, side] of sideMap) {
+        const ny = py + dy;
+        const nx = px + dx;
+        if (external[ny][nx]) {
+          // This filled cell borders external empty space on this side
+          regionBoundary.push({ x, y, side });
+        }
+      }
+    }
+
+    if (regionBoundary.length > 0) {
+      externalBoundaries.push(regionBoundary);
     }
   }
 
@@ -964,7 +1010,7 @@ export function getCharacterBoundaries(char: string): CharacterBoundaries {
   }
 
   const result: CharacterBoundaries = {
-    external: externalBoundary,
+    external: externalBoundaries,
     internal: internalRegions,
   };
 

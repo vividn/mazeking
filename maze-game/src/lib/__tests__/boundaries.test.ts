@@ -1,17 +1,23 @@
 import { describe, it, expect } from 'vitest';
 import { getCharacterBoundaries, calculateEntryCountRange, PIXEL_FONT } from '../pixelFont';
 
+// Helper to flatten external boundaries for easier testing
+function flattenExternal(boundaries: { external: { x: number; y: number; side: string }[][] }): { x: number; y: number; side: string }[] {
+  return boundaries.external.flat();
+}
+
 describe('getCharacterBoundaries', () => {
   describe('external boundaries', () => {
     it('returns external boundaries for uppercase O (ring shape)', () => {
       const boundaries = getCharacterBoundaries('O');
 
-      // O has a ring shape - all filled cells should border external space
-      expect(boundaries.external.length).toBeGreaterThan(0);
+      // O has a ring shape with one connected filled region
+      expect(boundaries.external.length).toBe(1);
+      expect(boundaries.external[0].length).toBeGreaterThan(0);
 
       // All external boundary cells should be filled in the pattern
       const pattern = PIXEL_FONT['O'];
-      for (const entry of boundaries.external) {
+      for (const entry of flattenExternal(boundaries)) {
         expect(pattern[entry.y][entry.x]).toBe(true);
       }
     });
@@ -20,11 +26,11 @@ describe('getCharacterBoundaries', () => {
       const boundaries = getCharacterBoundaries('o');
 
       // lowercase o has empty top rows, but should still have valid external boundaries
-      expect(boundaries.external.length).toBeGreaterThan(0);
+      expect(boundaries.external.length).toBe(1);
 
       // The boundaries should NOT include row 0 or 1 since they're empty
       const pattern = PIXEL_FONT['o'];
-      for (const entry of boundaries.external) {
+      for (const entry of flattenExternal(boundaries)) {
         expect(pattern[entry.y][entry.x]).toBe(true);
       }
     });
@@ -32,8 +38,8 @@ describe('getCharacterBoundaries', () => {
     it('returns external boundaries for L (no enclosed regions)', () => {
       const boundaries = getCharacterBoundaries('L');
 
-      // L is an open shape with no enclosed regions
-      expect(boundaries.external.length).toBeGreaterThan(0);
+      // L is an open shape with one connected filled region, no enclosed regions
+      expect(boundaries.external.length).toBe(1);
       expect(boundaries.internal.length).toBe(0);
     });
 
@@ -42,7 +48,7 @@ describe('getCharacterBoundaries', () => {
 
       // Each boundary entry should have a valid side
       const validSides = ['top', 'bottom', 'left', 'right'];
-      for (const entry of boundaries.external) {
+      for (const entry of flattenExternal(boundaries)) {
         expect(validSides).toContain(entry.side);
       }
     });
@@ -146,7 +152,42 @@ describe('getCharacterBoundaries', () => {
 
       // Period should have external boundaries but no internal
       expect(boundaries.external.length).toBeGreaterThan(0);
+      expect(flattenExternal(boundaries).length).toBeGreaterThan(0);
       expect(boundaries.internal.length).toBe(0);
+    });
+  });
+
+  describe('disconnected filled regions', () => {
+    it('detects 2 disconnected regions for ? (main shape + dot)', () => {
+      const boundaries = getCharacterBoundaries('?');
+
+      // ? has two disconnected filled regions: the curve and the dot
+      expect(boundaries.external.length).toBe(2);
+      // Each region should have external boundaries
+      for (const region of boundaries.external) {
+        expect(region.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('detects 2 disconnected regions for : (two dots)', () => {
+      const boundaries = getCharacterBoundaries(':');
+
+      // : has two disconnected filled regions
+      expect(boundaries.external.length).toBe(2);
+    });
+
+    it('detects 1 connected region for A (fully connected)', () => {
+      const boundaries = getCharacterBoundaries('A');
+
+      // A is fully connected, so only 1 filled region
+      expect(boundaries.external.length).toBe(1);
+    });
+
+    it('detects 2 disconnected regions for i (dot + stem)', () => {
+      const boundaries = getCharacterBoundaries('i');
+
+      // i has two disconnected regions: the dot and the stem
+      expect(boundaries.external.length).toBe(2);
     });
   });
 
@@ -155,7 +196,7 @@ describe('getCharacterBoundaries', () => {
       const boundaries = getCharacterBoundaries('L');
       const pattern = PIXEL_FONT['L'];
 
-      const topEntries = boundaries.external.filter(e => e.side === 'top');
+      const topEntries = flattenExternal(boundaries).filter(e => e.side === 'top');
       for (const entry of topEntries) {
         // For a 'top' entry, either y=0 (top row) or cell above is empty
         if (entry.y > 0) {
@@ -168,7 +209,7 @@ describe('getCharacterBoundaries', () => {
       const boundaries = getCharacterBoundaries('L');
       const pattern = PIXEL_FONT['L'];
 
-      const bottomEntries = boundaries.external.filter(e => e.side === 'bottom');
+      const bottomEntries = flattenExternal(boundaries).filter(e => e.side === 'bottom');
       for (const entry of bottomEntries) {
         // For a 'bottom' entry, either y=height-1 (bottom row) or cell below is empty
         if (entry.y < pattern.length - 1) {

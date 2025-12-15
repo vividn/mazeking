@@ -284,22 +284,25 @@ function createLetterEntryPoints(maze: MazeData, placements: CharPlacement[], rn
   for (const placement of placements) {
     const boundaries = getCharacterBoundaries(placement.char);
 
-    // External entries: random count within range (min 3, max scales with boundary size)
-    const externalRange = calculateEntryCountRange(boundaries.external.length, false);
-    const numExternal = rng.nextInt(externalRange.min, externalRange.max);
-    const selectedExternal = rng.shuffle(boundaries.external).slice(0, numExternal);
+    // External entries: each disconnected filled region gets its own entry points
+    // This ensures characters like '?' or ':' have all parts accessible
+    for (const filledRegion of boundaries.external) {
+      const externalRange = calculateEntryCountRange(filledRegion.length, false);
+      const numExternal = rng.nextInt(externalRange.min, externalRange.max);
+      const selectedExternal = rng.shuffle(filledRegion).slice(0, numExternal);
 
-    for (const entry of selectedExternal) {
-      const cellX = placement.startX + entry.x;
-      const cellY = placement.startY + entry.y;
+      for (const entry of selectedExternal) {
+        const cellX = placement.startX + entry.x;
+        const cellY = placement.startY + entry.y;
 
-      if (cellX < 0 || cellX >= width || cellY < 0 || cellY >= height) continue;
+        if (cellX < 0 || cellX >= width || cellY < 0 || cellY >= height) continue;
 
-      // Remove the wall in the direction specified by the entry point
-      removeWallForEntry(cells, cellX, cellY, entry.side, width, height, false);
+        // Remove the wall in the direction specified by the entry point
+        removeWallForEntry(cells, cellX, cellY, entry.side, width, height, false);
+      }
     }
 
-    // Internal entries: random count per enclosed region (min 1, max scales with region size)
+    // Internal entries: random count per enclosed empty region (min 1, max scales with region size)
     // These connect letter cells TO enclosed empty regions (like inside 'o' or 'B')
     for (const region of boundaries.internal) {
       const internalRange = calculateEntryCountRange(region.length, true);

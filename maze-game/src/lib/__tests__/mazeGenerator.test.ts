@@ -186,6 +186,39 @@ describe('generateMaze', () => {
       const totalCells = maze.width * maze.height;
       expect(reachable.size).toBe(totalCells);
     });
+
+    it('disconnected letter regions are accessible for ? (dot + curve)', () => {
+      const result = generateMaze('What?');
+      const { maze, kingPos } = result;
+
+      const reachable = findReachableCells(maze, kingPos);
+
+      // All cells should be reachable, including both parts of ?
+      const totalCells = maze.width * maze.height;
+      expect(reachable.size).toBe(totalCells);
+    });
+
+    it('disconnected letter regions are accessible for : (two dots)', () => {
+      const result = generateMaze('Hi:there');
+      const { maze, kingPos } = result;
+
+      const reachable = findReachableCells(maze, kingPos);
+
+      // All cells should be reachable
+      const totalCells = maze.width * maze.height;
+      expect(reachable.size).toBe(totalCells);
+    });
+
+    it('disconnected letter regions are accessible for i (dot + stem)', () => {
+      const result = generateMaze('info');
+      const { maze, kingPos } = result;
+
+      const reachable = findReachableCells(maze, kingPos);
+
+      // All cells should be reachable
+      const totalCells = maze.width * maze.height;
+      expect(reachable.size).toBe(totalCells);
+    });
   });
 
   describe('structure', () => {
