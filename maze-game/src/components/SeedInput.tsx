@@ -1,4 +1,4 @@
-import React, { useState, FormEvent, KeyboardEvent } from 'react';
+import React, { useState, FormEvent, KeyboardEvent, useRef } from 'react';
 
 interface SeedInputProps {
   currentSeed: string;
@@ -14,6 +14,7 @@ export const SeedInput: React.FC<SeedInputProps> = ({
   onFocusChange,
 }) => {
   const [inputValue, setInputValue] = useState(currentSeed);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e?: FormEvent) => {
     e?.preventDefault();
@@ -25,7 +26,11 @@ export const SeedInput: React.FC<SeedInputProps> = ({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      handleSubmit();
+      const trimmedValue = inputValue.trim();
+      if (trimmedValue) {
+        onSeedChange(trimmedValue);
+      }
+      inputRef.current?.blur();
     }
   };
 
@@ -35,6 +40,7 @@ export const SeedInput: React.FC<SeedInputProps> = ({
         Seed:
       </label>
       <input
+        ref={inputRef}
         id="seed-input"
         type="text"
         value={inputValue}
