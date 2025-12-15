@@ -6,6 +6,8 @@ const CHAR_HEIGHT = 8;
 const CHAR_SPACING = 1;
 const MARGIN_CHARS = 1.5; // 1.5 character-widths of margin
 
+const WRAP_WIDTH_CELLS = 50;
+
 interface TextLayout {
   lines: string[];
   width: number;
@@ -21,7 +23,7 @@ interface CharPlacement {
   height: number;
 }
 
-function layoutText(text: string, maxWidthChars: number): TextLayout {
+function layoutText(text: string): TextLayout {
   // Keep original case - we now support both uppercase and lowercase
   const words = text.split(/\s+/);
   const lines: string[] = [];
@@ -33,7 +35,7 @@ function layoutText(text: string, maxWidthChars: number): TextLayout {
     } else {
       const testLine = currentLine + ' ' + word;
       const testWidth = getTextDimensions(testLine).width;
-      if (testWidth <= maxWidthChars * 6) {
+      if (testWidth <= WRAP_WIDTH_CELLS) {
         currentLine = testLine;
       } else {
         lines.push(currentLine);
@@ -59,8 +61,7 @@ function layoutText(text: string, maxWidthChars: number): TextLayout {
 }
 
 function calculateMazeDimensions(text: string): { width: number; height: number; textLayout: TextLayout } {
-  const maxTextWidthChars = 20;
-  const textLayout = layoutText(text, maxTextWidthChars);
+  const textLayout = layoutText(text);
   const marginCells = Math.ceil(MARGIN_CHARS * 6);
   const width = textLayout.width + marginCells * 2;
   const height = textLayout.height + marginCells * 2;
