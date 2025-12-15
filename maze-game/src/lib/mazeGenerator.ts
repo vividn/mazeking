@@ -1,5 +1,5 @@
 import { createRng, type Rng } from './seededRandom';
-import { getCharWidth, getTextDimensions, getCharPattern, getCharacterBoundaries, calculateEntryCount } from './pixelFont';
+import { getCharWidth, getTextDimensions, getCharPattern, getCharacterBoundaries, calculateEntryCountRange } from './pixelFont';
 import type { Cell, MazeData, Position } from '../types';
 
 const CHAR_HEIGHT = 8;
@@ -284,8 +284,9 @@ function createLetterEntryPoints(maze: MazeData, placements: CharPlacement[], rn
   for (const placement of placements) {
     const boundaries = getCharacterBoundaries(placement.char);
 
-    // External entries: proportional to external boundary size (3-6 entries)
-    const numExternal = calculateEntryCount(boundaries.external.length, false);
+    // External entries: random count within range (min 3, max scales with boundary size)
+    const externalRange = calculateEntryCountRange(boundaries.external.length, false);
+    const numExternal = rng.nextInt(externalRange.min, externalRange.max);
     const selectedExternal = rng.shuffle(boundaries.external).slice(0, numExternal);
 
     for (const entry of selectedExternal) {
@@ -298,10 +299,11 @@ function createLetterEntryPoints(maze: MazeData, placements: CharPlacement[], rn
       removeWallForEntry(cells, cellX, cellY, entry.side, width, height, false);
     }
 
-    // Internal entries: 1-2 per enclosed region
+    // Internal entries: random count per enclosed region (min 1, max scales with region size)
     // These connect letter cells TO enclosed empty regions (like inside 'o' or 'B')
     for (const region of boundaries.internal) {
-      const numInternal = calculateEntryCount(region.length, true);
+      const internalRange = calculateEntryCountRange(region.length, true);
+      const numInternal = rng.nextInt(internalRange.min, internalRange.max);
       const selectedInternal = rng.shuffle(region).slice(0, numInternal);
 
       for (const entry of selectedInternal) {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getCharacterBoundaries, calculateEntryCount, PIXEL_FONT } from '../pixelFont';
+import { getCharacterBoundaries, calculateEntryCountRange, PIXEL_FONT } from '../pixelFont';
 
 describe('getCharacterBoundaries', () => {
   describe('external boundaries', () => {
@@ -179,44 +179,58 @@ describe('getCharacterBoundaries', () => {
   });
 });
 
-describe('calculateEntryCount', () => {
+describe('calculateEntryCountRange', () => {
   describe('external entries', () => {
-    it('returns minimum 3 for small boundaries', () => {
-      expect(calculateEntryCount(1, false)).toBe(3);
-      expect(calculateEntryCount(5, false)).toBe(3);
-      expect(calculateEntryCount(11, false)).toBe(3);
+    it('returns min 3 for all non-empty boundaries', () => {
+      expect(calculateEntryCountRange(1, false).min).toBe(3);
+      expect(calculateEntryCountRange(5, false).min).toBe(3);
+      expect(calculateEntryCountRange(100, false).min).toBe(3);
     });
 
-    it('returns maximum 6 for large boundaries', () => {
-      expect(calculateEntryCount(100, false)).toBe(6);
-      expect(calculateEntryCount(50, false)).toBe(6);
+    it('returns max 3 for small boundaries (max >= min)', () => {
+      // floor(5/3) = 1, but max must be >= min (3)
+      expect(calculateEntryCountRange(5, false).max).toBe(3);
     });
 
-    it('scales proportionally in the middle range', () => {
-      // floor(16/4) = 4, which is between 3 and 6
-      expect(calculateEntryCount(16, false)).toBe(4);
-      // floor(20/4) = 5
-      expect(calculateEntryCount(20, false)).toBe(5);
+    it('scales max proportionally for larger boundaries', () => {
+      // floor(12/3) = 4
+      expect(calculateEntryCountRange(12, false).max).toBe(4);
+      // floor(18/3) = 6
+      expect(calculateEntryCountRange(18, false).max).toBe(6);
+      // floor(30/3) = 10
+      expect(calculateEntryCountRange(30, false).max).toBe(10);
     });
 
     it('returns 0 for empty boundary', () => {
-      expect(calculateEntryCount(0, false)).toBe(0);
+      const range = calculateEntryCountRange(0, false);
+      expect(range.min).toBe(0);
+      expect(range.max).toBe(0);
     });
   });
 
   describe('internal entries', () => {
-    it('returns minimum 1 for small regions', () => {
-      expect(calculateEntryCount(1, true)).toBe(1);
-      expect(calculateEntryCount(5, true)).toBe(1);
+    it('returns min 1 for all non-empty regions', () => {
+      expect(calculateEntryCountRange(1, true).min).toBe(1);
+      expect(calculateEntryCountRange(5, true).min).toBe(1);
+      expect(calculateEntryCountRange(100, true).min).toBe(1);
     });
 
-    it('returns maximum 2 for large regions', () => {
-      expect(calculateEntryCount(100, true)).toBe(2);
-      expect(calculateEntryCount(20, true)).toBe(2);
+    it('returns max 1 for small regions (max >= min)', () => {
+      // floor(3/4) = 0, but max must be >= 1
+      expect(calculateEntryCountRange(3, true).max).toBe(1);
+    });
+
+    it('scales max proportionally for larger regions', () => {
+      // floor(8/4) = 2
+      expect(calculateEntryCountRange(8, true).max).toBe(2);
+      // floor(20/4) = 5
+      expect(calculateEntryCountRange(20, true).max).toBe(5);
     });
 
     it('returns 0 for empty region', () => {
-      expect(calculateEntryCount(0, true)).toBe(0);
+      const range = calculateEntryCountRange(0, true);
+      expect(range.min).toBe(0);
+      expect(range.max).toBe(0);
     });
   });
 });

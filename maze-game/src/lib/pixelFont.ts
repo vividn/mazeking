@@ -973,18 +973,23 @@ export function getCharacterBoundaries(char: string): CharacterBoundaries {
 }
 
 /**
- * Calculate the number of entry points to create based on boundary size.
- * External: 3-6 entries (scales with perimeter)
- * Internal: 1-2 entries per region
+ * Calculate the min/max range of entry points based on boundary size.
+ * The actual count is randomly selected within this range by the caller.
+ * External: min 3, max scales with boundary size
+ * Internal: min 1, max scales with boundary size
  */
-export function calculateEntryCount(boundarySize: number, isInternal: boolean): number {
-  if (boundarySize === 0) return 0;
+export function calculateEntryCountRange(boundarySize: number, isInternal: boolean): { min: number; max: number } {
+  if (boundarySize === 0) return { min: 0, max: 0 };
 
   if (isInternal) {
-    // 1-2 entries per enclosed region
-    return Math.min(2, Math.max(1, Math.floor(boundarySize / 6)));
+    // Internal: min 1, max scales up to ~1 per 4 boundary cells
+    const min = 1;
+    const max = Math.max(1, Math.floor(boundarySize / 4));
+    return { min, max };
   } else {
-    // 3-6 entries for external boundary, roughly 1 per 4 boundary cells
-    return Math.min(6, Math.max(3, Math.floor(boundarySize / 4)));
+    // External: min 3, max scales up to ~1 per 3 boundary cells
+    const min = 3;
+    const max = Math.max(3, Math.floor(boundarySize / 3));
+    return { min, max };
   }
 }
