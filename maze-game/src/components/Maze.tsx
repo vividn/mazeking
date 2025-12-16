@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import type { MazeData, Position, ColorScheme } from '../types';
+import { CellType, type MazeData, type Position, type ColorScheme } from '../types';
 import { drawCrown, drawKey, drawChest, drawArrow, drawCornerWarp, getArrowColor } from '../glyphs';
 
 interface MazeProps {
@@ -91,18 +91,20 @@ export const Maze: React.FC<MazeProps> = ({
         const cellY = y * cellSize;
         const isVisited = visited.has(`${x},${y}`);
 
-        // Determine cell background color
+        // Determine cell background color based on cell type
         let bgColor: string;
-        if (cell.isZkCell) {
-          // Z and K letters get special purple/magenta highlight for zero-knowledge
-          bgColor = isVisited ? colors.zkVisitedColor : colors.zkBackgroundColor;
-        } else if (cell.isTextCell) {
-          // Other text cells show visited state with a different shade
-          bgColor = isVisited ? colors.textVisitedColor : colors.textBackgroundColor;
-        } else if (isVisited) {
-          bgColor = colors.visitedColor;
-        } else {
-          bgColor = colors.mazeBackgroundColor;
+        switch (cell.cellType) {
+          case CellType.CrownText:
+            bgColor = isVisited ? colors.crownVisitedColor : colors.crownBackgroundColor;
+            break;
+          case CellType.ZkText:
+            bgColor = isVisited ? colors.zkVisitedColor : colors.zkBackgroundColor;
+            break;
+          case CellType.Text:
+            bgColor = isVisited ? colors.textVisitedColor : colors.textBackgroundColor;
+            break;
+          default:
+            bgColor = isVisited ? colors.visitedColor : colors.mazeBackgroundColor;
         }
 
         // Fill cell background

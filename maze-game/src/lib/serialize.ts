@@ -1,8 +1,8 @@
-import type { Cell, Position, MazeData, Move } from '../types';
+import { CellType, type Cell, type Position, type MazeData, type Move } from '../types';
 
 /**
  * Serializes a maze and its key positions into a compact binary format.
- * Each cell uses 3 bits: southWall (1 bit) + eastWall (1 bit) + isTextCell (1 bit)
+ * Each cell uses 4 bits: southWall (1 bit) + eastWall (1 bit) + cellType (2 bits)
  * Format: [width: 2 bytes][height: 2 bytes][kingPos: 4 bytes][keyPos: 4 bytes][goalPos: 4 bytes][cells: variable]
  */
 export function serializeMaze(
@@ -13,9 +13,9 @@ export function serializeMaze(
 ): string {
   const { width, height, cells } = maze;
 
-  // Calculate total bits needed for cells
+  // Calculate total bits needed for cells (4 bits per cell)
   const totalCells = width * height;
-  const cellBits = totalCells * 3;
+  const cellBits = totalCells * 4;
   const cellBytes = Math.ceil(cellBits / 8);
 
   // Total buffer: 2 (width) + 2 (height) + 4 (kingPos) + 4 (keyPos) + 4 (goalPos) + cellBytes
@@ -47,26 +47,32 @@ export function serializeMaze(
   view.setUint16(offset, goalPos.y, false);
   offset += 2;
 
-  // Pack cell data into bits
+  // Pack cell data into bits (4 bits per cell)
   let bitOffset = 0;
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const cell = cells[y][x];
 
-      // Pack 3 bits: [southWall][eastWall][isTextCell]
+      // Pack 4 bits: [southWall][eastWall][cellType: 2 bits]
       const cellValue =
-        (cell.southWall ? 4 : 0) |
-        (cell.eastWall ? 2 : 0) |
-        (cell.isTextCell ? 1 : 0);
+        (cell.southWall ? 8 : 0) |
+        (cell.eastWall ? 4 : 0) |
+        (cell.cellType & 0b11);
 
-      // Write 3 bits to the appropriate byte position
+      // Write 4 bits to the appropriate byte position
       const byteIndex = offset + Math.floor(bitOffset / 8);
       const bitInByte = bitOffset % 8;
 
-      // Shift the 3-bit value to the correct position and OR it in
-      byteArray[byteIndex] |= (cellValue << (5 - bitInByte));
+      // Handle spanning across byte boundary
+      if (bitInByte <= 4) {
+        byteArray[byteIndex] |= (cellValue << (4 - bitInByte));
+      } else {
+        // Value spans two bytes
+        byteArray[byteIndex] |= (cellValue >> (bitInByte - 4));
+        byteArray[byteIndex + 1] |= (cellValue << (12 - bitInByte));
+      }
 
-      bitOffset += 3;
+      bitOffset += 4;
     }
   }
 
@@ -117,7 +123,7 @@ export function deserializeMaze(data: string): {
   };
   offset += 4;
 
-  // Unpack cell data
+  // Unpack cell data (4 bits per cell)
   const cells: Cell[][] = Array.from({ length: height }, () => []);
   let bitOffset = 0;
 
@@ -126,17 +132,22 @@ export function deserializeMaze(data: string): {
       const byteIndex = offset + Math.floor(bitOffset / 8);
       const bitInByte = bitOffset % 8;
 
-      // Extract 3 bits
-      const cellValue = (bytes[byteIndex] >> (5 - bitInByte)) & 0b111;
+      // Extract 4 bits, handling byte boundary
+      let cellValue: number;
+      if (bitInByte <= 4) {
+        cellValue = (bytes[byteIndex] >> (4 - bitInByte)) & 0b1111;
+      } else {
+        // Value spans two bytes
+        cellValue = ((bytes[byteIndex] << (bitInByte - 4)) | (bytes[byteIndex + 1] >> (12 - bitInByte))) & 0b1111;
+      }
 
       cells[y][x] = {
-        southWall: (cellValue & 4) !== 0,
-        eastWall: (cellValue & 2) !== 0,
-        isTextCell: (cellValue & 1) !== 0,
-        isZkCell: false // ZK cells are determined at generation time, not stored in serialization
+        southWall: (cellValue & 8) !== 0,
+        eastWall: (cellValue & 4) !== 0,
+        cellType: (cellValue & 0b11) as CellType
       };
 
-      bitOffset += 3;
+      bitOffset += 4;
     }
   }
 

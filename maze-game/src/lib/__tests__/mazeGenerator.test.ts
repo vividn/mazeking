@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { generateMaze, canMove } from '../mazeGenerator';
-import type { MazeData, Position } from '../../types';
+import { CellType, type MazeData, type Position } from '../../types';
+
+// Helper to check if a cell is any type of text cell
+function isTextCell(maze: MazeData, x: number, y: number): boolean {
+  return maze.cells[y][x].cellType !== CellType.Normal;
+}
 
 describe('generateMaze', () => {
   describe('determinism', () => {
@@ -120,7 +125,7 @@ describe('generateMaze', () => {
       let nonTextCount = 0;
       for (let y = 0; y < maze.height; y++) {
         for (let x = 0; x < maze.width; x++) {
-          if (!maze.cells[y][x].isTextCell) {
+          if (!isTextCell(maze, x, y)) {
             nonTextCount++;
           }
         }
@@ -130,7 +135,7 @@ describe('generateMaze', () => {
       // Actually, we need at least the non-text cells to be connected
       const reachableNonText = Array.from(reachable).filter(key => {
         const [x, y] = key.split(',').map(Number);
-        return !maze.cells[y][x].isTextCell;
+        return !isTextCell(maze, x, y);
       }).length;
 
       expect(reachableNonText).toBe(nonTextCount);
@@ -273,7 +278,7 @@ describe('generateMaze', () => {
       let textCellCount = 0;
       for (let y = 0; y < maze.height; y++) {
         for (let x = 0; x < maze.width; x++) {
-          if (maze.cells[y][x].isTextCell) {
+          if (isTextCell(maze, x, y)) {
             textCellCount++;
           }
         }
@@ -293,29 +298,29 @@ describe('generateMaze', () => {
 
       for (let y = 0; y < maze.height; y++) {
         for (let x = 0; x < maze.width; x++) {
-          if (!maze.cells[y][x].isTextCell) continue;
+          if (!isTextCell(maze, x, y)) continue;
 
           // Check south neighbor
           const sy = (y + 1) % maze.height;
-          if (!maze.cells[sy][x].isTextCell && !maze.cells[y][x].southWall) {
+          if (!isTextCell(maze, x, sy) && !maze.cells[y][x].southWall) {
             entryPointsFound++;
           }
 
           // Check east neighbor
           const ex = (x + 1) % maze.width;
-          if (!maze.cells[y][ex].isTextCell && !maze.cells[y][x].eastWall) {
+          if (!isTextCell(maze, ex, y) && !maze.cells[y][x].eastWall) {
             entryPointsFound++;
           }
 
           // Check north neighbor (via their south wall)
           const ny = (y - 1 + maze.height) % maze.height;
-          if (!maze.cells[ny][x].isTextCell && !maze.cells[ny][x].southWall) {
+          if (!isTextCell(maze, x, ny) && !maze.cells[ny][x].southWall) {
             entryPointsFound++;
           }
 
           // Check west neighbor (via their east wall)
           const wx = (x - 1 + maze.width) % maze.width;
-          if (!maze.cells[y][wx].isTextCell && !maze.cells[y][wx].eastWall) {
+          if (!isTextCell(maze, wx, y) && !maze.cells[y][wx].eastWall) {
             entryPointsFound++;
           }
         }

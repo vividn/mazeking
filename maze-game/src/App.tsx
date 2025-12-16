@@ -10,7 +10,7 @@ function getInitialSeed(): string {
   }
 
   // Default seed
-  return 'maze 👑king';
+  return 'maze♚ ♚king';
 }
 
 function App() {

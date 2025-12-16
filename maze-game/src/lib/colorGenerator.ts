@@ -10,6 +10,8 @@ export interface ColorScheme {
   textVisitedColor: string;     // Visited color for text cells
   zkBackgroundColor: string;    // Special background for Z/K letters (zero-knowledge highlight)
   zkVisitedColor: string;       // Visited color for Z/K letters
+  crownBackgroundColor: string; // Golden background for crown emoji cells
+  crownVisitedColor: string;    // Visited color for crown emoji cells
   playerColor: string;
   keyColor: string;
   goalColor: string;
@@ -67,6 +69,12 @@ export function generateColorScheme(seed: string): ColorScheme {
   const zkBackgroundColor = hsl(zkHue, 75 + rng.next() * 20, 50 + rng.next() * 15);
   const zkVisitedColor = hsl(zkHue, 55 + rng.next() * 20, 35 + rng.next() * 10);
 
+  // Crown colors: golden hue (around 45-50 degrees) for crown emoji cells
+  // Always use gold tones regardless of seed for consistency with the crown theme
+  const crownHue = 48; // Gold hue
+  const crownBackgroundColor = hsl(crownHue, 85, 55);
+  const crownVisitedColor = hsl(crownHue, 70, 40);
+
   // Player color: golden crown feel
   const playerHue = 45 + rng.next() * 15; // Gold range
   const playerColor = hsl(playerHue, 90 + rng.next() * 10, 55 + rng.next() * 10);
@@ -96,6 +104,8 @@ export function generateColorScheme(seed: string): ColorScheme {
     textVisitedColor,
     zkBackgroundColor,
     zkVisitedColor,
+    crownBackgroundColor,
+    crownVisitedColor,
     playerColor,
     keyColor,
     goalColor,

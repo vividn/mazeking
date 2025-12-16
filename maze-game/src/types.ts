@@ -9,11 +9,17 @@
  */
 
 /**
+ * Cell type for distinguishing different kinds of maze cells.
+ */
+export enum CellType {
+  Normal = 0,
+  Text = 1,
+  ZkText = 2,
+  CrownText = 3,
+}
+
+/**
  * Represents a single cell in the maze.
- * Uses bit flags for compact storage:
- * - bit 0: South wall present
- * - bit 1: East wall present
- * - bit 2: Cell is part of embedded text
  */
 export interface Cell {
   /** True if there is a wall on the south side of this cell */
@@ -22,11 +28,8 @@ export interface Cell {
   /** True if there is a wall on the east side of this cell */
   eastWall: boolean;
 
-  /** True if this cell is part of embedded text in the maze */
-  isTextCell: boolean;
-
-  /** True if this cell is part of a Z or K letter (zero-knowledge highlight) */
-  isZkCell: boolean;
+  /** Type of cell (normal, text, zk-highlighted, or crown) */
+  cellType: CellType;
 }
 
 /**
@@ -136,6 +139,12 @@ export interface ColorScheme {
 
   /** Visited color for Z/K letters */
   zkVisitedColor: string;
+
+  /** Background color for crown emoji cells */
+  crownBackgroundColor: string;
+
+  /** Visited color for crown emoji cells */
+  crownVisitedColor: string;
 
   /** Color for the player (king) sprite/indicator */
   playerColor: string;

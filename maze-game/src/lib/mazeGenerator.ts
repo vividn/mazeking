@@ -1,13 +1,18 @@
 import { createRng, type Rng } from './seededRandom';
 import { getCharWidth, getTextDimensions, getCharPattern, getCharacterBoundaries, calculateEntryCountRange } from './pixelFont';
-import type { Cell, MazeData, Position } from '../types';
+import { CellType, type Cell, type MazeData, type Position } from '../types';
 
 const CHAR_HEIGHT = 8;
-const CHAR_SPACING = 1; 
+const CHAR_SPACING = 1;
 const LINE_SPACING = 3;
 const MARGIN_CHARS = 1.5; // 1.5 character-widths of margin
 
 const WRAP_WIDTH_CELLS = 50;
+
+// Helper to check if a cell is any type of text cell
+function isTextCell(cell: Cell): boolean {
+  return cell.cellType !== CellType.Normal;
+}
 
 interface TextLayout {
   lines: string[];
@@ -83,8 +88,7 @@ function createEmptyMaze(width: number, height: number): MazeData {
       cells[y][x] = {
         southWall: true,
         eastWall: true,
-        isTextCell: false,
-        isZkCell: false
+        cellType: CellType.Normal
       };
     }
   }
@@ -123,10 +127,13 @@ function embedTextCells(maze: MazeData, textLayout: TextLayout): CharPlacement[]
         height: CHAR_HEIGHT
       });
 
-      // Check if this is a Z or K letter (case-insensitive) for ZK highlight
-      const isZkLetter = char.toUpperCase() === 'Z' || char.toUpperCase() === 'K';
+      // Determine cell type based on character
+      const upperChar = char.toUpperCase();
+      const isZkLetter = upperChar === 'Z' || upperChar === 'K';
+      const isCrown = char === '👑';
+      const cellType = isCrown ? CellType.CrownText : isZkLetter ? CellType.ZkText : CellType.Text;
 
-      // Mark all filled cells as text cells
+      // Mark all filled cells with appropriate type
       for (let py = 0; py < charPattern.length; py++) {
         for (let px = 0; px < charPattern[py].length; px++) {
           const cellX = currentX + px;
@@ -134,11 +141,7 @@ function embedTextCells(maze: MazeData, textLayout: TextLayout): CharPlacement[]
 
           if (cellX >= 0 && cellX < width && cellY >= 0 && cellY < height) {
             if (charPattern[py][px]) {
-              cells[cellY][cellX].isTextCell = true;
-              // Mark Z and K letters specially for zero-knowledge highlight
-              if (isZkLetter) {
-                cells[cellY][cellX].isZkCell = true;
-              }
+              cells[cellY][cellX].cellType = cellType;
             }
           }
         }
@@ -250,27 +253,27 @@ function createLetterBoundaryWalls(maze: MazeData): void {
     for (let x = 0; x < width; x++) {
       const cell = cells[y][x];
 
-      if (cell.isTextCell) {
+      if (isTextCell(cell)) {
         // Check south - if neighbor is not text, ensure wall exists
         const sy = (y + 1) % height;
-        if (!cells[sy][x].isTextCell) {
+        if (!isTextCell(cells[sy][x])) {
           cell.southWall = true;
         }
 
         // Check east - if neighbor is not text, ensure wall exists
         const ex = (x + 1) % width;
-        if (!cells[y][ex].isTextCell) {
+        if (!isTextCell(cells[y][ex])) {
           cell.eastWall = true;
         }
       } else {
         // Non-text cell: check if neighbors are text cells
         const sy = (y + 1) % height;
-        if (cells[sy][x].isTextCell) {
+        if (isTextCell(cells[sy][x])) {
           cell.southWall = true;
         }
 
         const ex = (x + 1) % width;
-        if (cells[y][ex].isTextCell) {
+        if (isTextCell(cells[y][ex])) {
           cell.eastWall = true;
         }
       }
@@ -341,7 +344,7 @@ function removeWallForEntry(
       if (aboveY >= 0) {
         // For internal entries, we allow connecting to non-text cells (the enclosed region)
         // For external entries, we only connect if neighbor is not a text cell
-        if (isInternal || !cells[aboveY][cellX].isTextCell) {
+        if (isInternal || !isTextCell(cells[aboveY][cellX])) {
           cells[aboveY][cellX].southWall = false;
         }
       }
@@ -350,7 +353,7 @@ function removeWallForEntry(
     case 'bottom': {
       // Remove this cell's south wall
       const belowY = (cellY + 1) % height;
-      if (isInternal || !cells[belowY][cellX].isTextCell) {
+      if (isInternal || !isTextCell(cells[belowY][cellX])) {
         cells[cellY][cellX].southWall = false;
       }
       break;
@@ -359,7 +362,7 @@ function removeWallForEntry(
       // Remove wall from cell to left (its east wall)
       const leftX = cellX - 1;
       if (leftX >= 0) {
-        if (isInternal || !cells[cellY][leftX].isTextCell) {
+        if (isInternal || !isTextCell(cells[cellY][leftX])) {
           cells[cellY][leftX].eastWall = false;
         }
       }
@@ -368,7 +371,7 @@ function removeWallForEntry(
     case 'right': {
       // Remove this cell's east wall
       const rightX = (cellX + 1) % width;
-      if (isInternal || !cells[cellY][rightX].isTextCell) {
+      if (isInternal || !isTextCell(cells[cellY][rightX])) {
         cells[cellY][cellX].eastWall = false;
       }
       break;
@@ -446,17 +449,17 @@ function generateNonTextMazePaths(maze: MazeData, rng: Rng): void {
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const cell = cells[y][x];
-      if (cell.isTextCell) continue; // Skip text cells
+      if (isTextCell(cell)) continue; // Skip text cells
 
       // South wall
       const sy = (y + 1) % height;
-      if (!cells[sy][x].isTextCell && cell.southWall) {
+      if (!isTextCell(cells[sy][x]) && cell.southWall) {
         walls.push({ x, y, direction: 'S' });
       }
 
       // East wall
       const ex = (x + 1) % width;
-      if (!cells[y][ex].isTextCell && cell.eastWall) {
+      if (!isTextCell(cells[y][ex]) && cell.eastWall) {
         walls.push({ x, y, direction: 'E' });
       }
     }
@@ -496,7 +499,7 @@ function findValidPositions(maze: MazeData, rng: Rng): { kingPos: Position; keyP
   const candidates: Position[] = [];
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      if (!cells[y][x].isTextCell) {
+      if (!isTextCell(cells[y][x])) {
         candidates.push({ x, y });
       }
     }
