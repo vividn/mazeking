@@ -3,10 +3,12 @@ import type { GameState, MazeData, Move, ColorScheme } from '../types';
 import { generateMaze, canMove, getNewPosition } from '../lib/mazeGenerator';
 import { generateColorScheme } from '../lib/colorGenerator';
 import { addSeedToHistory } from '../lib/seedHistory';
+import { getRandomPhrase } from '../lib/seedPhrases';
 import { Maze } from './Maze';
 import { Controls } from './Controls';
 import { WinModal } from './WinModal';
-import { NewGameModal } from './NewGameModal';
+import { SeedBar } from './SeedBar';
+import { HistorySidebar } from './HistorySidebar';
 
 interface GameProps {
   initialSeed: string;
@@ -28,7 +30,8 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   const [visited, setVisited] = useState<Set<string>>(new Set());
   const [zoom, setZoom] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
-  const [newGameModalOpen, setNewGameModalOpen] = useState(false);
+  const [seedBarOpen, setSeedBarOpen] = useState(false);
+  const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const gameContainerRef = useRef<HTMLDivElement>(null);
 
@@ -113,8 +116,17 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle keys when modal is open
-      if (newGameModalOpen) return;
+      // Don't handle game keys when seed bar is open (input captures keys)
+      if (seedBarOpen) return;
+
+      // Don't handle keys when history sidebar is open
+      if (historySidebarOpen) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setHistorySidebarOpen(false);
+        }
+        return;
+      }
 
       // R key restarts the game (works even when won)
       if (e.key === 'r' || e.key === 'R') {
@@ -123,10 +135,18 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         return;
       }
 
-      // N key opens new game modal
-      if (e.key === 'n' || e.key === 'N') {
+      // n key opens seed bar
+      if (e.key === 'n') {
         e.preventDefault();
-        setNewGameModalOpen(true);
+        setSeedBarOpen(true);
+        return;
+      }
+
+      // N (shift+n) generates random maze immediately
+      if (e.key === 'N') {
+        e.preventDefault();
+        const randomSeed = getRandomPhrase();
+        initGame(randomSeed);
         return;
       }
 
@@ -166,11 +186,15 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleMove, gameState?.gameWon, newGameModalOpen, initGame, seed]);
+  }, [handleMove, gameState?.gameWon, seedBarOpen, historySidebarOpen, initGame, seed]);
 
-  const handleNewGameStart = (newSeed: string) => {
+  const handleSeedBarStart = (newSeed: string) => {
     initGame(newSeed);
-    setNewGameModalOpen(false);
+    setSeedBarOpen(false);
+  };
+
+  const handleSeedBarCancel = () => {
+    setSeedBarOpen(false);
   };
 
   const handlePlayAgain = () => {
@@ -178,7 +202,11 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   };
 
   const handleNewMaze = () => {
-    setNewGameModalOpen(true);
+    setSeedBarOpen(true);
+  };
+
+  const handleHistorySelect = (selectedSeed: string) => {
+    initGame(selectedSeed);
   };
 
   const toggleZoom = () => {
@@ -257,7 +285,13 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
               {copied ? 'Copied!' : 'Share'}
             </button>
             <button
-              onClick={() => setNewGameModalOpen(true)}
+              onClick={() => setHistorySidebarOpen(true)}
+              style={{ ...styles.actionButton, backgroundColor: colors.wallColor, color: getContrastColor(colors.wallColor) }}
+            >
+              History
+            </button>
+            <button
+              onClick={() => setSeedBarOpen(true)}
               style={{ ...styles.actionButton, backgroundColor: colors.uiAccentColor, color: buttonTextColor }}
             >
               New Game
@@ -298,11 +332,18 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         copied={copied}
       />
 
-      <NewGameModal
-        isOpen={newGameModalOpen}
+      <SeedBar
+        isOpen={seedBarOpen}
+        onStartGame={handleSeedBarStart}
+        onCancel={handleSeedBarCancel}
+      />
+
+      <HistorySidebar
+        isOpen={historySidebarOpen}
         currentSeed={seed}
-        onStartGame={handleNewGameStart}
-        onCancel={() => setNewGameModalOpen(false)}
+        colors={colors}
+        onSelectSeed={handleHistorySelect}
+        onClose={() => setHistorySidebarOpen(false)}
       />
     </div>
   );

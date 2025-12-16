@@ -11,6 +11,7 @@ interface MazeProps {
   colors: ColorScheme;
   zoom: number;
   visited: Set<string>;
+  showEntities?: boolean;
 }
 
 /**
@@ -25,7 +26,8 @@ export const Maze: React.FC<MazeProps> = ({
   hasKey,
   colors,
   zoom,
-  visited
+  visited,
+  showEntities = true
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -364,26 +366,28 @@ export const Maze: React.FC<MazeProps> = ({
       }
     };
 
-    // Draw treasure chest with accessible square highlights
-    // Chest color: red when locked, green when unlocked
-    const chestColor = hasKey ? { r: 100, g: 200, b: 100 } : { r: 200, g: 60, b: 60 };
-    drawAccessibleHighlight(goalPos, chestColor, 2);
+    if (showEntities) {
+      // Draw treasure chest with accessible square highlights
+      // Chest color: red when locked, green when unlocked
+      const chestColor = hasKey ? { r: 100, g: 200, b: 100 } : { r: 200, g: 60, b: 60 };
+      drawAccessibleHighlight(goalPos, chestColor, 2);
 
-    // Draw treasure chest icon (open with gold when player has key)
-    drawChest(ctx, goalPos.x * cellSize + cellSize / 2, goalPos.y * cellSize + cellSize / 2, cellSize * 0.9, hasKey);
+      // Draw treasure chest icon (open with gold when player has key)
+      drawChest(ctx, goalPos.x * cellSize + cellSize / 2, goalPos.y * cellSize + cellSize / 2, cellSize * 0.9, hasKey);
 
-    // Draw key with gold accessible square highlights (if not collected)
-    if (keyPos !== null) {
-      const keyColor = { r: 255, g: 200, b: 50 };
-      drawAccessibleHighlight(keyPos, keyColor, 2);
-      drawKey(ctx, keyPos.x * cellSize + cellSize / 2, keyPos.y * cellSize + cellSize / 2, cellSize * 0.85);
+      // Draw key with gold accessible square highlights (if not collected)
+      if (keyPos !== null) {
+        const keyColor = { r: 255, g: 200, b: 50 };
+        drawAccessibleHighlight(keyPos, keyColor, 2);
+        drawKey(ctx, keyPos.x * cellSize + cellSize / 2, keyPos.y * cellSize + cellSize / 2, cellSize * 0.85);
+      }
+
+      // Draw player (crown)
+      drawCrown(ctx, playerPos.x * cellSize + cellSize / 2, playerPos.y * cellSize + cellSize / 2, cellSize * 0.85);
     }
 
-    // Draw player (crown)
-    drawCrown(ctx, playerPos.x * cellSize + cellSize / 2, playerPos.y * cellSize + cellSize / 2, cellSize * 0.85);
-
     ctx.restore();
-  }, [maze, playerPos, keyPos, goalPos, hasKey, colors, zoom, visited]);
+  }, [maze, playerPos, keyPos, goalPos, hasKey, colors, zoom, visited, showEntities]);
 
   // Handle window resize
   useEffect(() => {
