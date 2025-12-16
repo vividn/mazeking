@@ -130,7 +130,7 @@ function embedTextCells(maze: MazeData, textLayout: TextLayout): CharPlacement[]
       // Determine cell type based on character
       const upperChar = char.toUpperCase();
       const isZkLetter = upperChar === 'Z' || upperChar === 'K';
-      const isCrown = char === '👑';
+      const isCrown = char === '♚';
       const cellType = isCrown ? CellType.CrownText : isZkLetter ? CellType.ZkText : CellType.Text;
 
       // Mark all filled cells with appropriate type
