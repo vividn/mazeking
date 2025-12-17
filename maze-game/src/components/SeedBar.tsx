@@ -18,6 +18,24 @@ export function SeedBar({ isOpen, onStartGame, onCancel }: SeedBarProps) {
   const [previewColors, setPreviewColors] = useState<ColorScheme | null>(null);
   const [shake, setShake] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const debounceTimerRef = useRef<number | null>(null);
+  const generationRef = useRef(0);
+  const idleCallbackRef = useRef<number | null>(null);
+
+  // Helper to cancel all pending preview work
+  const cancelPendingPreview = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    if (idleCallbackRef.current) {
+      if (window.cancelIdleCallback) {
+        window.cancelIdleCallback(idleCallbackRef.current);
+      }
+      idleCallbackRef.current = null;
+    }
+    generationRef.current++;
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -25,21 +43,52 @@ export function SeedBar({ isOpen, onStartGame, onCancel }: SeedBarProps) {
       setPreviewMaze(null);
       setPreviewColors(null);
       setTimeout(() => inputRef.current?.focus(), 50);
+    } else {
+      cancelPendingPreview();
     }
-  }, [isOpen]);
+  }, [isOpen, cancelPendingPreview]);
 
+  // Debounced, low-priority preview generation
   useEffect(() => {
     if (!isOpen) return;
 
+    // Cancel any pending generation
+    cancelPendingPreview();
+
     const seedForPreview = inputValue.trim();
-    if (seedForPreview) {
-      setPreviewColors(generateColorScheme(seedForPreview));
-      setPreviewMaze(generateMaze(seedForPreview).maze);
-    } else {
+    if (!seedForPreview) {
       setPreviewMaze(null);
       setPreviewColors(null);
+      return;
     }
-  }, [inputValue, isOpen]);
+
+    const currentGeneration = generationRef.current;
+
+    // Debounce: wait 300ms after last keystroke
+    debounceTimerRef.current = window.setTimeout(() => {
+      // Use requestIdleCallback for low-priority execution (with setTimeout fallback)
+      const scheduleIdle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1));
+
+      idleCallbackRef.current = scheduleIdle(() => {
+        // Check if this generation is still current
+        if (generationRef.current !== currentGeneration) return;
+
+        const colors = generateColorScheme(seedForPreview);
+        const maze = generateMaze(seedForPreview).maze;
+
+        // Double-check before updating state
+        if (generationRef.current === currentGeneration) {
+          setPreviewColors(colors);
+          setPreviewMaze(maze);
+        }
+      });
+    }, 300);
+  }, [inputValue, isOpen, cancelPendingPreview]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => cancelPendingPreview();
+  }, [cancelPendingPreview]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     let newValue = e.target.value;
@@ -56,13 +105,14 @@ export function SeedBar({ isOpen, onStartGame, onCancel }: SeedBarProps) {
   }, [inputValue]);
 
   const handleSubmit = useCallback(() => {
+    cancelPendingPreview();
     const seed = inputValue.trim();
     if (seed) {
       onStartGame(seed);
     } else {
       onCancel();
     }
-  }, [inputValue, onStartGame, onCancel]);
+  }, [inputValue, onStartGame, onCancel, cancelPendingPreview]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {

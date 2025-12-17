@@ -30,7 +30,6 @@ interface CharPlacement {
 }
 
 function layoutText(text: string): TextLayout {
-  // Keep original case - we now support both uppercase and lowercase
   const words = text.split(/\s+/);
   const lines: string[] = [];
   let currentLine = '';
