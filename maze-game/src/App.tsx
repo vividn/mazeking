@@ -1,12 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Game } from './components/Game';
+import { filterToValidChars } from './lib/pixelFont';
+
+// Sanitize seed: filter invalid chars and collapse multiple spaces
+function sanitizeSeed(seed: string): string {
+  const filtered = filterToValidChars(seed);
+  const collapsed = filtered.replace(/  +/g, ' ').trim();
+  return collapsed || 'maze king'; // Fall back to default if empty after sanitization
+}
 
 function getInitialSeed(): string {
   // Check URL parameter first
   const params = new URLSearchParams(window.location.search);
   const urlSeed = params.get('seed');
   if (urlSeed) {
-    return urlSeed;
+    return sanitizeSeed(urlSeed);
   }
 
   // Default seed
