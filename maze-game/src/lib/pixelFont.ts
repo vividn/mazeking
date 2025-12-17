@@ -207,11 +207,11 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
   ]),
   // R: Like P but with orthogonal leg - fully connected
   'R': p([
-    '#####',
-    '#...#',
-    '#...#',
     '####.',
-    '###..',
+    '#..##',
+    '#...#',
+    '#..##',
+    '####.',
     '#.##.',
     '#..##',
     '#...#',
