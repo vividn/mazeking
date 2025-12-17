@@ -1,0 +1,6 @@
+[package]
+name = "maze_prover"
+type = "bin"
+authors = [""]
+
+[dependencies]

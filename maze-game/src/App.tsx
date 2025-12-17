@@ -18,8 +18,10 @@ function getInitialSeed(): string {
   }
 
   // Default seed
-  return 'maze♚ ♚king';
+  return DEFAULT_SEED;
 }
+
+const DEFAULT_SEED = 'maze♚ ♚king';
 
 function App() {
   const [seed, setSeed] = useState(getInitialSeed);
@@ -28,9 +30,13 @@ function App() {
   const handleSeedChange = (newSeed: string) => {
     setSeed(newSeed);
 
-    // Update URL without reloading
+    // Update URL without reloading (omit seed param if default)
     const url = new URL(window.location.href);
-    url.searchParams.set('seed', newSeed);
+    if (newSeed === DEFAULT_SEED) {
+      url.searchParams.delete('seed');
+    } else {
+      url.searchParams.set('seed', newSeed);
+    }
     window.history.pushState({}, '', url.toString());
   };
 
