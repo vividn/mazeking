@@ -64,8 +64,7 @@ export function SeedBar({ isOpen, onStartGame, onCancel }: SeedBarProps) {
 
     const currentGeneration = generationRef.current;
 
-    // Debounce: wait 300ms after last keystroke
-    debounceTimerRef.current = window.setTimeout(() => {
+    const scheduleGeneration = () => {
       // Use requestIdleCallback for low-priority execution (with setTimeout fallback)
       const scheduleIdle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1));
 
@@ -82,7 +81,14 @@ export function SeedBar({ isOpen, onStartGame, onCancel }: SeedBarProps) {
           setPreviewMaze(maze);
         }
       });
-    }, 300);
+    };
+
+    // Trigger immediately on space (new word), otherwise debounce
+    if (inputValue.endsWith(' ')) {
+      scheduleGeneration();
+    } else {
+      debounceTimerRef.current = window.setTimeout(scheduleGeneration, 300);
+    }
   }, [inputValue, isOpen, cancelPendingPreview]);
 
   // Cleanup on unmount
