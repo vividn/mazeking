@@ -391,18 +391,11 @@ export const Maze: React.FC<MazeProps> = ({
     ctx.restore();
   }, [maze, playerPos, keyPos, goalPos, hasKey, colors, zoom, visited, showEntities]);
 
-  // Handle window resize
+  // Handle window resize - force re-render by changing a counter
+  const [, setResizeCount] = React.useState(0);
   useEffect(() => {
     const handleResize = () => {
-      // Trigger re-render by updating canvas
-      const canvas = canvasRef.current;
-      if (canvas) {
-        // Force re-draw on next frame
-        requestAnimationFrame(() => {
-          const event = new Event('resize');
-          window.dispatchEvent(event);
-        });
-      }
+      setResizeCount(c => c + 1);
     };
 
     window.addEventListener('resize', handleResize);
