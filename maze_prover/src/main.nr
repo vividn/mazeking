@@ -7,7 +7,7 @@ use position::next_position;
 use walls::can_move;
 
 // Maximum cells supported (50x50 = 2500 for small mode)
-global MAX_CELLS: u32 = 2500;
+global MAX_MAZE_CELLS: u32 = 2500;
 // Maximum packed bytes (2 cells per byte)
 global MAX_PACKED_BYTES: u32 = 1250;
 // Maximum moves supported
@@ -36,7 +36,7 @@ fn main(
 ) {
     // Validate dimensions
     let total_cells = (width as u32) * (height as u32);
-    assert(total_cells <= MAX_CELLS);
+    assert(total_cells <= MAX_MAZE_CELLS);
     assert(move_count <= MAX_MOVES);
     assert(width > 0);
     assert(height > 0);

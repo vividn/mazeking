@@ -5,6 +5,7 @@ import { generateMaze } from '../lib/mazeGenerator';
 import { isValidChar, filterToValidChars } from '../lib/pixelFont';
 import { getRandomPhrase } from '../lib/seedPhrases';
 import { Maze } from './Maze';
+import { MazeSizeWarning } from './MazeSizeWarning';
 
 interface SeedBarProps {
   isOpen: boolean;
@@ -163,6 +164,7 @@ export function SeedBar({ isOpen, onStartGame, onCancel }: SeedBarProps) {
 
       {previewMaze && previewColors && (
         <div style={styles.previewOverlay}>
+          <MazeSizeWarning width={previewMaze.width} height={previewMaze.height} />
           <Maze
             maze={previewMaze}
             playerPos={{ x: 0, y: 0 }}

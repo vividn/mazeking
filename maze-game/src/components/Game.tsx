@@ -9,6 +9,7 @@ import { Controls } from './Controls';
 import { WinModal } from './WinModal';
 import { SeedBar } from './SeedBar';
 import { HistorySidebar } from './HistorySidebar';
+import { MazeSizeWarning } from './MazeSizeWarning';
 
 interface GameProps {
   initialSeed: string;
@@ -300,11 +301,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         </div>
       </div>
 
-      {(maze.width > 200 || maze.height > 200) && (
-        <div style={styles.sizeWarning}>
-          Warning: Maximum size for ZK proving/NFT minting is 200x200. Maze size is ({maze.width}x{maze.height}). 
-        </div>
-      )}
+      <MazeSizeWarning width={maze.width} height={maze.height} />
 
       <div style={styles.mazeContainer}>
         <Maze
@@ -441,14 +438,5 @@ const styles: Record<string, React.CSSProperties> = {
     height: '100%',
     color: '#ccc',
     fontSize: '18px',
-  },
-  sizeWarning: {
-    backgroundColor: '#b45309',
-    color: '#fff',
-    padding: '8px 16px',
-    textAlign: 'center',
-    fontSize: '14px',
-    fontWeight: 500,
-    flexShrink: 0,
   },
 };

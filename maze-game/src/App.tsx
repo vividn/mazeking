@@ -22,6 +22,7 @@ function getInitialSeed(): string {
 }
 
 const DEFAULT_SEED = 'maze♚ ♚king';
+export const MAX_MAZE_CELLS = 2500;
 
 function App() {
   const [seed, setSeed] = useState(getInitialSeed);
