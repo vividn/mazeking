@@ -90,7 +90,6 @@ export function serializeForZk(
   goalPos: Position
 ): ZkMazeData {
   const { width, height, cells } = maze;
-  const totalCells = width * height;
 
   // Encode all cells to 4-bit values (row-major order)
   const encodedCells: number[] = [];
@@ -141,14 +140,14 @@ export function serializeMoves(moves: Move[]): number[] {
 }
 
 /**
- * Maximum cells supported by the prover (50x50).
+ * Maximum cells supported by the prover.
  */
-export const MAX_CELLS = 2500;
+export const MAX_CELLS = 5000;
 
 /**
  * Maximum packed bytes (MAX_CELLS / 2).
  */
-export const MAX_PACKED_BYTES = 1250;
+export const MAX_PACKED_BYTES = 2500;
 
 /**
  * Maximum moves supported by the prover.
@@ -329,7 +328,6 @@ export function validatePath(
   goalPos: Position,
   moves: Move[]
 ): { valid: boolean; error?: string } {
-  const { width, height, cells } = maze;
   let pos = { ...startPos };
   let hasKey = pos.x === keyPos.x && pos.y === keyPos.y;
 

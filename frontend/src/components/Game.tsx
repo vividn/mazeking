@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { GameState, MazeData, Move, ColorScheme } from '../types';
+import type { GameState, MazeData, Move, ColorScheme, Position } from '../types';
 import { generateMaze, canMove, getNewPosition } from '../lib/mazeGenerator';
 import { generateColorScheme } from '../lib/colorGenerator';
 import { addSeedToHistory } from '../lib/seedHistory';
@@ -34,6 +34,11 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   const [seedBarOpen, setSeedBarOpen] = useState(false);
   const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [initialPositions, setInitialPositions] = useState<{
+    startPos: Position;
+    keyPos: Position;
+    goalPos: Position;
+  } | null>(null);
   const gameContainerRef = useRef<HTMLDivElement>(null);
 
   // Detect mobile
@@ -53,6 +58,13 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
 
     setMaze(generated.maze);
     setColors(newColors);
+
+    // Store initial positions for ZK proof generation
+    setInitialPositions({
+      startPos: { ...generated.kingPos },
+      keyPos: { ...generated.keyPos },
+      goalPos: { ...generated.goalPos },
+    });
 
     // Initialize visited with starting position
     const startKey = `${generated.kingPos.x},${generated.kingPos.y}`;
@@ -232,7 +244,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
     }
   }, []);
 
-  if (!maze || !colors || !gameState) {
+  if (!maze || !colors || !gameState || !initialPositions) {
     return (
       <div style={styles.loading}>
         Loading maze...
@@ -333,6 +345,11 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         colors={colors}
         onCopyLink={handleCopyLink}
         copied={copied}
+        maze={maze}
+        moves={gameState.moves}
+        startPos={initialPositions.startPos}
+        keyPos={initialPositions.keyPos}
+        goalPos={initialPositions.goalPos}
       />
 
       <SeedBar

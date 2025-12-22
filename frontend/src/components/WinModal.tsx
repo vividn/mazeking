@@ -1,5 +1,8 @@
 import React from 'react';
-import { ColorScheme } from '../types';
+import type { ColorScheme, MazeData, Move, Position } from '../types';
+import { useZkProof } from '../hooks/useZkProof';
+import { ProofProgress } from './ProofProgress';
+import { ProofImage } from './ProofImage';
 
 interface WinModalProps {
   isOpen: boolean;
@@ -10,13 +13,13 @@ interface WinModalProps {
   colors: ColorScheme;
   onCopyLink: () => void;
   copied: boolean;
+  maze: MazeData;
+  moves: Move[];
+  startPos: Position;
+  keyPos: Position;
+  goalPos: Position;
 }
 
-/**
- * Win Modal Component
- * Celebrates the player's victory with a beautiful overlay.
- * Shows move count and provides options to play again or generate a new maze.
- */
 export function WinModal({
   isOpen,
   moveCount,
@@ -26,8 +29,33 @@ export function WinModal({
   colors,
   onCopyLink,
   copied,
+  maze,
+  moves,
+  startPos,
+  keyPos,
+  goalPos,
 }: WinModalProps) {
+  const { state: proofState, startProofGeneration, reset: resetProof } = useZkProof(
+    maze,
+    moves,
+    startPos,
+    keyPos,
+    goalPos
+  );
+
   if (!isOpen) return null;
+
+  const handlePlayAgain = () => {
+    resetProof();
+    onPlayAgain();
+  };
+
+  const handleNewMaze = () => {
+    resetProof();
+    onNewMaze();
+  };
+
+  const isProving = proofState.stage !== 'idle' && proofState.stage !== 'complete' && proofState.stage !== 'error';
 
   const overlayStyle: React.CSSProperties = {
     position: 'fixed',
@@ -50,6 +78,8 @@ export function WinModal({
     padding: '48px 40px',
     maxWidth: '500px',
     width: '90%',
+    maxHeight: '90vh',
+    overflowY: 'auto',
     boxShadow: `0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 2px ${colors.uiAccentColor}`,
     position: 'relative',
     animation: 'slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
@@ -69,7 +99,7 @@ export function WinModal({
     textAlign: 'center',
     marginBottom: '8px',
     color: colors.playerColor,
-    textShadow: `2px 2px 4px rgba(0, 0, 0, 0.2)`,
+    textShadow: '2px 2px 4px rgba(0, 0, 0, 0.2)',
   };
 
   const subtitleStyle: React.CSSProperties = {
@@ -86,7 +116,7 @@ export function WinModal({
     padding: '24px',
     marginBottom: '24px',
     textAlign: 'center',
-    boxShadow: `inset 0 2px 8px rgba(0, 0, 0, 0.2)`,
+    boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.2)',
   };
 
   const moveCountLabelStyle: React.CSSProperties = {
@@ -104,24 +134,11 @@ export function WinModal({
     fontWeight: 'bold',
     color: colors.goalColor,
     lineHeight: 1,
-    textShadow: `2px 2px 4px rgba(0, 0, 0, 0.15)`,
+    textShadow: '2px 2px 4px rgba(0, 0, 0, 0.15)',
   };
 
   const zkSectionStyle: React.CSSProperties = {
-    backgroundColor: colors.wallColor,
-    color: colors.pathColor,
-    borderRadius: '8px',
-    padding: '20px',
     marginBottom: '32px',
-    textAlign: 'center',
-    border: `2px dashed ${colors.uiAccentColor}`,
-    opacity: 0.6,
-  };
-
-  const zkTextStyle: React.CSSProperties = {
-    fontSize: '14px',
-    fontStyle: 'italic',
-    margin: 0,
   };
 
   const buttonContainerStyle: React.CSSProperties = {
@@ -162,6 +179,12 @@ export function WinModal({
     boxShadow: 'none',
   };
 
+  const zkButtonStyle: React.CSSProperties = {
+    ...baseButtonStyle,
+    backgroundColor: colors.keyColor,
+    color: '#000',
+  };
+
   const seedInfoStyle: React.CSSProperties = {
     marginTop: '24px',
     fontSize: '12px',
@@ -169,6 +192,17 @@ export function WinModal({
     color: colors.wallColor,
     opacity: 0.5,
     fontFamily: 'monospace',
+  };
+
+  const errorStyle: React.CSSProperties = {
+    backgroundColor: 'rgba(255, 0, 0, 0.1)',
+    border: '1px solid rgba(255, 0, 0, 0.3)',
+    borderRadius: '8px',
+    padding: '12px',
+    marginBottom: '16px',
+    color: '#ff6b6b',
+    fontSize: '14px',
+    textAlign: 'center',
   };
 
   return (
@@ -219,6 +253,12 @@ export function WinModal({
             transform: translateY(0);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
           }
+
+          .win-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+          }
         `}
       </style>
       <div style={overlayStyle} onClick={(e) => e.stopPropagation()}>
@@ -241,16 +281,53 @@ export function WinModal({
           </div>
 
           <div style={zkSectionStyle}>
-            <p style={zkTextStyle}>
-              ZK Proof & NFT Minting coming soon!
-            </p>
+            {proofState.stage === 'idle' && (
+              <button
+                className="win-button"
+                style={zkButtonStyle}
+                onClick={startProofGeneration}
+                aria-label="Create zero knowledge proof of your solution"
+              >
+                Create Zero Knowledge Proof
+              </button>
+            )}
+
+            {isProving && (
+              <ProofProgress
+                stage={proofState.stage}
+                progress={proofState.progress}
+                colors={colors}
+              />
+            )}
+
+            {proofState.stage === 'complete' && proofState.imageDataUrl && proofState.proof && (
+              <ProofImage
+                imageDataUrl={proofState.imageDataUrl}
+                proofSizeBytes={proofState.proof.length}
+                colors={colors}
+              />
+            )}
+
+            {proofState.stage === 'error' && (
+              <div style={errorStyle}>
+                Error: {proofState.error || 'Unknown error'}
+                <button
+                  className="win-button"
+                  style={{ ...zkButtonStyle, marginTop: '12px' }}
+                  onClick={startProofGeneration}
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
           </div>
 
           <div style={buttonContainerStyle}>
             <button
               className="win-button"
               style={primaryButtonStyle}
-              onClick={onPlayAgain}
+              onClick={handlePlayAgain}
+              disabled={isProving}
               aria-label="Play the same maze again"
             >
               Play Again
@@ -259,7 +336,8 @@ export function WinModal({
             <button
               className="win-button"
               style={secondaryButtonStyle}
-              onClick={onNewMaze}
+              onClick={handleNewMaze}
+              disabled={isProving}
               aria-label="Generate a new maze"
             >
               New Maze
