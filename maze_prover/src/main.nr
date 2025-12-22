@@ -6,10 +6,10 @@ use types::{Position, Cell, DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT};
 use position::next_position;
 use walls::can_move;
 
-// Maximum cells supported (50x50 = 2500 for small mode)
-global MAX_MAZE_CELLS: u32 = 2500;
+// Maximum cells supported
+global MAX_MAZE_CELLS: u32 = 5000;
 // Maximum packed bytes (2 cells per byte)
-global MAX_PACKED_BYTES: u32 = 1250;
+global MAX_PACKED_BYTES: u32 = MAX_MAZE_CELLS / 2;
 // Maximum moves supported
 global MAX_MOVES: u32 = 3000;
 
