@@ -9,6 +9,8 @@ export default defineConfig({
     noirPlugin({
       projectPath: path.resolve(__dirname, '../maze_prover'),
       outputPath: path.resolve(__dirname, 'public/circuit'),
+      contractsPath: path.resolve(__dirname, '../contracts'),
+      generateVerifier: true,
     }),
   ],
 
