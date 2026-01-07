@@ -1,17 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { noirPlugin } from './vite-plugin-noir'
+// import { noirPlugin } from './vite-plugin-noir'
 import path from 'path'
 
 export default defineConfig({
   plugins: [
     react(),
-    noirPlugin({
-      projectPath: path.resolve(__dirname, '../maze_prover'),
-      outputPath: path.resolve(__dirname, 'public/circuit'),
-      contractsPath: path.resolve(__dirname, '../contracts'),
-      generateVerifier: true,
-    }),
+    // noirPlugin({
+    //   projectPath: path.resolve(__dirname, '../maze_prover'),
+    //   outputPath: path.resolve(__dirname, 'public/circuit'),
+    //   contractsPath: path.resolve(__dirname, '../contracts'),
+    //   generateVerifier: true,
+    // }),
   ],
 
   server: {

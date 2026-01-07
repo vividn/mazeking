@@ -75,7 +75,7 @@ export function noirPlugin(options: NoirPluginOptions): Plugin {
 
       // Generate Solidity verifier
       console.log('[noir-plugin] Generating Solidity contract...');
-      await execAsync(`"${bbPath}" contract -k "${vkPath}" -o "${verifierPath}"`, {
+      await execAsync(`"${bbPath}" write_solidity_verifier -k "${vkPath}" -o "${verifierPath}"`, {
         cwd: projectPath,
       });
 
