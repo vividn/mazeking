@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
+import { WagmiProvider } from 'wagmi';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Game } from './components/Game';
 import { filterToValidChars } from './lib/pixelFont';
+import { config } from './lib/wagmi';
+
+// Create query client for React Query
+const queryClient = new QueryClient();
 
 // Sanitize seed: filter invalid chars and collapse multiple spaces
 function sanitizeSeed(seed: string): string {
@@ -52,7 +58,13 @@ function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  return <Game initialSeed={seed} onSeedChange={handleSeedChange} />;
+  return (
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <Game initialSeed={seed} onSeedChange={handleSeedChange} />
+      </QueryClientProvider>
+    </WagmiProvider>
+  );
 }
 
 export default App;

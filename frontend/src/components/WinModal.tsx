@@ -1,8 +1,11 @@
 import React from 'react';
+import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import type { ColorScheme, MazeData, Move, Position } from '../types';
 import { useZkProof } from '../hooks/useZkProof';
+import { useMintNFT } from '../hooks/useMintNFT';
 import { ProofProgress } from './ProofProgress';
 import { ProofImage } from './ProofImage';
+import { areContractsDeployed } from '../lib/contracts';
 
 interface WinModalProps {
   isOpen: boolean;
@@ -42,6 +45,30 @@ export function WinModal({
     keyPos,
     goalPos
   );
+
+  // Wallet connection
+  const { address, isConnected, chain } = useAccount();
+  const { connect, connectors } = useConnect();
+  const { disconnect } = useDisconnect();
+
+  // NFT minting
+  const { mintWithProof, isPending, isConfirming, isSuccess, error: mintError } = useMintNFT();
+
+  // Check if contracts are deployed on current chain
+  const contractsDeployed = chain ? areContractsDeployed(chain.id) : false;
+
+  const handleMint = async () => {
+    if (!proofState.proof || !proofState.publicInputs) {
+      console.error('No proof available to mint');
+      return;
+    }
+
+    try {
+      await mintWithProof(proofState.proof, proofState.publicInputs, moveCount);
+    } catch (err) {
+      console.error('Mint failed:', err);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -301,11 +328,83 @@ export function WinModal({
             )}
 
             {proofState.stage === 'complete' && proofState.imageDataUrl && proofState.proof && (
-              <ProofImage
-                imageDataUrl={proofState.imageDataUrl}
-                proofSizeBytes={proofState.proof.length}
-                colors={colors}
-              />
+              <>
+                <ProofImage
+                  imageDataUrl={proofState.imageDataUrl}
+                  proofSizeBytes={proofState.proof.length}
+                  colors={colors}
+                />
+
+                {/* Minting section */}
+                <div style={{ marginTop: '24px' }}>
+                  {!isConnected ? (
+                    <button
+                      className="win-button"
+                      style={{ ...primaryButtonStyle, backgroundColor: colors.goalColor }}
+                      onClick={() => connect({ connector: connectors[0] })}
+                      aria-label="Connect wallet to mint NFT"
+                    >
+                      Connect Wallet to Mint NFT
+                    </button>
+                  ) : !contractsDeployed ? (
+                    <div style={errorStyle}>
+                      Contracts not deployed on {chain?.name || 'this network'}. Please deploy contracts first or switch to a supported network.
+                    </div>
+                  ) : isSuccess ? (
+                    <div
+                      style={{
+                        ...errorStyle,
+                        backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                        border: '1px solid rgba(0, 255, 0, 0.3)',
+                        color: '#4ade80',
+                      }}
+                    >
+                      ✓ NFT Minted Successfully!
+                      <div style={{ marginTop: '8px', fontSize: '12px', opacity: 0.8 }}>
+                        Connected: {address?.slice(0, 6)}...{address?.slice(-4)}
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div
+                        style={{
+                          marginBottom: '12px',
+                          fontSize: '12px',
+                          textAlign: 'center',
+                          color: colors.wallColor,
+                          opacity: 0.7,
+                        }}
+                      >
+                        Connected: {address?.slice(0, 6)}...{address?.slice(-4)}
+                        {' • '}
+                        {chain?.name}
+                      </div>
+
+                      <button
+                        className="win-button"
+                        style={{
+                          ...primaryButtonStyle,
+                          backgroundColor: colors.goalColor,
+                          opacity: isPending || isConfirming ? 0.7 : 1,
+                        }}
+                        onClick={handleMint}
+                        disabled={isPending || isConfirming}
+                        aria-label="Mint achievement NFT"
+                      >
+                        {isPending && 'Preparing Transaction...'}
+                        {isConfirming && 'Confirming on Chain...'}
+                        {!isPending && !isConfirming && 'Mint Achievement NFT'}
+                      </button>
+
+                      {mintError && (
+                        <div style={{ ...errorStyle, marginTop: '12px', fontSize: '12px' }}>
+                          {(mintError as any)?.message || 'Mint failed. Please try again.'}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </>
             )}
 
             {proofState.stage === 'error' && (

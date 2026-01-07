@@ -1,83 +1,439 @@
-# MazeKing Contracts
+# MazeKing Smart Contracts
 
-Smart contracts for the MazeKing game, built with Foundry.
+Solidity smart contracts for the MazeKing game, featuring ERC-1155 NFTs with zero-knowledge proof verification for maze solutions.
 
-## Structure
+Built with [Foundry](https://book.getfoundry.sh/).
+
+## 📁 Structure
 
 ```
 contracts/
 ├── src/
-│   ├── MazeKingNFT.sol      # ERC-1155 NFT with AccessControl
-│   └── generated/            # Auto-generated Solidity verifiers
-│       └── MazeVerifier.sol  # ZK proof verifier (generated from maze_prover)
+│   ├── MazeKingNFT.sol          # Main NFT contract with ZK verification
+│   ├── MazeKingNFT.spec         # Specification document
+│   └── generated/
+│       └── MazeVerifier.sol     # ZK proof verifier (UltraHonk)
 ├── test/
-│   └── MazeKingNFT.t.sol    # Contract tests
+│   └── MazeKingNFT.t.sol       # Comprehensive test suite (21 tests)
+├── script/
+│   └── Deploy.s.sol             # Deployment script
 ├── scripts/
-│   └── generate-verifier.sh  # Manual verifier generation script
-└── lib/                      # Dependencies (forge-std, openzeppelin)
+│   └── generate-verifier.sh     # Verifier generation from Noir circuit
+├── deployments/                 # Deployment addresses (git-ignored)
+├── .env                         # Environment variables (git-ignored)
+└── foundry.toml                 # Foundry configuration
 ```
 
-## Prerequisites
+## 🚀 Quick Start
+
+### Prerequisites
 
 - [Foundry](https://book.getfoundry.sh/getting-started/installation)
-- [Nargo](https://noir-lang.org/docs/getting_started/installation) (for Noir compilation)
-- [bb CLI](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg) (for Solidity verifier generation)
-
-### Installing bb CLI
 
 ```bash
-curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash
-bbup -v 0.72.1  # Use version compatible with your Noir version
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
 ```
 
-## Development
-
-### Build
+### Installation
 
 ```bash
+# Install dependencies (OpenZeppelin, forge-std)
+forge install
+
+# Build contracts
 forge build
+
+# Run tests
+forge test -vv
 ```
 
-### Test
+## 📝 Contracts
+
+### MazeKingNFT.sol
+
+ERC-1155 multi-token NFT contract with integrated zero-knowledge proof verification.
+
+**Key Features:**
+- Mint NFTs by proving maze solutions with ZK proofs
+- Track player statistics per maze (best score, solve count, badges)
+- Role-based access control (Owner, Withdrawer, Registrar, Minter)
+- Updatable verifier contract for security and flexibility
+- Efficient storage with packed Stats struct
+
+**Roles:**
+
+```solidity
+bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
+bytes32 public constant WITHDRAWER_ROLE = keccak256("WITHDRAWER_ROLE");
+bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+bytes32 public constant REGISTRAR_ROLE = keccak256("REGISTRAR_ROLE");
+```
+
+- **OWNER_ROLE**: Update URI, change verifier contract
+- **WITHDRAWER_ROLE**: Withdraw contract balance
+- **MINTER_ROLE**: Mint tokens directly (admin function)
+- **REGISTRAR_ROLE**: Register official maze seeds
+
+**Core Functions:**
+
+```solidity
+/// Mint NFT by verifying ZK proof of maze completion
+function mintWithProof(
+    bytes calldata proof,
+    bytes32[] calldata publicInputs,
+    uint16 moveCount
+) external;
+
+/// Update the verifier contract address
+function setVerifier(address _verifier) external onlyRole(OWNER_ROLE);
+
+/// Register an official maze seed to its token ID
+function registerMaze(string calldata seed, uint256 tokenId)
+    external onlyRole(REGISTRAR_ROLE);
+```
+
+**Stats Tracking:**
+
+```solidity
+struct Stats {
+    uint16 minMoves;      // Best score (minimum moves)
+    uint16 timesSolved;   // Number of times solved
+    uint32 badges;        // 32-bit bitfield for achievements
+    uint128 usdcDonated;  // Future: USDC donations
+}
+
+mapping(uint256 => mapping(address => Stats)) public stats;
+```
+
+**Badge System:**
+
+```solidity
+uint32 public constant BADGE_VERIFIED = 1 << 0;  // Has ZK proof
+uint32 public constant BADGE_ROBOT = 1 << 1;     // Perfect/optimal
+uint32 public constant BADGE_GOLD = 1 << 2;      // <1.05x optimal
+uint32 public constant BADGE_SILVER = 1 << 3;    // <1.15x optimal
+uint32 public constant BADGE_COPPER = 1 << 4;    // <1.25x optimal
+uint32 public constant BADGE_STONE = 1 << 5;     // Max moves
+// Badges 6-31: Reserved for future achievements
+```
+
+**Token ID Calculation:**
+
+```solidity
+// Token ID is deterministic based on maze definition
+tokenId = uint256(keccak256(maze_definition));
+```
+
+Each unique maze has exactly one token ID. Multiple solves by the same user update their stats but don't mint additional NFTs.
+
+**Events:**
+
+```solidity
+event VerifierUpdated(address indexed oldVerifier, address indexed newVerifier);
+event MazeRegistered(bytes32 indexed seedHash, string seed, uint256 indexed tokenId);
+event ProofVerified(address indexed solver, uint256 indexed tokenId, uint16 moveCount);
+event FirstSolve(address indexed solver, uint256 indexed tokenId, uint16 moveCount);
+event NewBestScore(address indexed solver, uint256 indexed tokenId, uint16 newBest);
+```
+
+### MazeVerifier.sol (Generated)
+
+Solidity verifier for UltraHonk ZK proofs generated by the maze prover circuit.
+
+**Interface:**
+
+```solidity
+contract UltraVerifier {
+    function verify(
+        bytes calldata _proof,
+        bytes32[] calldata _publicInputs
+    ) external view returns (bool);
+}
+```
+
+**Public Inputs Format** (2509 field elements):
+- Indices 0-7: width, height, start_x, start_y, key_x, key_y, goal_x, goal_y
+- Indices 8-2507: packed_cells (2500 bytes of maze data)
+- Index 2508: move_count
+
+**Current Status:**
+- Mock verifier provided for development (always returns true)
+- Generate real verifier using `./scripts/generate-verifier.sh`
+- Requires [nargo](https://noir-lang.org/) and [bb](https://github.com/AztecProtocol/aztec-packages) CLI tools
+
+## 🧪 Testing
+
+### Run All Tests
 
 ```bash
-forge test
+forge test -vv
 ```
 
-### Format
+**Test Coverage:**
+- ✅ 21/21 tests passing
+- Basic ERC-1155 functionality
+- Proof minting with MockVerifier
+- Stats tracking and updates
+- Multiple solves of same maze
+- Verifier and maze registration
+- Access control
+
+### Key Test Cases
+
+```solidity
+test_MintWithProof()                    // Mint NFT with valid proof
+test_MintWithProof_InvalidProof()       // Reject invalid proof
+test_MintWithProof_TwiceUpdatesBest()   // Update stats on multiple solves
+test_SetVerifier()                       // Update verifier contract
+test_RegisterMaze()                      // Register official maze seed
+```
+
+### Run Specific Tests
 
 ```bash
-forge fmt
+forge test --match-test test_MintWithProof -vvv
 ```
 
-## Verifier Generation
+### Gas Reports
 
-The Solidity verifier (`src/generated/MazeVerifier.sol`) is automatically generated from the Noir circuit in `maze_prover/` when:
+```bash
+forge test --gas-report
+```
 
-1. Running the frontend dev server (`pnpm dev` in frontend/)
-2. Any `.nr` file changes in `maze_prover/src/`
+Expected gas costs:
+- Verifier: ~300-400k gas
+- Mint + storage: ~70k gas
+- **Total: ~400-500k gas per mint**
 
-### Manual Generation
+## 🚀 Deployment
+
+### Local (Anvil)
+
+```bash
+# Terminal 1: Start Anvil
+anvil
+
+# Terminal 2: Deploy
+forge script script/Deploy.s.sol \
+  --rpc-url http://127.0.0.1:8545 \
+  --broadcast
+```
+
+Deployment addresses saved to:
+- `deployments/31337.json` (chain-specific)
+- `deployments/latest.json` (convenience symlink)
+
+### Sepolia Testnet
+
+```bash
+# Set environment variables in .env
+SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/YOUR_KEY
+SEPOLIA_PRIVATE_KEY=your_private_key
+ETHERSCAN_API_KEY=your_api_key
+
+# Deploy and verify
+forge script script/Deploy.s.sol \
+  --rpc-url $SEPOLIA_RPC_URL \
+  --private-key $SEPOLIA_PRIVATE_KEY \
+  --broadcast --verify
+```
+
+### Mainnet
+
+Same as Sepolia, but with mainnet RPC URL. **Test thoroughly first!**
+
+### Post-Deployment
+
+1. Update frontend contract addresses in `/frontend/src/lib/contracts.ts`
+2. Grant roles to appropriate addresses if needed
+3. Register official mazes using `registerMaze()`
+
+## 🔧 Verifier Generation
+
+The ZK proof verifier is generated from the Noir circuit in `../maze_prover/`.
+
+### Prerequisites
+
+```bash
+# Install Noir compiler
+curl -L https://raw.githubusercontent.com/noir-lang/noirup/refs/heads/main/install | bash
+noirup
+
+# Install Barretenberg prover
+curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash
+bbup -v 0.72.1
+```
+
+### Generate Verifier
 
 ```bash
 ./scripts/generate-verifier.sh
 ```
 
-## Contracts
+This:
+1. Compiles the Noir circuit (`../maze_prover/src/main.nr`)
+2. Generates verification key using Barretenberg
+3. Generates Solidity verifier contract
+4. Outputs to `src/generated/MazeVerifier.sol`
 
-### MazeKingNFT
+### Verification Process
 
-ERC-1155 NFT contract with role-based access control:
+The verifier checks that a ZK proof is valid without revealing the solution path:
 
-- **OWNER_ROLE**: Can update URI
-- **WITHDRAWER_ROLE**: Can withdraw contract balance
-- **MINTER_ROLE**: Can mint tokens
-- **DEFAULT_ADMIN_ROLE**: Can grant/revoke roles
+1. **Proof Generation** (client-side): Player solves maze, generates proof
+2. **Proof Submission**: User calls `mintWithProof()` with proof + public inputs
+3. **On-Chain Verification**: Contract calls `verifier.verify()`
+4. **Minting**: If valid, mint NFT and update stats
 
-### MazeVerifier (Generated)
+## 📊 Contract Interactions
 
-Solidity verifier for ZK proofs generated by the maze prover circuit. This contract verifies that a player has solved a maze without revealing their solution path.
+### Minting Flow
 
-## Deployment
+```solidity
+// 1. User generates ZK proof client-side
+// 2. User calls mintWithProof with proof and public inputs
 
-(Coming soon)
+function mintWithProof(
+    bytes calldata proof,         // ZK proof
+    bytes32[] calldata publicInputs,  // 2509 field elements
+    uint16 moveCount
+) external {
+    // Verify proof on-chain
+    require(verifier.verify(proof, publicInputs), "Invalid proof");
+
+    // Calculate tokenId from maze definition
+    uint256 tokenId = calculateTokenId(publicInputs);
+
+    // First solve: mint NFT
+    if (balanceOf(msg.sender, tokenId) == 0) {
+        _mint(msg.sender, tokenId, 1, "");
+    }
+
+    // Update stats (always)
+    updateStats(tokenId, msg.sender, moveCount);
+}
+```
+
+### Admin Functions
+
+```solidity
+// Update verifier (if new version deployed)
+nft.setVerifier(newVerifierAddress);
+
+// Register official maze
+nft.registerMaze("maze-seed-string", tokenId);
+
+// Grant roles
+nft.grantRole(REGISTRAR_ROLE, registrarAddress);
+```
+
+## 🔐 Security Considerations
+
+### Current Implementation
+
+- ✅ Role-based access control
+- ✅ Reentrancy protection (OpenZeppelin)
+- ✅ Integer overflow protection (Solidity 0.8+)
+- ✅ Comprehensive test coverage
+
+### Production Checklist
+
+- [ ] Generate real verifier (not mock)
+- [ ] Audit smart contracts
+- [ ] Test on testnet extensively
+- [ ] Set up multi-sig for OWNER_ROLE
+- [ ] Monitor contract for unusual activity
+- [ ] Have upgrade/pause mechanism if needed
+
+### Known Limitations
+
+- **Mock Verifier**: Current verifier always returns true (development only)
+- **No Pause**: No emergency pause mechanism (add if needed)
+- **No Upgrade**: Non-upgradeable (deploy new version if needed)
+- **Badge Calculation**: Not yet implemented (manual calculation off-chain)
+
+## 🛠️ Development
+
+### Format Code
+
+```bash
+forge fmt
+```
+
+### Check Coverage
+
+```bash
+forge coverage
+```
+
+### Debug Failed Test
+
+```bash
+forge test --match-test test_MintWithProof -vvvv
+```
+
+### Clean Build Artifacts
+
+```bash
+forge clean
+```
+
+### Update Dependencies
+
+```bash
+forge update
+```
+
+## 📚 Additional Resources
+
+### Foundry Documentation
+
+- [Foundry Book](https://book.getfoundry.sh/)
+- [Forge Commands](https://book.getfoundry.sh/reference/forge/)
+- [Solidity Scripting](https://book.getfoundry.sh/tutorials/solidity-scripting)
+
+### OpenZeppelin
+
+- [ERC-1155](https://docs.openzeppelin.com/contracts/4.x/erc1155)
+- [Access Control](https://docs.openzeppelin.com/contracts/4.x/access-control)
+
+### Noir & ZK Proofs
+
+- [Noir Language](https://noir-lang.org/)
+- [Barretenberg](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg)
+
+## 🐛 Troubleshooting
+
+**"Verifier not set"**
+- Deploy contracts with verifier address
+- Or call `setVerifier()` after deployment
+
+**"Invalid input length"**
+- Ensure exactly 2509 public inputs
+- Check frontend serialization matches contract expectations
+
+**"Invalid proof"**
+- Verify proof was generated correctly
+- Check verifier contract is deployed properly
+- If using mock verifier, it should always pass
+
+**Deployment fails**
+- Check .env configuration
+- Ensure sufficient balance for gas
+- Verify RPC URL is accessible
+
+**Tests fail**
+- Run `forge clean && forge build`
+- Check Foundry version: `forge --version`
+- Review error messages for specific failures
+
+## 📄 License
+
+MIT
+
+---
+
+For frontend integration, see [/frontend/README.md](../frontend/README.md)
+
+For ZK circuit details, see [/maze_prover/README.md](../maze_prover/README.md)
