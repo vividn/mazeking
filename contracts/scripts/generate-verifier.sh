@@ -67,7 +67,8 @@ echo -e "${GREEN}[verifier-gen]${NC} Compilation complete"
 
 # Step 2: Generate verification key
 CIRCUIT_JSON="$MAZE_PROVER_DIR/target/maze_prover.json"
-VK_PATH="$MAZE_PROVER_DIR/target/vk"
+TARGET_PATH="$MAZE_PROVER_DIR/target"
+VK_PATH="$TARGET_PATH/vk"
 
 if [ ! -f "$CIRCUIT_JSON" ]; then
     echo -e "${RED}[verifier-gen]${NC} Error: Circuit JSON not found at $CIRCUIT_JSON"
@@ -75,14 +76,14 @@ if [ ! -f "$CIRCUIT_JSON" ]; then
 fi
 
 echo -e "${YELLOW}[verifier-gen]${NC} Generating verification key..."
-"$BB_PATH" write_vk -b "$CIRCUIT_JSON" -o "$VK_PATH"
+"$BB_PATH" write_vk -b "$CIRCUIT_JSON" -o "$TARGET_PATH" --oracle_hash keccak --scheme ultra_honk
 echo -e "${GREEN}[verifier-gen]${NC} Verification key generated"
 
 # Step 3: Generate Solidity verifier
 VERIFIER_SOL="$OUTPUT_DIR/MazeVerifier.sol"
 
 echo -e "${YELLOW}[verifier-gen]${NC} Generating Solidity verifier..."
-"$BB_PATH" contract -k "$VK_PATH" -o "$VERIFIER_SOL"
+"$BB_PATH" write_solidity_verifier -k "$VK_PATH" -o "$VERIFIER_SOL"
 echo -e "${GREEN}[verifier-gen]${NC} Solidity verifier generated at: $VERIFIER_SOL"
 
 # Step 4: Fix up the generated contract (if needed)
