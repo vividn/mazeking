@@ -12,7 +12,6 @@ import { ERC1155Supply } from "@openzeppelin/contracts/token/ERC1155/extensions/
 contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
     bytes32 public constant OWNER_ROLE = keccak256("OWNER_ROLE");
     bytes32 public constant WITHDRAWER_ROLE = keccak256("WITHDRAWER_ROLE");
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant REGISTRAR_ROLE = keccak256("REGISTRAR_ROLE");
 
     string public name;
@@ -68,36 +67,7 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
         _grantRole(DEFAULT_ADMIN_ROLE, _owner);
         _grantRole(OWNER_ROLE, _owner);
         _grantRole(WITHDRAWER_ROLE, _owner);
-        _grantRole(MINTER_ROLE, _owner);
         _grantRole(REGISTRAR_ROLE, _owner);
-    }
-
-    /// @notice Mint tokens to an address
-    /// @param to Recipient address
-    /// @param id Token ID
-    /// @param amount Amount to mint
-    /// @param data Additional data
-    function mint(
-        address to,
-        uint256 id,
-        uint256 amount,
-        bytes memory data
-    ) external onlyRole(MINTER_ROLE) {
-        _mint(to, id, amount, data);
-    }
-
-    /// @notice Batch mint tokens to an address
-    /// @param to Recipient address
-    /// @param ids Token IDs
-    /// @param amounts Amounts to mint
-    /// @param data Additional data
-    function mintBatch(
-        address to,
-        uint256[] memory ids,
-        uint256[] memory amounts,
-        bytes memory data
-    ) external onlyRole(MINTER_ROLE) {
-        _mintBatch(to, ids, amounts, data);
     }
 
     /// @notice Update the base URI
