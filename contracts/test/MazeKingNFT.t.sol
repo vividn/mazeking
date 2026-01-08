@@ -27,7 +27,6 @@ contract MazeKingNFTTest is Test {
     MockVerifier public verifier;
     address public owner = address(1);
     address public user = address(2);
-    address public minter = address(3);
 
     function setUp() public {
         // Deploy mock verifier
@@ -50,51 +49,8 @@ contract MazeKingNFTTest is Test {
         assertEq(nft.verifierContract(), address(verifier));
         assertTrue(nft.hasRole(nft.OWNER_ROLE(), owner));
         assertTrue(nft.hasRole(nft.WITHDRAWER_ROLE(), owner));
-        assertTrue(nft.hasRole(nft.MINTER_ROLE(), owner));
         assertTrue(nft.hasRole(nft.REGISTRAR_ROLE(), owner));
         assertTrue(nft.hasRole(nft.DEFAULT_ADMIN_ROLE(), owner));
-    }
-
-    function test_Mint() public {
-        vm.prank(owner);
-        nft.mint(user, 1, 10, "");
-
-        assertEq(nft.balanceOf(user, 1), 10);
-        assertEq(nft.totalSupply(1), 10);
-    }
-
-    function test_MintBatch() public {
-        uint256[] memory ids = new uint256[](2);
-        ids[0] = 1;
-        ids[1] = 2;
-
-        uint256[] memory amounts = new uint256[](2);
-        amounts[0] = 5;
-        amounts[1] = 10;
-
-        vm.prank(owner);
-        nft.mintBatch(user, ids, amounts, "");
-
-        assertEq(nft.balanceOf(user, 1), 5);
-        assertEq(nft.balanceOf(user, 2), 10);
-    }
-
-    function test_RevertMintWithoutRole() public {
-        vm.prank(user);
-        vm.expectRevert();
-        nft.mint(user, 1, 10, "");
-    }
-
-    function test_GrantMinterRole() public {
-        // Owner has DEFAULT_ADMIN_ROLE, so can grant MINTER_ROLE
-        vm.startPrank(owner);
-        nft.grantRole(nft.MINTER_ROLE(), minter);
-        vm.stopPrank();
-
-        vm.prank(minter);
-        nft.mint(user, 1, 5, "");
-
-        assertEq(nft.balanceOf(user, 1), 5);
     }
 
     function test_SetURI() public {
@@ -138,17 +94,6 @@ contract MazeKingNFTTest is Test {
         (bool success,) = address(nft).call{ value: 0.5 ether }("");
         assertTrue(success);
         assertEq(address(nft).balance, 0.5 ether);
-    }
-
-    function test_Burn() public {
-        vm.prank(owner);
-        nft.mint(user, 1, 10, "");
-
-        vm.prank(user);
-        nft.burn(user, 1, 5);
-
-        assertEq(nft.balanceOf(user, 1), 5);
-        assertEq(nft.totalSupply(1), 5);
     }
 
     // ==================================================

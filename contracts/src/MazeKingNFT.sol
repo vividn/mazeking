@@ -145,6 +145,7 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
         external
         onlyRole(REGISTRAR_ROLE)
     {
+        // solhint-disable-next-line asm-keccak256
         bytes32 seedHash = keccak256(bytes(seed));
         require(officialMazes[seedHash] == 0, "Already registered");
         officialMazes[seedHash] = tokenId;

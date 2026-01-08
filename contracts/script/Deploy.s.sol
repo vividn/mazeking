@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
+// solhint-disable-next-line unsafe-cheatcode
 pragma solidity ^0.8.24;
 
 import {Script, console} from "forge-std/Script.sol";
 import {MazeKingNFT} from "../src/MazeKingNFT.sol";
-import {UltraVerifier} from "../src/generated/MazeVerifier.sol";
+import {HonkVerifier} from "../src/generated/MazeVerifier.sol";
 
 /**
  * @title DeployScript
@@ -33,10 +34,10 @@ contract DeployScript is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         // Step 1: Deploy Verifier
-        console.log("Deploying UltraVerifier...");
-        UltraVerifier verifierContract = new UltraVerifier();
+        console.log("Deploying HonkVerifier...");
+        HonkVerifier verifierContract = new HonkVerifier();
         verifier = address(verifierContract);
-        console.log("UltraVerifier deployed at:", verifier);
+        console.log("HonkVerifier deployed at:", verifier);
         console.log("");
 
         // Step 2: Deploy NFT
