@@ -15,3 +15,6 @@ docs/
 
 # Generated contracts (regenerated from ZK circuits)
 src/generated/*.sol
+
+# Auto-generated deployment addresses
+deployments/

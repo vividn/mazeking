@@ -4,23 +4,74 @@
     "name": "verify",
     "inputs": [
       {
-        "name": "_proof",
+        "name": "proof",
         "type": "bytes",
         "internalType": "bytes"
       },
       {
-        "name": "_publicInputs",
+        "name": "publicInputs",
         "type": "bytes32[]",
         "internalType": "bytes32[]"
       }
     ],
     "outputs": [
       {
-        "name": "",
+        "name": "verified",
         "type": "bool",
         "internalType": "bool"
       }
     ],
-    "stateMutability": "pure"
+    "stateMutability": "view"
+  },
+  {
+    "type": "error",
+    "name": "ConsistencyCheckFailed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "GeminiChallengeInSubgroup",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ProofLengthWrong",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ProofLengthWrongWithLogN",
+    "inputs": [
+      {
+        "name": "logN",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "actualLength",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "expectedLength",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "PublicInputsLengthWrong",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ShpleminiFailed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "SumcheckFailed",
+    "inputs": []
   }
 ]

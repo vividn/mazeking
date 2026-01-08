@@ -43,59 +43,78 @@ vividn-mazeking/
 ### Prerequisites
 
 - **Node.js** (v18+) and **pnpm**
-- **Foundry** - Smart contract development
-- **Anvil** - Local Ethereum node
+- **Foundry** - Smart contract development (`curl -L https://foundry.paradigm.xyz | bash && foundryup`)
+- **Noir** - ZK circuit compiler (`curl -L https://raw.githubusercontent.com/noir-lang/noirup/refs/heads/main/install | bash && noirup`)
+- **Barretenberg** - ZK proving backend (`curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash && bbup -v 0.72.1`)
+- **just** - Command runner (`cargo install just` or `brew install just`)
 - **MetaMask** or another Web3 wallet
 
-### 1. Clone & Install
+### Installation & Setup
 
 ```bash
+# Clone repository
 git clone <repository-url>
 cd vividn-mazeking
 
-# Install frontend dependencies
-cd frontend
-pnpm install
-
-# Install contract dependencies (Foundry will auto-install)
-cd ../contracts
-forge install
+# Install all dependencies
+just setup
 ```
 
-### 2. Deploy Contracts Locally
+### Development Workflow
 
 ```bash
-# Terminal 1: Start local blockchain
-anvil
+# 1. Compile circuits and sync to frontend
+just compile-circuits
 
-# Terminal 2: Deploy contracts
-cd contracts
-forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
+# 2. Deploy contracts locally (auto-starts Anvil)
+just deploy-local
 
-# Note the deployed contract addresses from output
-```
+# 3. Start frontend dev server
+just dev
 
-### 3. Configure Frontend
-
-Update `/frontend/src/lib/contracts.ts` with your deployed addresses:
-
-```typescript
-export const CONTRACTS = {
-  31337: { // localhost
-    nft: '0xYOUR_NFT_ADDRESS',
-    verifier: '0xYOUR_VERIFIER_ADDRESS',
-  },
-};
-```
-
-### 4. Start Frontend
-
-```bash
-cd frontend
-pnpm dev
+# Or start everything at once
+just dev-full
 ```
 
 Open http://localhost:5173 and start playing!
+
+### Key Commands
+
+```bash
+# Development
+just dev              # Start frontend dev server
+just dev-full         # Start Anvil + frontend together
+just status           # Show project status
+
+# Build & Compile
+just compile-circuits # Compile Noir circuits + sync to frontend
+just build           # Build everything for production
+just generate-verifier # Regenerate Solidity verifier from circuit
+
+# Testing
+just test            # Run all tests (circuits + contracts + frontend)
+just test-contracts  # Run Foundry tests
+just test-frontend   # Run Vitest tests
+just test-circuits   # Run Noir tests
+just integration-test # Full E2E integration test
+
+# Deployment
+just deploy-local    # Deploy to local Anvil (auto-starts if needed)
+just deploy-sepolia  # Deploy to Sepolia testnet
+
+# Code Quality
+just format          # Format all code (Solidity + TypeScript + Noir)
+just lint            # Lint all code
+just clean           # Clean build artifacts
+just reset           # Clean + reinstall dependencies
+
+# Monitoring
+just logs-anvil      # Tail Anvil logs
+just stop-anvil      # Stop Anvil process
+
+# See all commands
+just --list
+```
 
 ## 🎯 How to Play
 
@@ -164,50 +183,52 @@ For each maze you solve, the contract tracks:
 
 ## 🧪 Testing
 
-### Contract Tests
-
 ```bash
-cd contracts
-forge test -vv
+# Run all tests across all components
+just test
+
+# Or run individually
+just test-contracts  # Foundry contract tests (21/21 passing)
+just test-frontend   # Vitest frontend tests
+just test-circuits   # Noir circuit tests
+
+# Full integration test (E2E workflow validation)
+just integration-test
 ```
 
-All 21 tests passing, including:
+All 21 contract tests passing, including:
 - ZK proof minting with MockVerifier
 - Stats tracking and updates
 - Multiple solves of same maze
 - Verifier and maze registration
 - Access control
 
-### Frontend
-
-```bash
-cd frontend
-pnpm test
-```
-
 ## 📦 Deployment
 
 ### Local (Anvil)
 
-Already covered in Quick Start. Uses default Anvil test accounts.
+```bash
+# Auto-starts Anvil, deploys contracts, generates frontend config
+just deploy-local
+```
+
+Uses default Anvil test accounts. Frontend config is auto-generated at `frontend/src/lib/contracts.generated.ts`.
 
 ### Sepolia Testnet
 
 ```bash
-# Update contracts/.env with your credentials
-SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/YOUR_KEY
-SEPOLIA_PRIVATE_KEY=your_private_key
-ETHERSCAN_API_KEY=your_api_key
+# 1. Copy .env.example and configure
+cp .env.example .env
 
-# Deploy
-cd contracts
-forge script script/Deploy.s.sol \
-  --rpc-url $SEPOLIA_RPC_URL \
-  --private-key $SEPOLIA_PRIVATE_KEY \
-  --broadcast --verify
+# 2. Edit .env with your credentials
+SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY
+PRIVATE_KEY=your_private_key_here
 
-# Update frontend/src/lib/contracts.ts with Sepolia addresses
+# 3. Deploy (auto-generates frontend config)
+just deploy-sepolia
 ```
+
+The frontend will automatically use the deployed Sepolia addresses.
 
 ### Mainnet
 
@@ -220,16 +241,15 @@ Same as Sepolia but use mainnet RPC and ensure thorough testing first!
 The current verifier is a mock (always returns true) for development. To generate the real UltraHonk verifier:
 
 ```bash
-# Install Noir and Barretenberg
+# Install Noir and Barretenberg (if not already installed)
 curl -L https://raw.githubusercontent.com/noir-lang/noirup/refs/heads/main/install | bash && noirup
 curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash && bbup -v 0.72.1
 
 # Generate verifier
-cd contracts
-./scripts/generate-verifier.sh
+just generate-verifier
 
 # Redeploy contracts
-forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
+just deploy-local
 ```
 
 ### Customize Maze Generation
@@ -271,8 +291,9 @@ Contributions welcome! Areas for improvement:
 ## 🐛 Troubleshooting
 
 **"Contract not deployed on this network"**
-- Verify contract addresses in `frontend/src/lib/contracts.ts`
-- Ensure you're connected to the correct network
+- Run `just deploy-local` to deploy contracts and auto-generate config
+- Check `just status` to see deployment status
+- Ensure you're connected to the correct network in MetaMask
 
 **"Transaction failed"**
 - Check you have enough ETH for gas
@@ -281,8 +302,19 @@ Contributions welcome! Areas for improvement:
 
 **"Proof generation failed"**
 - Ensure maze is solvable
-- Check circuit file exists at `/frontend/public/circuit/maze_prover.json`
+- Run `just compile-circuits` to sync circuit file
+- Check circuit file exists: `just status`
 - Verify move count doesn't exceed 3000
+
+**"Anvil connection failed"**
+- Check if Anvil is running: `just status`
+- Start/restart Anvil: `just stop-anvil && just deploy-local`
+- Check logs: `just logs-anvil`
+
+**Build or deployment issues**
+- Run `just clean` to remove stale artifacts
+- Run `just reset` for a complete fresh start
+- Check tool versions: `just status`
 
 ## 📄 License
 

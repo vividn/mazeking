@@ -1,1 +1,8 @@
 dist/
+node_modules/
+
+# Auto-generated contract configuration
+src/lib/contracts.generated.ts
+
+# Auto-synced circuit file
+public/circuit/maze_prover.json
