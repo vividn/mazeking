@@ -1,6 +1,7 @@
 import { useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi';
 import MazeKingNFTAbi from '../lib/abi/MazeKingNFT.json';
 import { getContractAddress } from '../lib/contracts';
+import { PUBLIC_INPUTS_LENGTH } from '../lib/mazeConstants.generated';
 
 /**
  * Hook to mint NFT by proving ZK proof of maze completion
@@ -22,7 +23,7 @@ export function useMintNFT() {
   /**
    * Mint NFT with ZK proof
    * @param proof - The ZK proof bytes
-   * @param publicInputs - Array of 2509 public inputs as hex strings
+   * @param publicInputs - Array of PUBLIC_INPUTS_LENGTH public inputs as hex strings
    * @param moveCount - Number of moves taken
    */
   const mintWithProof = async (
@@ -42,9 +43,9 @@ export function useMintNFT() {
     }
 
     // Validate inputs
-    if (publicInputs.length !== 1509) {
+    if (publicInputs.length !== PUBLIC_INPUTS_LENGTH) {
       throw new Error(
-        `Invalid public inputs length: expected 2509, got ${publicInputs.length}`
+        `Invalid public inputs length: expected ${PUBLIC_INPUTS_LENGTH}, got ${publicInputs.length}`
       );
     }
 

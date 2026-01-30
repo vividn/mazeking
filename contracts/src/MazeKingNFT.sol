@@ -5,6 +5,7 @@ import { ERC1155 } from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
 import { ERC1155Burnable } from "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 import { ERC1155Supply } from "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
+import { MazeConstants } from "./MazeConstants.sol";
 
 /// @title MazeKingNFT
 /// @notice ERC-1155 NFT contract for MazeKing game achievements
@@ -78,7 +79,7 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
 
     /// @notice Mint NFT by verifying ZK proof of maze completion
     /// @param proof The ZK proof bytes
-    /// @param publicInputs Array of 2509 public inputs (8 params + 2500 cells + moveCount)
+    /// @param publicInputs Array of PUBLIC_INPUTS_LENGTH public inputs (8 params + packed_cells + moveCount)
     /// @param moveCount Number of moves taken
     function mintWithProof(
         bytes calldata proof,
@@ -86,16 +87,17 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
         uint16 moveCount
     ) external {
         require(verifierContract != address(0), "Verifier not set");
-        require(publicInputs.length == 1509, "Invalid input length");
+        require(publicInputs.length == MazeConstants.PUBLIC_INPUTS_LENGTH, "Invalid input length");
 
         // 1. Verify proof on-chain
         IVerifier verifier = IVerifier(verifierContract);
         bool isValid = verifier.verify(proof, publicInputs);
         require(isValid, "Invalid proof");
 
-        // 2. Calculate tokenId from maze definition (first 2508 inputs, exclude move_count at index 2508)
-        bytes memory mazeData = new bytes(2508 * 32);
-        for (uint256 i = 0; i < 2508; i++) {
+        // 2. Calculate tokenId from maze definition (excludes move_count at last index)
+        uint256 mazeDataLen = MazeConstants.MAZE_DATA_LENGTH;
+        bytes memory mazeData = new bytes(mazeDataLen * 32);
+        for (uint256 i = 0; i < mazeDataLen; i++) {
             bytes32 val = publicInputs[i];
             assembly {
                 mstore(add(mazeData, add(32, mul(i, 32))), val)

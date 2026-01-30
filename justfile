@@ -90,6 +90,14 @@ _check-tools:
     fi
     echo -e "{{GREEN}}[check]{{NC}} Found pnpm: $({{pnpm}} --version)"
 
+# === CONSTANTS GENERATION ===
+
+# Generate maze constants for all codebases from maze-config.json
+generate-constants:
+    @echo -e "{{BLUE}}[constants]{{NC}} Generating constants from maze-config.json..."
+    node {{scripts_dir}}/generate-maze-constants.js
+    @echo -e "{{GREEN}}[constants]{{NC}} Constants generation complete!"
+
 # === CIRCUIT COMPILATION ===
 
 # Compile Noir circuits and sync to frontend

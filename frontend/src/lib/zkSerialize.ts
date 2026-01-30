@@ -14,6 +14,11 @@
  */
 
 import { CellType, type Cell, type MazeData, type Position, Move } from '../types';
+import {
+  MAX_MAZE_CELLS as _MAX_CELLS,
+  MAX_PACKED_BYTES as _MAX_PACKED_BYTES,
+  MAX_MOVES as _MAX_MOVES,
+} from './mazeConstants.generated';
 
 // Direction constants matching Noir
 export const DIR_UP = 0;
@@ -141,18 +146,21 @@ export function serializeMoves(moves: Move[]): number[] {
 
 /**
  * Maximum cells supported by the prover.
+ * @see mazeConstants.generated.ts (source of truth: maze-config.json)
  */
-export const MAX_CELLS = 3000;
+export const MAX_CELLS = _MAX_CELLS;
 
 /**
  * Maximum packed bytes (MAX_CELLS / 2).
+ * @see mazeConstants.generated.ts (source of truth: maze-config.json)
  */
-export const MAX_PACKED_BYTES = MAX_CELLS / 2;
+export const MAX_PACKED_BYTES = _MAX_PACKED_BYTES;
 
 /**
  * Maximum moves supported by the prover.
+ * @see mazeConstants.generated.ts (source of truth: maze-config.json)
  */
-export const MAX_MOVES = 1000;
+export const MAX_MOVES = _MAX_MOVES;
 
 /**
  * Prover input structure matching Noir main function signature.

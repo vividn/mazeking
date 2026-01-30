@@ -1,0 +1,13 @@
+{
+  "$schema": "./maze-config.schema.json",
+  "$comment": "Single source of truth for maze constants. Run 'just generate-constants' after changes.",
+
+  "maxMazeCells": 3000,
+  "maxMoves": 1000,
+
+  "$derived": {
+    "maxPackedBytes": "maxMazeCells / 2",
+    "publicInputsLength": "8 + maxPackedBytes + 1",
+    "mazeDataLength": "8 + maxPackedBytes"
+  }
+}

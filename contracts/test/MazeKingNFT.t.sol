@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import { Test } from "forge-std/Test.sol";
 import { MazeKingNFT } from "../src/MazeKingNFT.sol";
+import { MazeConstants } from "../src/MazeConstants.sol";
 
 /// @title MockVerifier
 /// @notice Mock verifier for testing
@@ -101,7 +102,7 @@ contract MazeKingNFTTest is Test {
     // ==================================================
 
     function _createMockPublicInputs() internal pure returns (bytes32[] memory) {
-        bytes32[] memory publicInputs = new bytes32[](2509);
+        bytes32[] memory publicInputs = new bytes32[](MazeConstants.PUBLIC_INPUTS_LENGTH);
         // Fill with mock data: maze params + packed cells + move count
         publicInputs[0] = bytes32(uint256(10)); // width
         publicInputs[1] = bytes32(uint256(10)); // height
@@ -111,8 +112,8 @@ contract MazeKingNFTTest is Test {
         publicInputs[5] = bytes32(uint256(5));  // key_y
         publicInputs[6] = bytes32(uint256(9));  // goal_x
         publicInputs[7] = bytes32(uint256(9));  // goal_y
-        // Indices 8-2507: packed_cells (filled with zeros for mock)
-        publicInputs[2508] = bytes32(uint256(100)); // move_count
+        // Indices 8 to MAZE_DATA_LENGTH-1: packed_cells (filled with zeros for mock)
+        publicInputs[MazeConstants.MAZE_DATA_LENGTH] = bytes32(uint256(100)); // move_count
         return publicInputs;
     }
 
@@ -124,8 +125,9 @@ contract MazeKingNFTTest is Test {
         nft.mintWithProof(proof, publicInputs, 100);
 
         // Calculate expected tokenId (same way contract does)
-        bytes memory mazeData = new bytes(2508 * 32);
-        for (uint256 i = 0; i < 2508; i++) {
+        uint256 mazeDataLen = MazeConstants.MAZE_DATA_LENGTH;
+        bytes memory mazeData = new bytes(mazeDataLen * 32);
+        for (uint256 i = 0; i < mazeDataLen; i++) {
             bytes32 val = publicInputs[i];
             assembly {
                 mstore(add(mazeData, add(32, mul(i, 32))), val)
@@ -173,8 +175,9 @@ contract MazeKingNFTTest is Test {
         nft.mintWithProof(proof, publicInputs, 100);
 
         // Calculate tokenId
-        bytes memory mazeData = new bytes(2508 * 32);
-        for (uint256 i = 0; i < 2508; i++) {
+        uint256 mazeDataLen = MazeConstants.MAZE_DATA_LENGTH;
+        bytes memory mazeData = new bytes(mazeDataLen * 32);
+        for (uint256 i = 0; i < mazeDataLen; i++) {
             bytes32 val = publicInputs[i];
             assembly {
                 mstore(add(mazeData, add(32, mul(i, 32))), val)

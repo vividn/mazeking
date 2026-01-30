@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Game } from './components/Game';
 import { filterToValidChars } from './lib/pixelFont';
 import { config } from './lib/wagmi';
+import { MAX_MAZE_CELLS } from './lib/mazeConstants.generated';
 
 // Create query client for React Query
 const queryClient = new QueryClient();
@@ -28,7 +29,7 @@ function getInitialSeed(): string {
 }
 
 const DEFAULT_SEED = 'maze♚ ♚king';
-export const MAX_MAZE_CELLS = 3000;
+export { MAX_MAZE_CELLS };
 
 function App() {
   const [seed, setSeed] = useState(getInitialSeed);
