@@ -1,11 +1,12 @@
 import React from 'react';
-import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import { useAccount, useConnect, useDisconnect, useSwitchChain } from 'wagmi';
 import type { ColorScheme, MazeData, Move, Position } from '../types';
 import { useZkProof } from '../hooks/useZkProof';
 import { useMintNFT } from '../hooks/useMintNFT';
 import { ProofProgress } from './ProofProgress';
 import { ProofImage } from './ProofImage';
 import { areContractsDeployed } from '../lib/contracts';
+import { anvil } from '../lib/wagmi';
 
 interface WinModalProps {
   isOpen: boolean;
@@ -50,6 +51,7 @@ export function WinModal({
   const { address, isConnected, chain } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
+  const { switchChain } = useSwitchChain();
 
   // NFT minting
   const { mintWithProof, isPending, isConfirming, isSuccess, error: mintError } = useMintNFT();
@@ -348,7 +350,16 @@ export function WinModal({
                     </button>
                   ) : !contractsDeployed ? (
                     <div style={errorStyle}>
-                      Contracts not deployed on {chain?.name || 'this network'}. Please deploy contracts first or switch to a supported network.
+                      Contracts not deployed on {chain?.name || 'this network'}.
+                      {areContractsDeployed(anvil.id) && (
+                        <button
+                          className="win-button"
+                          style={{ ...zkButtonStyle, marginTop: '12px', display: 'block', width: '100%' }}
+                          onClick={() => switchChain({ chainId: anvil.id })}
+                        >
+                          Switch to Anvil
+                        </button>
+                      )}
                     </div>
                   ) : isSuccess ? (
                     <div
