@@ -14,6 +14,7 @@ export interface ProofState {
   progress: number;
   error?: string;
   proof?: Uint8Array;
+  publicInputs?: string[];
   base64Proof?: string;
   imageDataUrl?: string;
 }
@@ -64,6 +65,7 @@ export function useZkProof(
         stage: 'complete',
         progress: 100,
         proof: result.proof,
+        publicInputs: result.publicInputs,
         base64Proof,
         imageDataUrl,
       });

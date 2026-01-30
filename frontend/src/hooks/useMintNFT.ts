@@ -42,7 +42,7 @@ export function useMintNFT() {
     }
 
     // Validate inputs
-    if (publicInputs.length !== 2509) {
+    if (publicInputs.length !== 1509) {
       throw new Error(
         `Invalid public inputs length: expected 2509, got ${publicInputs.length}`
       );

@@ -86,7 +86,7 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
         uint16 moveCount
     ) external {
         require(verifierContract != address(0), "Verifier not set");
-        require(publicInputs.length == 2509, "Invalid input length");
+        require(publicInputs.length == 1509, "Invalid input length");
 
         // 1. Verify proof on-chain
         IVerifier verifier = IVerifier(verifierContract);

@@ -50,7 +50,7 @@ export function WinModal({
   // Wallet connection
   const { address, isConnected, chain } = useAccount();
   const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
+  useDisconnect();
   const { switchChain } = useSwitchChain();
 
   // NFT minting
