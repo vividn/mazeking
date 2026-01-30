@@ -67,7 +67,8 @@ export async function generateProof(
   const { witness } = await noir.execute(proverInput as unknown as InputMap);
 
   onProgress?.('generating-proof', 70);
-  const proof = await backend.generateProof(witness);
+  // Use keccak hash for EVM-compatible proofs (matches Solidity verifier)
+  const proof = await backend.generateProof(witness, { keccak: true });
 
   onProgress?.('complete', 100);
 
