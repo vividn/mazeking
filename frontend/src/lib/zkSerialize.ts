@@ -142,17 +142,17 @@ export function serializeMoves(moves: Move[]): number[] {
 /**
  * Maximum cells supported by the prover.
  */
-export const MAX_CELLS = 5000;
+export const MAX_CELLS = 3000;
 
 /**
  * Maximum packed bytes (MAX_CELLS / 2).
  */
-export const MAX_PACKED_BYTES = 2500;
+export const MAX_PACKED_BYTES = MAX_CELLS / 2;
 
 /**
  * Maximum moves supported by the prover.
  */
-export const MAX_MOVES = 3000;
+export const MAX_MOVES = 1000;
 
 /**
  * Prover input structure matching Noir main function signature.

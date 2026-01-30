@@ -392,8 +392,8 @@ NFT minted if valid
 ## 📊 Circuit Statistics
 
 **Current Configuration**:
-- MAX_CELLS: 5000
-- MAX_MOVES: 3000
+- MAX_CELLS: 3000
+- MAX_MOVES: 1000
 - Compiled Size: 9.2 MB
 - Public Inputs: 2509 field elements
 - Private Inputs: 3000 field elements
