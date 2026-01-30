@@ -197,6 +197,42 @@ function updateNoirMain(config) {
   return false;
 }
 
+function validateVerifierSync(config) {
+  const verifierPath = path.join(PROJECT_ROOT, 'contracts/src/generated/MazeVerifier.sol');
+  if (!fs.existsSync(verifierPath)) {
+    log(C.YELLOW, 'validate', 'MazeVerifier.sol not found - skipping validation');
+    return;
+  }
+
+  const verifierContent = fs.readFileSync(verifierPath, 'utf8');
+  const inputsMatch = verifierContent.match(/NUMBER_OF_PUBLIC_INPUTS\s*=\s*(\d+)/);
+  const pairingMatch = verifierContent.match(/PAIRING_POINTS_SIZE\s*=\s*(\d+)/);
+
+  if (inputsMatch) {
+    const verifierTotalInputs = parseInt(inputsMatch[1], 10);
+    // The verifier's NUMBER_OF_PUBLIC_INPUTS includes PAIRING_POINTS_SIZE (typically 16)
+    // The actual publicInputs array passed by callers = verifierTotalInputs - PAIRING_POINTS_SIZE
+    const pairingPointsSize = pairingMatch ? parseInt(pairingMatch[1], 10) : 16;
+    const verifierPublicInputs = verifierTotalInputs - pairingPointsSize;
+
+    if (verifierPublicInputs !== config.publicInputsLength) {
+      console.log('');
+      log(C.RED, 'MISMATCH', '================================================');
+      log(C.RED, 'MISMATCH', 'Verifier contract has different public inputs!');
+      log(C.RED, 'MISMATCH', `  Verifier expects: ${verifierPublicInputs} (${verifierTotalInputs} - ${pairingPointsSize} pairing points)`);
+      log(C.RED, 'MISMATCH', `  Config expects:   ${config.publicInputsLength}`);
+      log(C.RED, 'MISMATCH', '');
+      log(C.RED, 'MISMATCH', 'You must regenerate the verifier:');
+      log(C.RED, 'MISMATCH', '  just generate-verifier');
+      log(C.RED, 'MISMATCH', '  just deploy-local');
+      log(C.RED, 'MISMATCH', '================================================');
+      console.log('');
+    } else {
+      log(C.GREEN, 'validate', `Verifier public inputs match: ${verifierPublicInputs} (${verifierTotalInputs} total - ${pairingPointsSize} pairing points)`);
+    }
+  }
+}
+
 function main() {
   log(C.BLUE, 'constants', 'Generating maze constants from maze-config.json...');
 
@@ -230,6 +266,9 @@ function main() {
   log(C.BLUE, 'noir', 'Noir constants (for reference):');
   console.log(generateNoirConstants(config));
   console.log('');
+
+  // Validate verifier is in sync
+  validateVerifierSync(config);
 
   log(C.GREEN, 'constants', 'Generation complete!');
 }

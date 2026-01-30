@@ -1,9 +1,13 @@
 #!/bin/bash
 # Generate Solidity verifier from Noir circuit using Barretenberg (bb)
 #
+# IMPORTANT: bb CLI version must match @aztec/bb.js version in frontend!
+# Check frontend/package.json for the bb.js version and install matching bb CLI.
+#
 # Prerequisites:
-# - nargo (https://noir-lang.org/docs/getting_started/installation)
-# - bb CLI (curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash && bbup -v 0.72.1)
+# - nargo 1.0.0-beta.17+ (https://noir-lang.org/docs/getting_started/installation)
+# - bb CLI 2.x (must match @aztec/bb.js version in frontend)
+#   Install: curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash && bbup
 #
 # Usage: ./scripts/generate-verifier.sh
 
@@ -51,7 +55,8 @@ if [ ! -f "$BB_PATH" ]; then
 fi
 if [ -z "$BB_PATH" ] || [ ! -f "$BB_PATH" ]; then
     echo -e "${RED}[verifier-gen]${NC} Error: bb not found"
-    echo "Install with: curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash && bbup -v 0.72.1"
+    echo "Install with: curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash && bbup"
+    echo "IMPORTANT: bb CLI version must match @aztec/bb.js version in frontend/package.json"
     exit 1
 fi
 echo -e "${GREEN}[verifier-gen]${NC} Found bb at: $BB_PATH"

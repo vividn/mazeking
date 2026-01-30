@@ -16,22 +16,12 @@
     ],
     "outputs": [
       {
-        "name": "verified",
+        "name": "",
         "type": "bool",
         "internalType": "bool"
       }
     ],
     "stateMutability": "view"
-  },
-  {
-    "type": "error",
-    "name": "ConsistencyCheckFailed",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "GeminiChallengeInSubgroup",
-    "inputs": []
   },
   {
     "type": "error",

@@ -133,9 +133,17 @@ _sync-circuit-to-frontend:
     cp {{circuit_json}} {{frontend_circuit_json}}
     echo -e "{{GREEN}}[sync]{{NC}} Circuit synced to frontend"
 
-# Generate Solidity verifier from circuit
+# Generate Solidity verifier from circuit (uses bb.js for version compatibility)
 generate-verifier:
     @echo -e "{{BLUE}}[verifier]{{NC}} Generating Solidity verifier..."
+    @just _compile-circuit
+    @just _sync-circuit-to-frontend
+    cd {{frontend_dir}} && node scripts/generate-verifier.mjs
+    @echo -e "{{GREEN}}[verifier]{{NC}} Verifier generated!"
+
+# Legacy: Generate verifier using system bb (may have version mismatches)
+generate-verifier-legacy:
+    @echo -e "{{BLUE}}[verifier]{{NC}} Generating Solidity verifier (legacy)..."
     @just _compile-circuit
     {{contracts_dir}}/scripts/generate-verifier.sh
     @echo -e "{{GREEN}}[verifier]{{NC}} Verifier generated!"
