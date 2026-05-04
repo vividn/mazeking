@@ -15,10 +15,17 @@ const anvil = defineChain({
 
 /**
  * Wagmi configuration for MazeKing dApp
- * Supports Anvil (localhost) and Sepolia testnet
+ * Supports Anvil (localhost) and Sepolia testnet.
+ *
+ * The first chain in the array is wagmi's default for new connections.
+ * Dev: Anvil first (rapid local iteration). Prod: Sepolia first (deployed).
  */
+const chainsByMode = import.meta.env.DEV
+  ? ([anvil, sepolia] as const)
+  : ([sepolia, anvil] as const);
+
 export const config = createConfig({
-  chains: [sepolia, anvil],
+  chains: chainsByMode,
   connectors: [injected()],
   transports: {
     [anvil.id]: http('http://127.0.0.1:8545'),
