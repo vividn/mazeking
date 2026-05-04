@@ -328,6 +328,45 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   const getContrastColor = pickTextColor;
   const buttonTextColor = getContrastColor(colors.uiAccentColor);
   const debugMode = isDebugSeedActive(seed);
+  const statMobileStyle = isMobile ? styles.statMobile : null;
+  const statsGroupNode = (
+    <div
+      style={{
+        ...styles.statsGroup,
+        ...(isMobile ? styles.statsGroupMobile : null),
+      }}
+    >
+      <span style={{ ...styles.stat, ...statMobileStyle }}>
+        Moves: <strong>{gameState.moveCount}</strong>
+      </span>
+      <span
+        style={{
+          ...styles.stat,
+          ...statMobileStyle,
+          color: gameState.hasKey ? colors.keyColor : '#888',
+        }}
+      >
+        {gameState.hasKey ? 'Regalia collected!' : 'Find the regalia'}
+      </span>
+      {debugMode && (
+        <span
+          style={{
+            ...styles.stat,
+            ...statMobileStyle,
+            padding: '2px 6px',
+            border: `1px solid ${colors.uiAccentColor}`,
+            borderRadius: '4px',
+            color: colors.uiAccentColor,
+            fontWeight: 700,
+            letterSpacing: '0.05em',
+          }}
+          title="Debug seed active: 66% of internal walls removed (localhost only)"
+        >
+          [DEBUG]
+        </span>
+      )}
+    </div>
+  );
 
   return (
     <div style={styles.container} ref={gameContainerRef}>
@@ -338,47 +377,27 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
           backgroundColor: colors.headerBackgroundColor,
         }}
       >
-        <div style={styles.wordmarkRow}>
-          <Wordmark
-            text={'maze♚\n♚king'}
-            pixelSize={isMobile ? 3 : 4}
-            color={colors.textBackgroundColor}
-            zkColor={colors.zkBackgroundColor}
-            crownColor={colors.crownBackgroundColor}
-            ariaLabel="MAZEKING"
-          />
-        </div>
-        <div style={styles.headerRow}>
-          <div style={styles.statsGroup}>
-            <span style={styles.stat}>
-              Moves: <strong>{gameState.moveCount}</strong>
-            </span>
-            <span
-              style={{
-                ...styles.stat,
-                color: gameState.hasKey ? colors.keyColor : '#888',
-              }}
-            >
-              {gameState.hasKey ? 'Regalia collected!' : 'Find the regalia'}
-            </span>
-            {debugMode && (
-              <span
-                style={{
-                  ...styles.stat,
-                  padding: '2px 6px',
-                  border: `1px solid ${colors.uiAccentColor}`,
-                  borderRadius: '4px',
-                  color: colors.uiAccentColor,
-                  fontWeight: 700,
-                  letterSpacing: '0.05em',
-                }}
-                title="Debug seed active: 66% of internal walls removed (localhost only)"
-              >
-                [DEBUG]
-              </span>
-            )}
+        <div
+          style={{
+            ...styles.wordmarkRow,
+            ...(isMobile ? styles.wordmarkRowMobile : null),
+          }}
+        >
+          <div style={{ flexShrink: 0 }}>
+            <Wordmark
+              text={'maze♚\n♚king'}
+              pixelSize={isMobile ? 3 : 4}
+              color={colors.textBackgroundColor}
+              zkColor={colors.zkBackgroundColor}
+              crownColor={colors.crownBackgroundColor}
+              ariaLabel="MAZEKING"
+            />
           </div>
-          {!isMobile && (
+          {isMobile && statsGroupNode}
+        </div>
+        {!isMobile && (
+          <div style={styles.headerRow}>
+            {statsGroupNode}
             <div style={styles.keymap}>
               <span style={styles.keymapItem}>
                 Move: <kbd style={styles.kbd}>Arrows</kbd>{' '}
@@ -391,8 +410,6 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
                 New: <kbd style={styles.kbd}>N</kbd>
               </span>
             </div>
-          )}
-          {!isMobile && (
             <div style={styles.headerButtons}>
               <button
                 onClick={toggleZoom}
@@ -458,8 +475,8 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
                 New Game
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <MazeSizeWarning width={maze.width} height={maze.height} />
@@ -580,14 +597,30 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'flex-start',
   },
+  wordmarkRowMobile: {
+    justifyContent: 'space-between',
+    gap: '12px',
+  },
   statsGroup: {
     display: 'flex',
     alignItems: 'center',
     gap: '20px',
   },
+  statsGroupMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: '2px',
+    minWidth: 0,
+    flexShrink: 1,
+  },
   stat: {
     fontSize: '15px',
     color: '#ddd',
+  },
+  statMobile: {
+    fontSize: '12px',
+    lineHeight: 1.2,
+    whiteSpace: 'nowrap',
   },
   keymap: {
     display: 'flex',
