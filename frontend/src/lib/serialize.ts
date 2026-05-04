@@ -1,4 +1,10 @@
-import { CellType, type Cell, type Position, type MazeData, type Move } from '../types';
+import {
+  CellType,
+  type Cell,
+  type Position,
+  type MazeData,
+  type Move,
+} from '../types';
 
 /**
  * Serializes a maze and its key positions into a compact binary format.
@@ -65,11 +71,11 @@ export function serializeMaze(
 
       // Handle spanning across byte boundary
       if (bitInByte <= 4) {
-        byteArray[byteIndex] |= (cellValue << (4 - bitInByte));
+        byteArray[byteIndex] |= cellValue << (4 - bitInByte);
       } else {
         // Value spans two bytes
-        byteArray[byteIndex] |= (cellValue >> (bitInByte - 4));
-        byteArray[byteIndex + 1] |= (cellValue << (12 - bitInByte));
+        byteArray[byteIndex] |= cellValue >> (bitInByte - 4);
+        byteArray[byteIndex + 1] |= cellValue << (12 - bitInByte);
       }
 
       bitOffset += 4;
@@ -78,7 +84,7 @@ export function serializeMaze(
 
   // Convert to hex string
   return Array.from(new Uint8Array(buffer))
-    .map(b => b.toString(16).padStart(2, '0'))
+    .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 }
 
@@ -92,7 +98,9 @@ export function deserializeMaze(data: string): {
   goalPos: Position;
 } {
   // Convert hex string to buffer
-  const bytes = new Uint8Array(data.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+  const bytes = new Uint8Array(
+    data.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
+  );
   const buffer = bytes.buffer;
   const view = new DataView(buffer);
 
@@ -107,19 +115,19 @@ export function deserializeMaze(data: string): {
   // Read positions
   const kingPos: Position = {
     x: view.getUint16(offset, false),
-    y: view.getUint16(offset + 2, false)
+    y: view.getUint16(offset + 2, false),
   };
   offset += 4;
 
   const keyPos: Position = {
     x: view.getUint16(offset, false),
-    y: view.getUint16(offset + 2, false)
+    y: view.getUint16(offset + 2, false),
   };
   offset += 4;
 
   const goalPos: Position = {
     x: view.getUint16(offset, false),
-    y: view.getUint16(offset + 2, false)
+    y: view.getUint16(offset + 2, false),
   };
   offset += 4;
 
@@ -138,13 +146,16 @@ export function deserializeMaze(data: string): {
         cellValue = (bytes[byteIndex] >> (4 - bitInByte)) & 0b1111;
       } else {
         // Value spans two bytes
-        cellValue = ((bytes[byteIndex] << (bitInByte - 4)) | (bytes[byteIndex + 1] >> (12 - bitInByte))) & 0b1111;
+        cellValue =
+          ((bytes[byteIndex] << (bitInByte - 4)) |
+            (bytes[byteIndex + 1] >> (12 - bitInByte))) &
+          0b1111;
       }
 
       cells[y][x] = {
         southWall: (cellValue & 8) !== 0,
         eastWall: (cellValue & 4) !== 0,
-        cellType: (cellValue & 0b11) as CellType
+        cellType: (cellValue & 0b11) as CellType,
       };
 
       bitOffset += 4;
@@ -155,7 +166,7 @@ export function deserializeMaze(data: string): {
     maze: { cells, width, height },
     kingPos,
     keyPos,
-    goalPos
+    goalPos,
   };
 }
 
@@ -177,12 +188,12 @@ export function serializeMoves(moves: Move[]): string {
     const bitInByte = bitOffset % 8;
 
     // Pack 2 bits for this move
-    bytes[byteIndex] |= (move << (6 - bitInByte));
+    bytes[byteIndex] |= move << (6 - bitInByte);
   }
 
   // Convert to hex string
   return Array.from(bytes)
-    .map(b => b.toString(16).padStart(2, '0'))
+    .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 }
 
@@ -192,7 +203,9 @@ export function serializeMoves(moves: Move[]): string {
 export function deserializeMoves(data: string): Move[] {
   if (!data) return [];
 
-  const bytes = new Uint8Array(data.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+  const bytes = new Uint8Array(
+    data.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
+  );
   const moves: Move[] = [];
 
   // We need to know how many moves there are

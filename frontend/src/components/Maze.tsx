@@ -6,7 +6,12 @@ import {
   type ColorScheme,
 } from '../types';
 import { drawArrow, drawCornerWarp, getArrowColor } from '../glyphs';
-import { drawPerson, drawRegalia, drawCrownGoal, CrownTier } from '../lib/spriteGlyphs';
+import {
+  drawPerson,
+  drawRegalia,
+  drawCrownGoal,
+  CrownTier,
+} from '../lib/spriteGlyphs';
 
 interface MazeProps {
   maze: MazeData;

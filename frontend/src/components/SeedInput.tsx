@@ -94,7 +94,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#e0e0e0',
     fontSize: '14px',
     fontWeight: 500,
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     userSelect: 'none',
   },
   input: {
@@ -117,7 +118,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     transition: 'opacity 0.15s ease',
     userSelect: 'none',
   },

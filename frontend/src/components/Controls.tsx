@@ -93,13 +93,37 @@ export const Controls: React.FC<ControlsProps> = ({
         <div style={styles.expandedInner}>
           <div style={styles.dpad}>
             <div />
-            <ArrowButton label="▲" dir="up" onPress={handleMove} disabled={disabled} bg={arrowBg} />
+            <ArrowButton
+              label="▲"
+              dir="up"
+              onPress={handleMove}
+              disabled={disabled}
+              bg={arrowBg}
+            />
             <div />
-            <ArrowButton label="◀" dir="left" onPress={handleMove} disabled={disabled} bg={arrowBg} />
+            <ArrowButton
+              label="◀"
+              dir="left"
+              onPress={handleMove}
+              disabled={disabled}
+              bg={arrowBg}
+            />
             <div style={styles.dpadCenter} />
-            <ArrowButton label="▶" dir="right" onPress={handleMove} disabled={disabled} bg={arrowBg} />
+            <ArrowButton
+              label="▶"
+              dir="right"
+              onPress={handleMove}
+              disabled={disabled}
+              bg={arrowBg}
+            />
             <div />
-            <ArrowButton label="▼" dir="down" onPress={handleMove} disabled={disabled} bg={arrowBg} />
+            <ArrowButton
+              label="▼"
+              dir="down"
+              onPress={handleMove}
+              disabled={disabled}
+              bg={arrowBg}
+            />
             <div />
           </div>
           <div style={styles.actionGroup}>
@@ -148,13 +172,43 @@ export const Controls: React.FC<ControlsProps> = ({
           aria-label={expanded ? 'Collapse controls' : 'Expand controls'}
           role="button"
         >
-          <div style={{ ...styles.handleBar, backgroundColor: `${accentColor}aa` }} />
+          <div
+            style={{ ...styles.handleBar, backgroundColor: `${accentColor}aa` }}
+          />
         </div>
         <div style={styles.compactRow}>
-          <CompactButton label="H" sub="◀" dir="left" onPress={handleMove} disabled={disabled} bg={arrowBgFaint} />
-          <CompactButton label="J" sub="▼" dir="down" onPress={handleMove} disabled={disabled} bg={arrowBgFaint} />
-          <CompactButton label="K" sub="▲" dir="up" onPress={handleMove} disabled={disabled} bg={arrowBgFaint} />
-          <CompactButton label="L" sub="▶" dir="right" onPress={handleMove} disabled={disabled} bg={arrowBgFaint} />
+          <CompactButton
+            label="H"
+            sub="◀"
+            dir="left"
+            onPress={handleMove}
+            disabled={disabled}
+            bg={arrowBgFaint}
+          />
+          <CompactButton
+            label="J"
+            sub="▼"
+            dir="down"
+            onPress={handleMove}
+            disabled={disabled}
+            bg={arrowBgFaint}
+          />
+          <CompactButton
+            label="K"
+            sub="▲"
+            dir="up"
+            onPress={handleMove}
+            disabled={disabled}
+            bg={arrowBgFaint}
+          />
+          <CompactButton
+            label="L"
+            sub="▶"
+            dir="right"
+            onPress={handleMove}
+            disabled={disabled}
+            bg={arrowBgFaint}
+          />
         </div>
       </div>
     </div>
@@ -169,13 +223,23 @@ interface ArrowButtonProps {
   bg: string;
 }
 
-const ArrowButton: React.FC<ArrowButtonProps> = ({ label, dir, onPress, disabled, bg }) => (
+const ArrowButton: React.FC<ArrowButtonProps> = ({
+  label,
+  dir,
+  onPress,
+  disabled,
+  bg,
+}) => (
   <button
     type="button"
     aria-label={`Move ${dir}`}
     disabled={disabled}
     onClick={() => onPress(dir)}
-    style={{ ...styles.arrowButton, backgroundColor: bg, opacity: disabled ? 0.5 : 1 }}
+    style={{
+      ...styles.arrowButton,
+      backgroundColor: bg,
+      opacity: disabled ? 0.5 : 1,
+    }}
   >
     {label}
   </button>
@@ -190,13 +254,24 @@ interface CompactButtonProps {
   bg: string;
 }
 
-const CompactButton: React.FC<CompactButtonProps> = ({ label, sub, dir, onPress, disabled, bg }) => (
+const CompactButton: React.FC<CompactButtonProps> = ({
+  label,
+  sub,
+  dir,
+  onPress,
+  disabled,
+  bg,
+}) => (
   <button
     type="button"
     aria-label={`Move ${dir}`}
     disabled={disabled}
     onClick={() => onPress(dir)}
-    style={{ ...styles.compactButton, backgroundColor: bg, opacity: disabled ? 0.5 : 1 }}
+    style={{
+      ...styles.compactButton,
+      backgroundColor: bg,
+      opacity: disabled ? 0.5 : 1,
+    }}
   >
     <span style={styles.compactArrow}>{sub}</span>
     <span style={styles.compactLetter}>{label}</span>

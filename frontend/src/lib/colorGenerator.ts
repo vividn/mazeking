@@ -3,15 +3,15 @@ import { createRng } from './seededRandom';
 export interface ColorScheme {
   wallColor: string;
   pathColor: string;
-  mazeBackgroundColor: string;  // Background for non-text maze areas
-  visitedColor: string;         // Slightly different color for visited squares
+  mazeBackgroundColor: string; // Background for non-text maze areas
+  visitedColor: string; // Slightly different color for visited squares
   textWallColor: string;
   textBackgroundColor: string;
-  textVisitedColor: string;     // Visited color for text cells
-  zkBackgroundColor: string;    // Special background for Z/K letters (zero-knowledge highlight)
-  zkVisitedColor: string;       // Visited color for Z/K letters
+  textVisitedColor: string; // Visited color for text cells
+  zkBackgroundColor: string; // Special background for Z/K letters (zero-knowledge highlight)
+  zkVisitedColor: string; // Visited color for Z/K letters
   crownBackgroundColor: string; // Golden background for crown emoji cells
-  crownVisitedColor: string;    // Visited color for crown emoji cells
+  crownVisitedColor: string; // Visited color for crown emoji cells
   playerColor: string;
   keyColor: string;
   goalColor: string;
@@ -35,7 +35,8 @@ export function generateColorScheme(seed: string): ColorScheme {
 
   // Helper to generate HSL color
   const hsl = (h: number, s: number, l: number) => `hsl(${h}, ${s}%, ${l}%)`;
-  const hsla = (h: number, s: number, l: number, a: number) => `hsla(${h}, ${s}%, ${l}%, ${a})`;
+  const hsla = (h: number, s: number, l: number, a: number) =>
+    `hsla(${h}, ${s}%, ${l}%, ${a})`;
 
   // Generate base hue (0-360) for the color scheme
   const baseHue = rng.next() * 360;
@@ -54,23 +55,43 @@ export function generateColorScheme(seed: string): ColorScheme {
   const pathColor = hsl(mazeBgHue, 10 + rng.next() * 15, 82 + rng.next() * 10);
 
   // Visited color: derived from mazeBackgroundColor - 12% darker, 12% more saturated
-  const visitedColor = hsl(mazeBgHue, Math.min(mazeBgSaturation + 12, 100), Math.max(mazeBgLightness - 8, 0));
+  const visitedColor = hsl(
+    mazeBgHue,
+    Math.min(mazeBgSaturation + 12, 100),
+    Math.max(mazeBgLightness - 8, 0)
+  );
 
   // Text wall color: darker, more saturated - stands out
   const textWallHue = (baseHue + 180 + rng.next() * 40 - 20) % 360;
-  const textWallColor = hsl(textWallHue, 50 + rng.next() * 25, 25 + rng.next() * 10);
+  const textWallColor = hsl(
+    textWallHue,
+    50 + rng.next() * 25,
+    25 + rng.next() * 10
+  );
 
   // Text background: VIBRANT and glowing - contrasts nicely with maze background
   const textBgHue = (baseHue + 180 + rng.next() * 60 - 30) % 360; // Complementary
-  const textBackgroundColor = hsl(textBgHue, 70 + rng.next() * 25, 55 + rng.next() * 15);
+  const textBackgroundColor = hsl(
+    textBgHue,
+    70 + rng.next() * 25,
+    55 + rng.next() * 15
+  );
 
   // Text visited color: slightly darker/desaturated version of text background
-  const textVisitedColor = hsl(textBgHue, 50 + rng.next() * 20, 42 + rng.next() * 10);
+  const textVisitedColor = hsl(
+    textBgHue,
+    50 + rng.next() * 20,
+    42 + rng.next() * 10
+  );
 
   // ZK highlight colors: complementary hue to text background for Z and K letters
   // Use triadic color (120 degrees offset) from text background for nice contrast while staying harmonious
   const zkHue = (textBgHue + 120 + rng.next() * 30 - 15) % 360;
-  const zkBackgroundColor = hsl(zkHue, 75 + rng.next() * 20, 50 + rng.next() * 15);
+  const zkBackgroundColor = hsl(
+    zkHue,
+    75 + rng.next() * 20,
+    50 + rng.next() * 15
+  );
   const zkVisitedColor = hsl(zkHue, 55 + rng.next() * 20, 35 + rng.next() * 10);
 
   // Crown colors: golden hue (around 45-50 degrees) for crown emoji cells
@@ -81,7 +102,11 @@ export function generateColorScheme(seed: string): ColorScheme {
 
   // Player color: golden crown feel
   const playerHue = 45 + rng.next() * 15; // Gold range
-  const playerColor = hsl(playerHue, 90 + rng.next() * 10, 55 + rng.next() * 10);
+  const playerColor = hsl(
+    playerHue,
+    90 + rng.next() * 10,
+    55 + rng.next() * 10
+  );
   const playerGlowColor = hsla(playerHue, 100, 60, 0.6);
 
   // Key color: golden/yellow tones

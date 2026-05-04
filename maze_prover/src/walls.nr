@@ -1,5 +1,5 @@
-use crate::types::{Position, Cell, get_cell_from_packed, DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT};
 use crate::position::wall_check_index;
+use crate::types::{Cell, DIR_DOWN, DIR_LEFT, DIR_RIGHT, DIR_UP, get_cell_from_packed, Position};
 
 // Check if movement is allowed from given position in given direction
 // This matches the TypeScript canMove function exactly:
@@ -14,7 +14,7 @@ pub fn can_move<let N: u32>(
     pos: Position,
     direction: u8,
     width: u16,
-    height: u16
+    height: u16,
 ) -> bool {
     let idx = wall_check_index(pos, direction, width, height);
     let cell = get_cell_from_packed(packed_cells, idx);
@@ -73,7 +73,7 @@ fn create_test_maze_3x3() -> [u8; 5] {
     packed[1] = pack_cells(c2, c3); // cells 2, 3
     packed[2] = pack_cells(c4, c5); // cells 4, 5
     packed[3] = pack_cells(c6, c7); // cells 6, 7
-    packed[4] = pack_cells(c8, 0);  // cell 8, padding
+    packed[4] = pack_cells(c8, 0); // cell 8, padding
     packed
 }
 

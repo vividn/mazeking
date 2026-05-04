@@ -1,4 +1,4 @@
-use crate::types::{Position, DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT};
+use crate::types::{DIR_DOWN, DIR_LEFT, DIR_RIGHT, DIR_UP, Position};
 
 // Calculate next position with toroidal wrapping
 pub fn next_position(pos: Position, direction: u8, width: u16, height: u16) -> Position {

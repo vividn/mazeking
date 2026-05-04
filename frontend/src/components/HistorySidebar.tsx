@@ -21,7 +21,7 @@ export function HistorySidebar({
 
   useEffect(() => {
     if (isOpen) {
-      setSeeds(getRecentSeeds().filter(s => s !== currentSeed));
+      setSeeds(getRecentSeeds().filter((s) => s !== currentSeed));
     }
   }, [isOpen, currentSeed]);
 

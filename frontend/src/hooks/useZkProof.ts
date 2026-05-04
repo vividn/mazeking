@@ -37,13 +37,16 @@ export function useZkProof(
     progress: 0,
   });
 
-  const handleProgress: ProofProgressCallback = useCallback((stage, progress) => {
-    setState((prev) => ({
-      ...prev,
-      stage,
-      progress,
-    }));
-  }, []);
+  const handleProgress: ProofProgressCallback = useCallback(
+    (stage, progress) => {
+      setState((prev) => ({
+        ...prev,
+        stage,
+        progress,
+      }));
+    },
+    []
+  );
 
   const startProofGeneration = useCallback(async () => {
     try {
@@ -74,7 +77,8 @@ export function useZkProof(
       setState({
         stage: 'error',
         progress: 0,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error:
+          error instanceof Error ? error.message : 'Unknown error occurred',
       });
     }
   }, [maze, moves, startPos, keyPos, goalPos, handleProgress]);

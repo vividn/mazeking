@@ -105,45 +105,51 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
         _setURI(newuri);
     }
 
-    /// @notice Mint NFT by verifying ZK proof of maze completion
-    /// @param proof The ZK proof bytes
-    /// @param publicInputs Array of PUBLIC_INPUTS_LENGTH public inputs (8 params + packed_cells + moveCount)
-    /// @param moveCount Number of moves taken
-    function mintWithProof(bytes calldata proof, bytes32[] calldata publicInputs, uint16 moveCount)
-        external
-    {
+    /// @notice Mint NFT by verifying a ZK proof of maze completion.
+    /// @dev Hash-as-public-input architecture (ma-6cr.6):
+    ///      - Public inputs are exactly `[mazeHash, moveCount]`.
+    ///      - The Pedersen hash binding inside the circuit guarantees the
+    ///        prover knew a layout whose canonical bytes hash to `mazeHash`.
+    ///      - `layout` is the canonical layout bytes (16-byte header +
+    ///        zero-padded packed cells). The first minter's `layout` is
+    ///        stored under `tokenId = uint256(mazeHash)` (option α: the
+    ///        contract trusts the first caller to pair `mazeHash` with the
+    ///        layout it actually represents — a wrong pairing only affects
+    ///        rendering, not the proof).
+    /// @param proof      The ZK proof bytes from the Honk backend.
+    /// @param mazeHash   Pedersen hash of the canonical layout.
+    /// @param layout     Canonical layout bytes (header + packed cells).
+    /// @param moveCount  Number of moves taken (must match the proof).
+    function mintWithProof(
+        bytes calldata proof,
+        bytes32 mazeHash,
+        bytes calldata layout,
+        uint16 moveCount
+    ) external {
         require(verifierContract != address(0), "Verifier not set");
-        require(publicInputs.length == MazeConstants.PUBLIC_INPUTS_LENGTH, "Invalid input length");
 
-        // 1. Verify proof on-chain
+        // 1. Verify proof on-chain with public inputs = [mazeHash, moveCount].
+        bytes32[] memory publicInputs = new bytes32[](MazeConstants.PUBLIC_INPUTS_LENGTH);
+        publicInputs[0] = mazeHash;
+        publicInputs[1] = bytes32(uint256(moveCount));
+
         IVerifier verifier = IVerifier(verifierContract);
         bool isValid = verifier.verify(proof, publicInputs);
         require(isValid, "Invalid proof");
 
-        // 2. Calculate tokenId from maze definition (excludes move_count at last index)
-        uint256 mazeDataLen = MazeConstants.MAZE_DATA_LENGTH;
-        bytes memory mazeData = new bytes(mazeDataLen * 32);
-        for (uint256 i = 0; i < mazeDataLen; i++) {
-            bytes32 val = publicInputs[i];
-            assembly {
-                mstore(add(mazeData, add(32, mul(i, 32))), val)
-            }
-        }
-        uint256 tokenId = uint256(keccak256(mazeData));
+        // 2. tokenId is the maze hash (one hash -> one identity).
+        uint256 tokenId = uint256(mazeHash);
 
         // 3. Check if first mint for this user
         bool isFirstMint = balanceOf(msg.sender, tokenId) == 0;
 
-        // 4. Mint token only on first solve (amount = 1)
         if (isFirstMint) {
             _mint(msg.sender, tokenId, 1, "");
         }
 
-        // 4b. Store the maze layout the first time this maze is minted by anyone.
-        //     The layout is shared across all solvers of the same maze, so we only
-        //     need to write it once. Subsequent mints are O(1) for storage.
+        // 4. Store the maze layout on first mint of this maze (any user).
+        //    Layout is shared across all solvers; subsequent mints are O(1).
         if (layouts[tokenId].length == 0) {
-            bytes memory layout = _encodeLayout(publicInputs);
             layouts[tokenId] = layout;
             emit LayoutStored(tokenId, layout.length);
         }
@@ -202,34 +208,6 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
             return IMazeRenderer(r).tokenURI(tokenId, layout);
         }
         return super.uri(tokenId);
-    }
-
-    /// @dev Encode the maze layout from `publicInputs` into a compact byte
-    ///      string. The format is documented on MazeRenderer; in short, it is
-    ///      8 BE-uint16 scalars followed by ceil(width*height/2) packed cell
-    ///      bytes (high nibble = even index, low nibble = odd).
-    function _encodeLayout(bytes32[] calldata publicInputs) internal pure returns (bytes memory) {
-        uint16 width = uint16(uint256(publicInputs[0]));
-        uint16 height = uint16(uint256(publicInputs[1]));
-        uint256 totalCells = uint256(width) * uint256(height);
-        uint256 packedLen = (totalCells + 1) / 2;
-
-        bytes memory out = new bytes(16 + packedLen);
-
-        // 8 BE uint16 scalars: width, height, startX, startY, keyX, keyY, goalX, goalY.
-        for (uint256 i = 0; i < 8; i++) {
-            uint16 v = uint16(uint256(publicInputs[i]));
-            out[i * 2] = bytes1(uint8(v >> 8));
-            out[i * 2 + 1] = bytes1(uint8(v));
-        }
-
-        // packed_cells: each input[i] is a bytes32 whose lowest byte is the
-        // packed-cells byte. Take the lowest byte of each.
-        for (uint256 i = 0; i < packedLen; i++) {
-            out[16 + i] = bytes1(uint8(uint256(publicInputs[8 + i])));
-        }
-
-        return out;
     }
 
     /// @notice Record the optimal (minimum) move count for a maze

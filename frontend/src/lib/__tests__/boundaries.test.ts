@@ -1,8 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { getCharacterBoundaries, calculateEntryCountRange, PIXEL_FONT } from '../pixelFont';
+import {
+  getCharacterBoundaries,
+  calculateEntryCountRange,
+  PIXEL_FONT,
+} from '../pixelFont';
 
 // Helper to flatten external boundaries for easier testing
-function flattenExternal(boundaries: { external: { x: number; y: number; side: string }[][] }): { x: number; y: number; side: string }[] {
+function flattenExternal(boundaries: {
+  external: { x: number; y: number; side: string }[][];
+}): { x: number; y: number; side: string }[] {
   return boundaries.external.flat();
 }
 
@@ -196,7 +202,9 @@ describe('getCharacterBoundaries', () => {
       const boundaries = getCharacterBoundaries('L');
       const pattern = PIXEL_FONT['L'];
 
-      const topEntries = flattenExternal(boundaries).filter(e => e.side === 'top');
+      const topEntries = flattenExternal(boundaries).filter(
+        (e) => e.side === 'top'
+      );
       for (const entry of topEntries) {
         // For a 'top' entry, either y=0 (top row) or cell above is empty
         if (entry.y > 0) {
@@ -209,7 +217,9 @@ describe('getCharacterBoundaries', () => {
       const boundaries = getCharacterBoundaries('L');
       const pattern = PIXEL_FONT['L'];
 
-      const bottomEntries = flattenExternal(boundaries).filter(e => e.side === 'bottom');
+      const bottomEntries = flattenExternal(boundaries).filter(
+        (e) => e.side === 'bottom'
+      );
       for (const entry of bottomEntries) {
         // For a 'bottom' entry, either y=height-1 (bottom row) or cell below is empty
         if (entry.y < pattern.length - 1) {

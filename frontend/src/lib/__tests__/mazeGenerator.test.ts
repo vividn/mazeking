@@ -44,8 +44,10 @@ describe('generateMaze', () => {
       for (let y = 0; y < minHeight && !wallsDiffer; y++) {
         for (let x = 0; x < minWidth && !wallsDiffer; x++) {
           if (
-            result1.maze.cells[y][x].southWall !== result2.maze.cells[y][x].southWall ||
-            result1.maze.cells[y][x].eastWall !== result2.maze.cells[y][x].eastWall
+            result1.maze.cells[y][x].southWall !==
+              result2.maze.cells[y][x].southWall ||
+            result1.maze.cells[y][x].eastWall !==
+              result2.maze.cells[y][x].eastWall
           ) {
             wallsDiffer = true;
           }
@@ -83,7 +85,12 @@ describe('generateMaze', () => {
         const pos = queue.shift()!;
 
         // Check all four directions
-        const directions: Array<'up' | 'down' | 'left' | 'right'> = ['up', 'down', 'left', 'right'];
+        const directions: Array<'up' | 'down' | 'left' | 'right'> = [
+          'up',
+          'down',
+          'left',
+          'right',
+        ];
 
         for (const dir of directions) {
           if (canMove(maze, pos, dir)) {
@@ -133,7 +140,7 @@ describe('generateMaze', () => {
 
       // All non-text cells should be reachable (minus king's starting cell if it's text)
       // Actually, we need at least the non-text cells to be connected
-      const reachableNonText = Array.from(reachable).filter(key => {
+      const reachableNonText = Array.from(reachable).filter((key) => {
         const [x, y] = key.split(',').map(Number);
         return !isTextCell(maze, x, y);
       }).length;
@@ -430,7 +437,10 @@ describe('generateMaze', () => {
 });
 
 // Simplified helper for connectivity tests
-function findReachableCellsSimple(maze: MazeData, start: Position): Set<string> {
+function findReachableCellsSimple(
+  maze: MazeData,
+  start: Position
+): Set<string> {
   const reachable = new Set<string>();
   const queue: Position[] = [start];
   const key = (p: Position) => `${p.x},${p.y}`;

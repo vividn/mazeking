@@ -22,7 +22,12 @@ export function drawArrow(
   ctx.translate(x, y);
 
   // Rotate based on direction
-  const rotations = { up: 0, right: Math.PI / 2, down: Math.PI, left: -Math.PI / 2 };
+  const rotations = {
+    up: 0,
+    right: Math.PI / 2,
+    down: Math.PI,
+    left: -Math.PI / 2,
+  };
   ctx.rotate(rotations[direction]);
 
   // Draw arrow pointing up (will be rotated)

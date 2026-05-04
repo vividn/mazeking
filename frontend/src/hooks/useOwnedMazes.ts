@@ -4,9 +4,7 @@ import type { Address, PublicClient } from 'viem';
 import { parseAbiItem } from 'viem';
 import MazeKingNFTAbi from '../lib/abi/MazeKingNFT.json';
 import { getContractAddress } from '../lib/contracts';
-import { lookupSeed, rememberMany } from '../lib/mintRegistry';
-import { computeTokenIdFromSeed } from '../lib/tokenId';
-import { getRecentSeeds } from '../lib/seedHistory';
+import { lookupSeed } from '../lib/mintRegistry';
 
 /**
  * How far back from the current block to scan for ERC1155 transfer logs.
@@ -134,21 +132,10 @@ export function useOwnedMazes(): State & { refresh: () => void } {
       setState((s) => ({ ...s, loading: true, error: null }));
 
       try {
-        // Hydrate the local registry from seedHistory before showing tiles —
-        // recompute tokenId for each historical seed so prior mints made on
-        // this browser get their replay seed back.
-        const recentSeeds = getRecentSeeds();
-        if (recentSeeds.length > 0) {
-          const computed: Array<{ tokenId: bigint; seed: string }> = [];
-          for (const seed of recentSeeds) {
-            try {
-              computed.push({ tokenId: computeTokenIdFromSeed(seed), seed });
-            } catch {
-              // Skip seeds whose mazes can't be regenerated for any reason.
-            }
-          }
-          rememberMany(computed);
-        }
+        // Seed→tokenId hydration is paused under the hash-as-public-input
+        // architecture (ma-6cr.6): tokenId now comes from a Pedersen hash of
+        // the canonical layout, computed via bb.js. ma-6cr.8 will restore
+        // this path once the bb.js Pedersen wiring lands.
 
         const tokenIds = await scanIncomingTokenIds(
           publicClient,

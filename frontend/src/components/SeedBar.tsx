@@ -68,7 +68,9 @@ export function SeedBar({ isOpen, onStartGame, onCancel }: SeedBarProps) {
 
     const scheduleGeneration = () => {
       // Use requestIdleCallback for low-priority execution (with setTimeout fallback)
-      const scheduleIdle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1));
+      const scheduleIdle =
+        window.requestIdleCallback ??
+        ((cb: () => void) => window.setTimeout(cb, 1));
 
       idleCallbackRef.current = scheduleIdle(() => {
         // Check if this generation is still current
@@ -98,19 +100,26 @@ export function SeedBar({ isOpen, onStartGame, onCancel }: SeedBarProps) {
     return () => cancelPendingPreview();
   }, [cancelPendingPreview]);
 
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    let newValue = e.target.value;
-    const lastChar = newValue.slice(-1);
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      let newValue = e.target.value;
+      const lastChar = newValue.slice(-1);
 
-    if (newValue.length > inputValue.length && lastChar && !isValidChar(lastChar)) {
-      setShake(true);
-      setTimeout(() => setShake(false), 300);
-      newValue = filterToValidChars(newValue);
-    }
+      if (
+        newValue.length > inputValue.length &&
+        lastChar &&
+        !isValidChar(lastChar)
+      ) {
+        setShake(true);
+        setTimeout(() => setShake(false), 300);
+        newValue = filterToValidChars(newValue);
+      }
 
-    newValue = newValue.replace(/  +/g, ' ');
-    setInputValue(newValue);
-  }, [inputValue]);
+      newValue = newValue.replace(/  +/g, ' ');
+      setInputValue(newValue);
+    },
+    [inputValue]
+  );
 
   const handleSubmit = useCallback(() => {
     cancelPendingPreview();
@@ -122,15 +131,18 @@ export function SeedBar({ isOpen, onStartGame, onCancel }: SeedBarProps) {
     }
   }, [inputValue, onStartGame, onCancel, cancelPendingPreview]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSubmit();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      onCancel();
-    }
-  }, [handleSubmit, onCancel]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSubmit();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onCancel();
+      }
+    },
+    [handleSubmit, onCancel]
+  );
 
   const handleRandomPhrase = useCallback(() => {
     const phrase = getRandomPhrase();
@@ -170,7 +182,10 @@ export function SeedBar({ isOpen, onStartGame, onCancel }: SeedBarProps) {
             backgroundColor: previewColors.pageBackgroundColor,
           }}
         >
-          <MazeSizeWarning width={previewMaze.width} height={previewMaze.height} />
+          <MazeSizeWarning
+            width={previewMaze.width}
+            height={previewMaze.height}
+          />
           <Maze
             maze={previewMaze}
             playerPos={{ x: 0, y: 0 }}

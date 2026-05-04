@@ -53,18 +53,23 @@ function loadConfig() {
 
   // Compute derived values
   const maxPackedBytes = Math.floor(maxMazeCells / 2);
-  // Public inputs: width, height, start_x, start_y, key_x, key_y, goal_x, goal_y (8)
-  //                + packed_cells (maxPackedBytes) + move_count (1)
-  const publicInputsLength = 8 + maxPackedBytes + 1;
-  // Maze data for tokenId hash: all public inputs except move_count
-  const mazeDataLength = 8 + maxPackedBytes;
+  // Hash-as-public-input architecture (ma-6cr.6):
+  //   public  = [maze_hash, move_count]
+  //   private = layout (header + packed_cells) + moves
+  const publicInputsLength = 2;
+  // Canonical layout bytes that get Pedersen-hashed to produce maze_hash:
+  //   16 header bytes (8 BE u16: width, height, sx, sy, kx, ky, gx, gy)
+  //   + maxPackedBytes packed cells (zero-padded)
+  const layoutHeaderBytes = 16;
+  const layoutTotalBytes = layoutHeaderBytes + maxPackedBytes;
 
   return {
     maxMazeCells,
     maxMoves,
     maxPackedBytes,
     publicInputsLength,
-    mazeDataLength,
+    layoutHeaderBytes,
+    layoutTotalBytes,
   };
 }
 
@@ -91,15 +96,15 @@ export const MAX_MOVES = ${config.maxMoves};
 
 /**
  * Number of public inputs for ZK proof verification.
- * = 8 scalar params + MAX_PACKED_BYTES + 1 move_count
+ * = [maze_hash, move_count] under the hash-as-public-input architecture.
  */
 export const PUBLIC_INPUTS_LENGTH = ${config.publicInputsLength};
 
-/**
- * Number of elements used for maze identity hash (tokenId calculation).
- * = PUBLIC_INPUTS_LENGTH - 1 (excludes move_count)
- */
-export const MAZE_DATA_LENGTH = ${config.mazeDataLength};
+/** Header bytes for the canonical maze layout (8 big-endian u16s). */
+export const LAYOUT_HEADER_BYTES = ${config.layoutHeaderBytes};
+
+/** Total bytes of the canonical layout (header + zero-padded packed cells). */
+export const LAYOUT_TOTAL_BYTES = ${config.layoutTotalBytes};
 `;
 }
 
@@ -128,15 +133,15 @@ library MazeConstants {
 
     /**
      * @notice Number of public inputs for ZK proof verification
-     * @dev = 8 scalar params + MAX_PACKED_BYTES + 1 move_count
+     * @dev [maze_hash, move_count] under hash-as-public-input architecture
      */
     uint256 internal constant PUBLIC_INPUTS_LENGTH = ${config.publicInputsLength};
 
-    /**
-     * @notice Number of elements used for maze identity hash (tokenId)
-     * @dev = PUBLIC_INPUTS_LENGTH - 1 (excludes move_count)
-     */
-    uint256 internal constant MAZE_DATA_LENGTH = ${config.mazeDataLength};
+    /// @notice Header bytes for the canonical layout (8 BE u16 fields)
+    uint256 internal constant LAYOUT_HEADER_BYTES = ${config.layoutHeaderBytes};
+
+    /// @notice Total bytes of the canonical layout (header + zero-padded cells)
+    uint256 internal constant LAYOUT_TOTAL_BYTES = ${config.layoutTotalBytes};
 }
 `;
 }
@@ -243,7 +248,8 @@ function main() {
   console.log(`  MAX_PACKED_BYTES:    ${config.maxPackedBytes}`);
   console.log(`  MAX_MOVES:           ${config.maxMoves}`);
   console.log(`  PUBLIC_INPUTS_LENGTH: ${config.publicInputsLength}`);
-  console.log(`  MAZE_DATA_LENGTH:    ${config.mazeDataLength}`);
+  console.log(`  LAYOUT_HEADER_BYTES: ${config.layoutHeaderBytes}`);
+  console.log(`  LAYOUT_TOTAL_BYTES:  ${config.layoutTotalBytes}`);
   console.log('');
 
   // Generate TypeScript

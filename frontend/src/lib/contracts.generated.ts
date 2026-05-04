@@ -10,7 +10,10 @@
  * are imported directly by the consumers that need them.
  */
 
-export const CONTRACT_ADDRESSES: Record<number, { nft: `0x${string}`; verifier: `0x${string}` }> = {
+export const CONTRACT_ADDRESSES: Record<
+  number,
+  { nft: `0x${string}`; verifier: `0x${string}` }
+> = {
   // Sepolia
   11155111: {
     nft: '0xe60b6d8a04a45a34210835830c4cd2dbd6500824',

@@ -29,7 +29,7 @@ export function computeOptimalMoves(
 ): number | null {
   const W = maze.width;
   const stateKey = (x: number, y: number, hasKey: 0 | 1) =>
-    (((y * W + x) << 1) | hasKey);
+    ((y * W + x) << 1) | hasKey;
 
   const startHasKey: 0 | 1 = start.x === key.x && start.y === key.y ? 1 : 0;
   const visited = new Set<number>();
@@ -54,7 +54,12 @@ export function computeOptimalMoves(
       const k = stateKey(next.x, next.y, nextHasKey);
       if (visited.has(k)) continue;
       visited.add(k);
-      queue.push({ x: next.x, y: next.y, hasKey: nextHasKey, dist: node.dist + 1 });
+      queue.push({
+        x: next.x,
+        y: next.y,
+        hasKey: nextHasKey,
+        dist: node.dist + 1,
+      });
     }
   }
 

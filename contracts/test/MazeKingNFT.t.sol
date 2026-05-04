@@ -100,42 +100,37 @@ contract MazeKingNFTTest is Test {
     // ZK Proof Minting Tests
     // ==================================================
 
-    function _createMockPublicInputs() internal pure returns (bytes32[] memory) {
-        bytes32[] memory publicInputs = new bytes32[](MazeConstants.PUBLIC_INPUTS_LENGTH);
-        // Fill with mock data: maze params + packed cells + move count
-        publicInputs[0] = bytes32(uint256(10)); // width
-        publicInputs[1] = bytes32(uint256(10)); // height
-        publicInputs[2] = bytes32(uint256(0)); // start_x
-        publicInputs[3] = bytes32(uint256(0)); // start_y
-        publicInputs[4] = bytes32(uint256(5)); // key_x
-        publicInputs[5] = bytes32(uint256(5)); // key_y
-        publicInputs[6] = bytes32(uint256(9)); // goal_x
-        publicInputs[7] = bytes32(uint256(9)); // goal_y
-        // Indices 8 to MAZE_DATA_LENGTH-1: packed_cells (filled with zeros for mock)
-        publicInputs[MazeConstants.MAZE_DATA_LENGTH] = bytes32(uint256(100)); // move_count
-        return publicInputs;
+    /// @dev Default mock layout: 10x10 maze, all zeros for packed cells (we
+    ///      don't actually verify path validity here — the MockVerifier
+    ///      always returns true).
+    function _mockLayout() internal pure returns (bytes memory) {
+        bytes memory layout = new bytes(MazeConstants.LAYOUT_HEADER_BYTES + 50);
+        // BE u16 header: width=10, height=10, sx=0, sy=0, kx=5, ky=5, gx=9, gy=9
+        uint16[8] memory hdr = [uint16(10), 10, 0, 0, 5, 5, 9, 9];
+        for (uint256 i = 0; i < 8; i++) {
+            layout[i * 2] = bytes1(uint8(hdr[i] >> 8));
+            layout[i * 2 + 1] = bytes1(uint8(hdr[i] & 0xFF));
+        }
+        return layout;
     }
 
-    function _tokenIdFromInputs(bytes32[] memory publicInputs) internal pure returns (uint256) {
-        uint256 mazeDataLen = MazeConstants.MAZE_DATA_LENGTH;
-        bytes memory mazeData = new bytes(mazeDataLen * 32);
-        for (uint256 i = 0; i < mazeDataLen; i++) {
-            bytes32 val = publicInputs[i];
-            assembly {
-                mstore(add(mazeData, add(32, mul(i, 32))), val)
-            }
-        }
-        return uint256(keccak256(mazeData));
+    /// @dev Deterministic stand-in for the off-chain Pedersen hash. The
+    ///      MockVerifier ignores the actual hash, so any deterministic
+    ///      function of the layout suffices to give each layout a stable
+    ///      tokenId in tests.
+    function _mockMazeHash(bytes memory layout) internal pure returns (bytes32) {
+        return keccak256(layout);
     }
 
     function test_MintWithProof() public {
-        bytes32[] memory publicInputs = _createMockPublicInputs();
-        bytes memory proof = hex"1234567890"; // Mock proof
+        bytes memory layout = _mockLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        bytes memory proof = hex"1234567890";
 
         vm.prank(user);
-        nft.mintWithProof(proof, publicInputs, 100);
+        nft.mintWithProof(proof, mazeHash, layout, 100);
 
-        uint256 expectedTokenId = _tokenIdFromInputs(publicInputs);
+        uint256 expectedTokenId = uint256(mazeHash);
 
         // Verify NFT minted
         assertEq(nft.balanceOf(user, expectedTokenId), 1);
@@ -148,59 +143,45 @@ contract MazeKingNFTTest is Test {
     }
 
     function test_MintWithProof_InvalidProof() public {
-        // Set verifier to reject
         verifier.setShouldPass(false);
 
-        bytes32[] memory publicInputs = _createMockPublicInputs();
+        bytes memory layout = _mockLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
         bytes memory proof = hex"1234567890";
 
         vm.prank(user);
         vm.expectRevert("Invalid proof");
-        nft.mintWithProof(proof, publicInputs, 100);
-    }
-
-    function test_MintWithProof_InvalidInputLength() public {
-        bytes32[] memory publicInputs = new bytes32[](100); // Wrong length
-        bytes memory proof = hex"1234567890";
-
-        vm.prank(user);
-        vm.expectRevert("Invalid input length");
-        nft.mintWithProof(proof, publicInputs, 100);
+        nft.mintWithProof(proof, mazeHash, layout, 100);
     }
 
     function test_MintWithProof_TwiceUpdatesBest() public {
-        bytes32[] memory publicInputs = _createMockPublicInputs();
+        bytes memory layout = _mockLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
         bytes memory proof = hex"1234567890";
 
-        // First mint with 100 moves
         vm.prank(user);
-        nft.mintWithProof(proof, publicInputs, 100);
+        nft.mintWithProof(proof, mazeHash, layout, 100);
 
-        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+        uint256 tokenId = uint256(mazeHash);
 
-        // Verify initial stats
         (uint16 minMoves1, uint16 timesSolved1,,) = nft.stats(tokenId, user);
         assertEq(minMoves1, 100);
         assertEq(timesSolved1, 1);
 
-        // Second mint with 80 moves (better)
         vm.prank(user);
-        nft.mintWithProof(proof, publicInputs, 80);
+        nft.mintWithProof(proof, mazeHash, layout, 80);
 
-        // Verify updated stats
         (uint16 minMoves2, uint16 timesSolved2,,) = nft.stats(tokenId, user);
-        assertEq(minMoves2, 80); // Updated to better score
-        assertEq(timesSolved2, 2); // Incremented
-        assertEq(nft.balanceOf(user, tokenId), 1); // Still only 1 NFT
+        assertEq(minMoves2, 80);
+        assertEq(timesSolved2, 2);
+        assertEq(nft.balanceOf(user, tokenId), 1);
 
-        // Third mint with 90 moves (worse than current best)
         vm.prank(user);
-        nft.mintWithProof(proof, publicInputs, 90);
+        nft.mintWithProof(proof, mazeHash, layout, 90);
 
-        // Verify stats unchanged except timesSolved
         (uint16 minMoves3, uint16 timesSolved3,,) = nft.stats(tokenId, user);
-        assertEq(minMoves3, 80); // Kept best score
-        assertEq(timesSolved3, 3); // Incremented
+        assertEq(minMoves3, 80);
+        assertEq(timesSolved3, 3);
     }
 
     function test_SetVerifier() public {
@@ -331,8 +312,9 @@ contract MazeKingNFTTest is Test {
 
     function test_MintWithProof_AwardsRegisteredBadge() public {
         DefaultBadgeAwarder awarder = new DefaultBadgeAwarder(address(nft));
-        bytes32[] memory publicInputs = _createMockPublicInputs();
-        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+        bytes memory layout = _mockLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        uint256 tokenId = uint256(mazeHash);
 
         vm.startPrank(owner);
         nft.setBadgeAwarder(address(awarder));
@@ -340,7 +322,7 @@ contract MazeKingNFTTest is Test {
         vm.stopPrank();
 
         vm.prank(user);
-        nft.mintWithProof(hex"00", publicInputs, 100);
+        nft.mintWithProof(hex"00", mazeHash, layout, 100);
 
         (,, uint32 badges,) = nft.stats(tokenId, user);
         assertEq(badges, nft.BADGE_REGISTERED());
@@ -348,8 +330,9 @@ contract MazeKingNFTTest is Test {
 
     function test_MintWithProof_AwardsRobotOnPerfect() public {
         DefaultBadgeAwarder awarder = new DefaultBadgeAwarder(address(nft));
-        bytes32[] memory publicInputs = _createMockPublicInputs();
-        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+        bytes memory layout = _mockLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        uint256 tokenId = uint256(mazeHash);
 
         vm.startPrank(owner);
         nft.setBadgeAwarder(address(awarder));
@@ -357,7 +340,7 @@ contract MazeKingNFTTest is Test {
         vm.stopPrank();
 
         vm.prank(user);
-        nft.mintWithProof(hex"00", publicInputs, 100);
+        nft.mintWithProof(hex"00", mazeHash, layout, 100);
 
         (,, uint32 badges,) = nft.stats(tokenId, user);
         assertEq(badges & nft.BADGE_ROBOT(), nft.BADGE_ROBOT());
@@ -368,8 +351,9 @@ contract MazeKingNFTTest is Test {
 
     function test_MintWithProof_AwardsGold() public {
         DefaultBadgeAwarder awarder = new DefaultBadgeAwarder(address(nft));
-        bytes32[] memory publicInputs = _createMockPublicInputs();
-        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+        bytes memory layout = _mockLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        uint256 tokenId = uint256(mazeHash);
 
         vm.startPrank(owner);
         nft.setBadgeAwarder(address(awarder));
@@ -378,7 +362,7 @@ contract MazeKingNFTTest is Test {
 
         // 104 < 105 (1.04x) -> GOLD
         vm.prank(user);
-        nft.mintWithProof(hex"00", publicInputs, 104);
+        nft.mintWithProof(hex"00", mazeHash, layout, 104);
 
         (,, uint32 badges,) = nft.stats(tokenId, user);
         assertEq(badges & nft.BADGE_GOLD(), nft.BADGE_GOLD());
@@ -388,8 +372,9 @@ contract MazeKingNFTTest is Test {
 
     function test_MintWithProof_AwardsSilver() public {
         DefaultBadgeAwarder awarder = new DefaultBadgeAwarder(address(nft));
-        bytes32[] memory publicInputs = _createMockPublicInputs();
-        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+        bytes memory layout = _mockLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        uint256 tokenId = uint256(mazeHash);
 
         vm.startPrank(owner);
         nft.setBadgeAwarder(address(awarder));
@@ -398,7 +383,7 @@ contract MazeKingNFTTest is Test {
 
         // 110 (1.10x) is in [1.05x, 1.15x) -> SILVER
         vm.prank(user);
-        nft.mintWithProof(hex"00", publicInputs, 110);
+        nft.mintWithProof(hex"00", mazeHash, layout, 110);
 
         (,, uint32 badges,) = nft.stats(tokenId, user);
         assertEq(badges & nft.BADGE_SILVER(), nft.BADGE_SILVER());
@@ -408,8 +393,9 @@ contract MazeKingNFTTest is Test {
 
     function test_MintWithProof_AwardsCopper() public {
         DefaultBadgeAwarder awarder = new DefaultBadgeAwarder(address(nft));
-        bytes32[] memory publicInputs = _createMockPublicInputs();
-        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+        bytes memory layout = _mockLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        uint256 tokenId = uint256(mazeHash);
 
         vm.startPrank(owner);
         nft.setBadgeAwarder(address(awarder));
@@ -418,7 +404,7 @@ contract MazeKingNFTTest is Test {
 
         // 120 (1.20x) is in [1.15x, 1.25x) -> COPPER
         vm.prank(user);
-        nft.mintWithProof(hex"00", publicInputs, 120);
+        nft.mintWithProof(hex"00", mazeHash, layout, 120);
 
         (,, uint32 badges,) = nft.stats(tokenId, user);
         assertEq(badges & nft.BADGE_COPPER(), nft.BADGE_COPPER());
@@ -427,17 +413,17 @@ contract MazeKingNFTTest is Test {
 
     function test_MintWithProof_NoMedalAtOrAboveCopperThreshold() public {
         DefaultBadgeAwarder awarder = new DefaultBadgeAwarder(address(nft));
-        bytes32[] memory publicInputs = _createMockPublicInputs();
-        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+        bytes memory layout = _mockLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        uint256 tokenId = uint256(mazeHash);
 
         vm.startPrank(owner);
         nft.setBadgeAwarder(address(awarder));
         nft.setOptimalMoves(tokenId, 100);
         vm.stopPrank();
 
-        // 125 (1.25x) is at the COPPER ceiling — no medal (strict <)
         vm.prank(user);
-        nft.mintWithProof(hex"00", publicInputs, 125);
+        nft.mintWithProof(hex"00", mazeHash, layout, 125);
 
         (,, uint32 badges,) = nft.stats(tokenId, user);
         assertEq(badges & nft.BADGE_COPPER(), 0);
@@ -447,15 +433,15 @@ contract MazeKingNFTTest is Test {
 
     function test_MintWithProof_AwardsStoneAtMaxMoves() public {
         DefaultBadgeAwarder awarder = new DefaultBadgeAwarder(address(nft));
-        bytes32[] memory publicInputs = _createMockPublicInputs();
-        publicInputs[MazeConstants.MAZE_DATA_LENGTH] = bytes32(uint256(MazeConstants.MAX_MOVES));
-        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+        bytes memory layout = _mockLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        uint256 tokenId = uint256(mazeHash);
 
         vm.prank(owner);
         nft.setBadgeAwarder(address(awarder));
 
         vm.prank(user);
-        nft.mintWithProof(hex"00", publicInputs, uint16(MazeConstants.MAX_MOVES));
+        nft.mintWithProof(hex"00", mazeHash, layout, uint16(MazeConstants.MAX_MOVES));
 
         (,, uint32 badges,) = nft.stats(tokenId, user);
         assertEq(badges & nft.BADGE_STONE(), nft.BADGE_STONE());
@@ -463,42 +449,40 @@ contract MazeKingNFTTest is Test {
 
     function test_MintWithProof_BadgesAccumulateAcrossSolves() public {
         DefaultBadgeAwarder awarder = new DefaultBadgeAwarder(address(nft));
-        bytes32[] memory publicInputs = _createMockPublicInputs();
-        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+        bytes memory layout = _mockLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        uint256 tokenId = uint256(mazeHash);
 
         vm.startPrank(owner);
         nft.setBadgeAwarder(address(awarder));
         nft.setOptimalMoves(tokenId, 100);
         vm.stopPrank();
 
-        // First solve at 110 -> SILVER
         vm.prank(user);
-        nft.mintWithProof(hex"00", publicInputs, 110);
+        nft.mintWithProof(hex"00", mazeHash, layout, 110);
         (,, uint32 b1,) = nft.stats(tokenId, user);
         assertEq(b1, nft.BADGE_SILVER());
 
-        // Second solve at 100 -> ROBOT (OR-accumulates)
         vm.prank(user);
-        nft.mintWithProof(hex"00", publicInputs, 100);
+        nft.mintWithProof(hex"00", mazeHash, layout, 100);
         (,, uint32 b2,) = nft.stats(tokenId, user);
         assertEq(b2, nft.BADGE_SILVER() | nft.BADGE_ROBOT());
 
-        // Now flip on registrarApproved and solve again -> add REGISTERED
         vm.prank(owner);
         nft.setRegistrarApproved(tokenId, true);
         vm.prank(user);
-        nft.mintWithProof(hex"00", publicInputs, 100);
+        nft.mintWithProof(hex"00", mazeHash, layout, 100);
         (,, uint32 b3,) = nft.stats(tokenId, user);
         assertEq(b3, nft.BADGE_SILVER() | nft.BADGE_ROBOT() | nft.BADGE_REGISTERED());
     }
 
     function test_MintWithProof_NoAwarderConfigured() public {
-        // Default state — no awarder set, no badges should be granted
-        bytes32[] memory publicInputs = _createMockPublicInputs();
-        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+        bytes memory layout = _mockLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        uint256 tokenId = uint256(mazeHash);
 
         vm.prank(user);
-        nft.mintWithProof(hex"00", publicInputs, 100);
+        nft.mintWithProof(hex"00", mazeHash, layout, 100);
 
         (,, uint32 badges,) = nft.stats(tokenId, user);
         assertEq(badges, 0);
@@ -508,75 +492,61 @@ contract MazeKingNFTTest is Test {
     // On-chain SVG Rendering Tests (ma-6cr.7)
     // ==================================================
 
-    /// @dev Build a deterministic small (4x4) maze layout in publicInputs
-    ///      shape. We need a real layout (not zeros) so the renderer has
-    ///      walls and cell types to draw.
-    function _smallMazeInputs() internal pure returns (bytes32[] memory) {
-        bytes32[] memory publicInputs = new bytes32[](MazeConstants.PUBLIC_INPUTS_LENGTH);
-        publicInputs[0] = bytes32(uint256(4)); // width
-        publicInputs[1] = bytes32(uint256(4)); // height
-        publicInputs[2] = bytes32(uint256(0)); // start_x
-        publicInputs[3] = bytes32(uint256(0)); // start_y
-        publicInputs[4] = bytes32(uint256(2)); // key_x
-        publicInputs[5] = bytes32(uint256(1)); // key_y
-        publicInputs[6] = bytes32(uint256(3)); // goal_x
-        publicInputs[7] = bytes32(uint256(3)); // goal_y
-
-        // 4x4 = 16 cells = 8 packed bytes. Use a mix of cell types and walls
-        // so the renderer has something interesting to walk.
-        // High nibble = even-index cell, low nibble = odd-index cell.
-        // Nibble layout: [southWall][eastWall][cellType:2 bits]
-        //   0xC = 1100 = south+east walls, type 0 (Normal)
-        //   0x9 = 1001 = south wall, type 1 (Text)
-        //   0x6 = 0110 = east wall, type 2 (ZkText)
-        //   0x3 = 0011 = no walls, type 3 (CrownText)
-        publicInputs[8] = bytes32(uint256(0xC9)); // cells 0,1
-        publicInputs[9] = bytes32(uint256(0x63)); // cells 2,3
-        publicInputs[10] = bytes32(uint256(0xC0)); // cells 4,5
-        publicInputs[11] = bytes32(uint256(0x49)); // cells 6,7
-        publicInputs[12] = bytes32(uint256(0xCC)); // cells 8,9
-        publicInputs[13] = bytes32(uint256(0x33)); // cells 10,11
-        publicInputs[14] = bytes32(uint256(0xC9)); // cells 12,13
-        publicInputs[15] = bytes32(uint256(0x66)); // cells 14,15
-
-        publicInputs[MazeConstants.MAZE_DATA_LENGTH] = bytes32(uint256(50));
-        return publicInputs;
+    /// @dev Deterministic 4x4 layout (header + 8 packed bytes). We craft it
+    ///      directly in canonical layout-bytes form (the same shape the
+    ///      caller passes to `mintWithProof`). The renderer uses these
+    ///      bytes, so the cell pattern matters; the proof verifier is mocked.
+    function _smallMazeLayout() internal pure returns (bytes memory) {
+        bytes memory layout = new bytes(16 + 8);
+        // Header: width=4, height=4, sx=0, sy=0, kx=2, ky=1, gx=3, gy=3
+        uint16[8] memory hdr = [uint16(4), 4, 0, 0, 2, 1, 3, 3];
+        for (uint256 i = 0; i < 8; i++) {
+            layout[i * 2] = bytes1(uint8(hdr[i] >> 8));
+            layout[i * 2 + 1] = bytes1(uint8(hdr[i] & 0xFF));
+        }
+        // Packed cells (high nibble = even, low = odd; bits = south|east|type[2]):
+        //   0xC = south+east walls, Normal
+        //   0x9 = south wall, Text
+        //   0x6 = east wall, ZkText
+        //   0x3 = no walls, CrownText
+        uint8[8] memory cells = [0xC9, 0x63, 0xC0, 0x49, 0xCC, 0x33, 0xC9, 0x66];
+        for (uint256 i = 0; i < 8; i++) {
+            layout[16 + i] = bytes1(cells[i]);
+        }
+        return layout;
     }
 
     function test_MintStoresLayout() public {
-        bytes32[] memory publicInputs = _smallMazeInputs();
-        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+        bytes memory layout = _smallMazeLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        uint256 tokenId = uint256(mazeHash);
 
         vm.prank(user);
-        nft.mintWithProof(hex"00", publicInputs, 50);
+        nft.mintWithProof(hex"00", mazeHash, layout, 50);
 
         bytes memory stored = nft.layouts(tokenId);
-        // 16-byte header + 8 packed bytes for a 4x4 maze
         assertEq(stored.length, 24);
 
-        // Verify width/height bytes (BE uint16)
         assertEq(uint8(stored[0]), 0);
-        assertEq(uint8(stored[1]), 4); // width
+        assertEq(uint8(stored[1]), 4);
         assertEq(uint8(stored[2]), 0);
-        assertEq(uint8(stored[3]), 4); // height
+        assertEq(uint8(stored[3]), 4);
 
-        // First packed byte should round-trip the input nibble pair
         assertEq(uint8(stored[16]), 0xC9);
     }
 
     function test_MintLayoutWrittenOnce() public {
-        bytes32[] memory publicInputs = _smallMazeInputs();
-        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+        bytes memory layout = _smallMazeLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        uint256 tokenId = uint256(mazeHash);
 
         vm.prank(user);
-        nft.mintWithProof(hex"00", publicInputs, 50);
+        nft.mintWithProof(hex"00", mazeHash, layout, 50);
         bytes memory firstLayout = nft.layouts(tokenId);
 
-        // Second mint by another user should NOT rewrite the layout: storing
-        // it again would emit a duplicate event and waste gas.
         address user2 = address(0x2222);
         vm.prank(user2);
-        nft.mintWithProof(hex"00", publicInputs, 60);
+        nft.mintWithProof(hex"00", mazeHash, layout, 60);
         bytes memory secondLayout = nft.layouts(tokenId);
 
         assertEq(firstLayout.length, secondLayout.length);
@@ -584,13 +554,13 @@ contract MazeKingNFTTest is Test {
     }
 
     function test_UriFallsBackWithoutRenderer() public {
-        bytes32[] memory publicInputs = _smallMazeInputs();
-        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+        bytes memory layout = _smallMazeLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        uint256 tokenId = uint256(mazeHash);
 
         vm.prank(user);
-        nft.mintWithProof(hex"00", publicInputs, 50);
+        nft.mintWithProof(hex"00", mazeHash, layout, 50);
 
-        // No renderer set — should return the base URI.
         assertEq(nft.uri(tokenId), "https://api.mazeking.xyz/token/");
     }
 
@@ -600,16 +570,16 @@ contract MazeKingNFTTest is Test {
         vm.prank(owner);
         nft.setRenderer(address(rendererContract));
 
-        bytes32[] memory publicInputs = _smallMazeInputs();
-        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+        bytes memory layout = _smallMazeLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        uint256 tokenId = uint256(mazeHash);
 
         vm.prank(user);
-        nft.mintWithProof(hex"00", publicInputs, 50);
+        nft.mintWithProof(hex"00", mazeHash, layout, 50);
 
         string memory tokenUri = nft.uri(tokenId);
         bytes memory uriBytes = bytes(tokenUri);
 
-        // Sanity: must be a JSON data URI.
         assertGt(uriBytes.length, 100);
         bytes memory prefix = bytes("data:application/json;base64,");
         for (uint256 i = 0; i < prefix.length; i++) {
@@ -619,14 +589,15 @@ contract MazeKingNFTTest is Test {
 
     function test_RendererRenderSvgContainsExpectedShape() public {
         MazeRenderer rendererContract = new MazeRenderer();
-        bytes32[] memory publicInputs = _smallMazeInputs();
-        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+        bytes memory layout = _smallMazeLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        uint256 tokenId = uint256(mazeHash);
 
         vm.prank(user);
-        nft.mintWithProof(hex"00", publicInputs, 50);
-        bytes memory layout = nft.layouts(tokenId);
+        nft.mintWithProof(hex"00", mazeHash, layout, 50);
+        bytes memory storedLayout = nft.layouts(tokenId);
 
-        string memory svg = rendererContract.renderSvg(tokenId, layout);
+        string memory svg = rendererContract.renderSvg(tokenId, storedLayout);
         bytes memory s = bytes(svg);
 
         // Must start with <svg ...

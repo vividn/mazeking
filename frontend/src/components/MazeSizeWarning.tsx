@@ -1,4 +1,4 @@
-import { MAX_MAZE_CELLS } from "../App";
+import { MAX_MAZE_CELLS } from '../App';
 
 interface MazeSizeWarningProps {
   width: number;
@@ -11,7 +11,8 @@ export function MazeSizeWarning({ width, height }: MazeSizeWarningProps) {
 
   return (
     <div style={styles.warning}>
-      Warning: Maximum number of maze cells for ZK proving/NFT minting is {MAX_MAZE_CELLS}. Maze size is ({width}x{height} = {nCells}).
+      Warning: Maximum number of maze cells for ZK proving/NFT minting is{' '}
+      {MAX_MAZE_CELLS}. Maze size is ({width}x{height} = {nCells}).
     </div>
   );
 }

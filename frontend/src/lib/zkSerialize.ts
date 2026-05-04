@@ -13,7 +13,13 @@
  * Example: byte[0] contains cells[0] (high) and cells[1] (low)
  */
 
-import { CellType, type Cell, type MazeData, type Position, Move } from '../types';
+import {
+  CellType,
+  type Cell,
+  type MazeData,
+  type Position,
+  Move,
+} from '../types';
 import {
   MAX_MAZE_CELLS as _MAX_CELLS,
   MAX_PACKED_BYTES as _MAX_PACKED_BYTES,
@@ -38,7 +44,7 @@ export function encodeCell(cell: Cell): number {
   if (cell.eastWall) {
     data |= 0x04; // bit 2
   }
-  data |= (cell.cellType & 0x03); // bits 1-0
+  data |= cell.cellType & 0x03; // bits 1-0
   return data;
 }
 
@@ -59,7 +65,7 @@ export function decodeCell(data: number): Cell {
  * @param oddCell - Cell at odd index (low nibble)
  */
 export function packCells(evenCell: number, oddCell: number): number {
-  return ((evenCell & 0x0F) << 4) | (oddCell & 0x0F);
+  return ((evenCell & 0x0f) << 4) | (oddCell & 0x0f);
 }
 
 /**
@@ -67,7 +73,7 @@ export function packCells(evenCell: number, oddCell: number): number {
  * @returns [evenCell, oddCell]
  */
 export function unpackCells(byte: number): [number, number] {
-  return [(byte >> 4) & 0x0F, byte & 0x0F];
+  return [(byte >> 4) & 0x0f, byte & 0x0f];
 }
 
 /**
@@ -130,10 +136,14 @@ export function serializeForZk(
  */
 export function moveToDirection(move: Move): number {
   switch (move) {
-    case Move.Up: return DIR_UP;
-    case Move.Right: return DIR_RIGHT;
-    case Move.Down: return DIR_DOWN;
-    case Move.Left: return DIR_LEFT;
+    case Move.Up:
+      return DIR_UP;
+    case Move.Right:
+      return DIR_RIGHT;
+    case Move.Down:
+      return DIR_DOWN;
+    case Move.Left:
+      return DIR_LEFT;
   }
 }
 
@@ -175,11 +185,11 @@ export interface ProverInput {
   key_y: number;
   goal_x: number;
   goal_y: number;
-  packed_cells: number[];  // Padded to MAX_PACKED_BYTES
+  packed_cells: number[]; // Padded to MAX_PACKED_BYTES
   move_count: number;
 
   // Private inputs
-  moves: number[];         // Padded to MAX_MOVES
+  moves: number[]; // Padded to MAX_MOVES
 }
 
 /**
@@ -196,11 +206,15 @@ export function generateProverInput(
   // Validate dimensions
   const totalCells = zkMaze.width * zkMaze.height;
   if (totalCells > MAX_CELLS) {
-    throw new Error(`Maze too large: ${totalCells} cells exceeds max ${MAX_CELLS}`);
+    throw new Error(
+      `Maze too large: ${totalCells} cells exceeds max ${MAX_CELLS}`
+    );
   }
 
   if (solutionMoves.length > MAX_MOVES) {
-    throw new Error(`Too many moves: ${solutionMoves.length} exceeds max ${MAX_MOVES}`);
+    throw new Error(
+      `Too many moves: ${solutionMoves.length} exceeds max ${MAX_MOVES}`
+    );
   }
 
   // Pad packed cells array to MAX_PACKED_BYTES
@@ -344,7 +358,10 @@ export function validatePath(
 
     // Check if movement is allowed
     if (!canMove(maze, pos, move)) {
-      return { valid: false, error: `Move ${i}: Cannot move ${Move[move]} from (${pos.x}, ${pos.y}) - wall` };
+      return {
+        valid: false,
+        error: `Move ${i}: Cannot move ${Move[move]} from (${pos.x}, ${pos.y}) - wall`,
+      };
     }
 
     // Update position
@@ -361,7 +378,10 @@ export function validatePath(
   }
 
   if (pos.x !== goalPos.x || pos.y !== goalPos.y) {
-    return { valid: false, error: `Path ends at (${pos.x}, ${pos.y}), not goal (${goalPos.x}, ${goalPos.y})` };
+    return {
+      valid: false,
+      error: `Path ends at (${pos.x}, ${pos.y}), not goal (${goalPos.x}, ${goalPos.y})`,
+    };
   }
 
   return { valid: true };

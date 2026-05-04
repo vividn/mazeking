@@ -9,7 +9,7 @@ type CharPattern = boolean[][];
 // Helper to convert string patterns to boolean arrays
 // '#' = filled (text cell), '.' = empty (path cell)
 function p(rows: string[]): CharPattern {
-  return rows.map(row => row.split('').map(c => c === '#'));
+  return rows.map((row) => row.split('').map((c) => c === '#'));
 }
 
 // Font designed with paths through letters:
@@ -19,7 +19,7 @@ function p(rows: string[]): CharPattern {
 // - Entry/exit points on edges for maze connectivity
 export const PIXEL_FONT: Record<string, CharPattern> = {
   // A: Path goes up the left side, across the middle, down the right
-  'A': p([
+  A: p([
     '.###.',
     '##.##',
     '#...#',
@@ -30,7 +30,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#...#',
   ]),
   // B: Path winds through the bumps
-  'B': p([
+  B: p([
     '#####',
     '#...#',
     '#..##',
@@ -41,7 +41,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#####',
   ]),
   // C: Open path through the gap
-  'C': p([
+  C: p([
     '.###.',
     '##...',
     '#....',
@@ -52,7 +52,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '.###.',
   ]),
   // D: Path around the curve
-  'D': p([
+  D: p([
     '####.',
     '#..##',
     '#...#',
@@ -63,7 +63,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '####.',
   ]),
   // E: Paths through the horizontal bars
-  'E': p([
+  E: p([
     '#####',
     '#....',
     '#....',
@@ -74,7 +74,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#####',
   ]),
   // F: Similar to E but open bottom
-  'F': p([
+  F: p([
     '#####',
     '#....',
     '#....',
@@ -85,7 +85,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#....',
   ]),
   // G: Path through the notch
-  'G': p([
+  G: p([
     '.####',
     '##...',
     '#....',
@@ -96,7 +96,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '####.',
   ]),
   // H: Clear path through the middle bar
-  'H': p([
+  H: p([
     '#...#',
     '#...#',
     '#...#',
@@ -107,7 +107,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#...#',
   ]),
   // I: Vertical path with top/bottom bars - connected orthogonally
-  'I': p([
+  I: p([
     '#####',
     '..#..',
     '..#..',
@@ -118,7 +118,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#####',
   ]),
   // J: Path curves at bottom - connected orthogonally
-  'J': p([
+  J: p([
     '#####',
     '....#',
     '....#',
@@ -129,7 +129,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '.###.',
   ]),
   // K: Fixed to avoid diagonal - fully connected
-  'K': p([
+  K: p([
     '#...#',
     '#..##',
     '#.##.',
@@ -140,7 +140,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#...#',
   ]),
   // L: Simple L shape with open right
-  'L': p([
+  L: p([
     '#....',
     '#....',
     '#....',
@@ -151,7 +151,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#####',
   ]),
   // M: Fixed to avoid diagonal - connected peaks
-  'M': p([
+  M: p([
     '#...#',
     '##.##',
     '#####',
@@ -162,7 +162,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#...#',
   ]),
   // N: Fixed to avoid diagonal - uses stepped pattern
-  'N': p([
+  N: p([
     '#...#',
     '##..#',
     '###.#',
@@ -173,7 +173,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#...#',
   ]),
   // O: Path around the ring
-  'O': p([
+  O: p([
     '.###.',
     '##.##',
     '#...#',
@@ -184,7 +184,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '.###.',
   ]),
   // P: Path through top loop, open bottom
-  'P': p([
+  P: p([
     '#####',
     '#...#',
     '#...#',
@@ -195,7 +195,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#....',
   ]),
   // Q: O with orthogonal tail
-  'Q': p([
+  Q: p([
     '.###.',
     '##.##',
     '#...#',
@@ -206,7 +206,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '.####',
   ]),
   // R: Like P but with orthogonal leg - fully connected
-  'R': p([
+  R: p([
     '####.',
     '#..##',
     '#...#',
@@ -217,7 +217,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#...#',
   ]),
   // S: Winding path
-  'S': p([
+  S: p([
     '#####',
     '#....',
     '##...',
@@ -228,7 +228,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#####',
   ]),
   // T: Path down the center - connected orthogonally
-  'T': p([
+  T: p([
     '#####',
     '..#..',
     '..#..',
@@ -239,7 +239,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '..#..',
   ]),
   // U: Path around the bottom
-  'U': p([
+  U: p([
     '#...#',
     '#...#',
     '#...#',
@@ -250,7 +250,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '.####',
   ]),
   // V: Fixed to avoid diagonal - stepped convergence
-  'V': p([
+  V: p([
     '#...#',
     '#...#',
     '#...#',
@@ -261,7 +261,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '..#..',
   ]),
   // W: Fixed to avoid diagonal - connected valleys
-  'W': p([
+  W: p([
     '#...#',
     '#...#',
     '#...#',
@@ -272,7 +272,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '.#.#.',
   ]),
   // X: Fixed to avoid diagonal - fully connected cross
-  'X': p([
+  X: p([
     '#...#',
     '##.##',
     '.###.',
@@ -283,7 +283,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#...#',
   ]),
   // Y: Fixed to avoid diagonal - fully connected merge
-  'Y': p([
+  Y: p([
     '#...#',
     '#...#',
     '##.##',
@@ -294,7 +294,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '..#..',
   ]),
   // Z: Fixed to avoid diagonal - stepped pattern
-  'Z': p([
+  Z: p([
     '#####',
     '....#',
     '...##',
@@ -406,26 +406,8 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '####.',
   ]),
   // Punctuation
-  ' ': p([
-    '..',
-    '..',
-    '..',
-    '..',
-    '..',
-    '..',
-    '..',
-    '..',
-  ]),
-  '.': p([
-    '...',
-    '...',
-    '...',
-    '...',
-    '...',
-    '...',
-    '...',
-    '#..',
-  ]),
+  ' ': p(['..', '..', '..', '..', '..', '..', '..', '..']),
+  '.': p(['...', '...', '...', '...', '...', '...', '...', '#..']),
   ',': p([
     '...',
     '...',
@@ -438,16 +420,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#..',
     '...',
   ]),
-  '!': p([
-    '#',
-    '#',
-    '#',
-    '#',
-    '#',
-    '#',
-    '.',
-    '#',
-  ]),
+  '!': p(['#', '#', '#', '#', '#', '#', '.', '#']),
   '?': p([
     '.###.',
     '##.##',
@@ -458,46 +431,10 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '.....',
     '..#..',
   ]),
-  "\"": p([
-    '#.#',
-    '#.#',
-    '...',
-    '...',
-    '...',
-    '...',
-    '...',
-    '...',
-  ]),
-  "'": p([
-    '#',
-    '#',
-    '.',
-    '.',
-    '.',
-    '.',
-    '.',
-    '.',
-  ]),
-  '-': p([
-    '....',
-    '....',
-    '....',
-    '....',
-    '####',
-    '....',
-    '....',
-    '....',
-  ]),
-  ':': p([
-    '..',
-    '..',
-    '#.',
-    '..',
-    '..',
-    '#.',
-    '..',
-    '..',
-  ]),
+  '"': p(['#.#', '#.#', '...', '...', '...', '...', '...', '...']),
+  "'": p(['#', '#', '.', '.', '.', '.', '.', '.']),
+  '-': p(['....', '....', '....', '....', '####', '....', '....', '....']),
+  ':': p(['..', '..', '#.', '..', '..', '#.', '..', '..']),
   '♚': p([
     '..........',
     '..........',
@@ -509,17 +446,8 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '..........',
   ]),
   // Lowercase letters - same height, different style
-  'a': p([
-    '....',
-    '....',
-    '....',
-    '####',
-    '...#',
-    '####',
-    '#..#',
-    '####',
-  ]),
-  'b': p([
+  a: p(['....', '....', '....', '####', '...#', '####', '#..#', '####']),
+  b: p([
     '#....',
     '#....',
     '#....',
@@ -529,17 +457,8 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '##.##',
     '####.',
   ]),
-  'c': p([
-    '....',
-    '....',
-    '....',
-    '.###',
-    '##..',
-    '#...',
-    '##..',
-    '.###',
-  ]),
-  'd': p([
+  c: p(['....', '....', '....', '.###', '##..', '#...', '##..', '.###']),
+  d: p([
     '....#',
     '....#',
     '....#',
@@ -549,27 +468,9 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '##.##',
     '.####',
   ]),
-  'e': p([
-    '....',
-    '....',
-    '....',
-    '####',
-    '#..#',
-    '####',
-    '#...',
-    '####',
-  ]),
-  'f': p([
-    '.###',
-    '.#.#',
-    '.#..',
-    '###.',
-    '.#..',
-    '.#..',
-    '.#..',
-    '.#..',
-  ]),
-  'g': p([
+  e: p(['....', '....', '....', '####', '#..#', '####', '#...', '####']),
+  f: p(['.###', '.#.#', '.#..', '###.', '.#..', '.#..', '.#..', '.#..']),
+  g: p([
     '....',
     '....',
     '....',
@@ -581,59 +482,12 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '...#',
     '.###',
   ]),
-  'h': p([
-    '#...',
-    '#...',
-    '#...',
-    '###.',
-    '#.##',
-    '#..#',
-    '#..#',
-    '#..#',
-  ]),
-  'i': p([
-    '...',
-    '.#.',
-    '...',
-    '##.',
-    '.#.',
-    '.#.',
-    '.#.',
-    '###',
-  ]),
-  'j': p([
-    '...',
-    '..#',
-    '...',
-    '.##',
-    '..#',
-    '..#',
-    '..#',
-    '..#',
-    '..#',
-    '###',
-  ]),
-  'k': p([
-    '#...',
-    '#...',
-    '#..#',
-    '#.##',
-    '###.',
-    '#.##',
-    '#..#',
-    '#..#',
-  ]),
-  'l': p([
-    '##..',
-    '.#..',
-    '.#..',
-    '.#..',
-    '.#..',
-    '.#..',
-    '.#.#',
-    '.###',
-  ]),
-  'm': p([
+  h: p(['#...', '#...', '#...', '###.', '#.##', '#..#', '#..#', '#..#']),
+  i: p(['...', '.#.', '...', '##.', '.#.', '.#.', '.#.', '###']),
+  j: p(['...', '..#', '...', '.##', '..#', '..#', '..#', '..#', '..#', '###']),
+  k: p(['#...', '#...', '#..#', '#.##', '###.', '#.##', '#..#', '#..#']),
+  l: p(['##..', '.#..', '.#..', '.#..', '.#..', '.#..', '.#.#', '.###']),
+  m: p([
     '.....',
     '.....',
     '.....',
@@ -643,7 +497,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#...#',
     '#...#',
   ]),
-  'n': p([
+  n: p([
     '.....',
     '.....',
     '.....',
@@ -653,7 +507,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#...#',
     '#...#',
   ]),
-  'o': p([
+  o: p([
     '.....',
     '.....',
     '.....',
@@ -663,7 +517,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '##.##',
     '.###.',
   ]),
-  'p': p([
+  p: p([
     '....',
     '....',
     '....',
@@ -675,7 +529,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#...',
     '#...',
   ]),
-  'q': p([
+  q: p([
     '....',
     '....',
     '....',
@@ -687,47 +541,11 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '...#',
     '...#',
   ]),
-  'r': p([
-    '....',
-    '....',
-    '....',
-    '.##.',
-    '####',
-    '#..#',
-    '#...',
-    '#...',
-  ]),
-  's': p([
-    '.....',
-    '.....',
-    '....',
-    '.###.',
-    '##...',
-    '.###.',
-    '...##',
-    '####.',
-  ]),
-  't': p([
-    '.#..',
-    '.#..',
-    '.#..',
-    '####',
-    '.#..',
-    '.#..',
-    '.#.#',
-    '.###',
-  ]),
-  'u': p([
-    '....',
-    '....',
-    '....',
-    '#..#',
-    '#..#',
-    '#..#',
-    '##.#',
-    '.###',
-  ]),
-  'v': p([
+  r: p(['....', '....', '....', '.##.', '####', '#..#', '#...', '#...']),
+  s: p(['.....', '.....', '....', '.###.', '##...', '.###.', '...##', '####.']),
+  t: p(['.#..', '.#..', '.#..', '####', '.#..', '.#..', '.#.#', '.###']),
+  u: p(['....', '....', '....', '#..#', '#..#', '#..#', '##.#', '.###']),
+  v: p([
     '.....',
     '.....',
     '.....',
@@ -737,7 +555,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '.###.',
     '..#..',
   ]),
-  'w': p([
+  w: p([
     '.....',
     '.....',
     '.....',
@@ -747,17 +565,8 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '#####',
     '.#.#.',
   ]),
-  'x': p([
-    '....',
-    '....',
-    '....',
-    '#..#',
-    '####',
-    '.##.',
-    '####',
-    '#..#',
-  ]),
-  'y': p([
+  x: p(['....', '....', '....', '#..#', '####', '.##.', '####', '#..#']),
+  y: p([
     '....',
     '....',
     '....',
@@ -769,16 +578,7 @@ export const PIXEL_FONT: Record<string, CharPattern> = {
     '...#',
     '.###',
   ]),
-  'z': p([
-    '....',
-    '....',
-    '....',
-    '####',
-    '..##',
-    '.##.',
-    '##..',
-    '####',
-  ]),
+  z: p(['....', '....', '....', '####', '..##', '.##.', '##..', '####']),
 };
 
 // Entry/exit points for each character (edges where paths can connect)
@@ -791,8 +591,8 @@ export interface EntryPoint {
 
 // Character boundaries including external and internal (enclosed) regions
 export interface CharacterBoundaries {
-  external: EntryPoint[][];      // Array of disconnected filled regions, each with their external boundary cells
-  internal: EntryPoint[][];      // Array of enclosed empty regions, each with boundary cells
+  external: EntryPoint[][]; // Array of disconnected filled regions, each with their external boundary cells
+  internal: EntryPoint[][]; // Array of enclosed empty regions, each with boundary cells
 }
 
 export function getCharWidth(char: string): number {
@@ -806,7 +606,10 @@ export function getCharWidth(char: string): number {
   return pattern[0].length;
 }
 
-export function getTextDimensions(text: string): { width: number; height: number } {
+export function getTextDimensions(text: string): {
+  width: number;
+  height: number;
+} {
   let width = 0;
   let height = 0;
 
@@ -890,7 +693,12 @@ export function getCharacterBoundaries(char: string): CharacterBoundaries {
   external[0][0] = true;
 
   // Direction offsets: N, E, S, W (consistent order for determinism)
-  const dirs = [[-1, 0], [0, 1], [1, 0], [0, -1]];
+  const dirs = [
+    [-1, 0],
+    [0, 1],
+    [1, 0],
+    [0, -1],
+  ];
 
   while (queue.length > 0) {
     const [cy, cx] = queue.shift()!;
@@ -908,10 +716,10 @@ export function getCharacterBoundaries(char: string): CharacterBoundaries {
   }
 
   const sideMap: [number, number, 'top' | 'bottom' | 'left' | 'right'][] = [
-    [-1, 0, 'top'],    // N neighbor means entry from top
-    [0, 1, 'right'],   // E neighbor means entry from right
-    [1, 0, 'bottom'],  // S neighbor means entry from bottom
-    [0, -1, 'left'],   // W neighbor means entry from left
+    [-1, 0, 'top'], // N neighbor means entry from top
+    [0, 1, 'right'], // E neighbor means entry from right
+    [1, 0, 'bottom'], // S neighbor means entry from bottom
+    [0, -1, 'left'], // W neighbor means entry from left
   ];
 
   // Find disconnected filled regions using flood-fill
@@ -1005,7 +813,11 @@ export function getCharacterBoundaries(char: string): CharacterBoundaries {
             const ny = cy + dy;
             const nx = cx + dx;
             if (ny >= 1 && ny <= height && nx >= 1 && nx <= width) {
-              if (!padded[ny][nx] && !external[ny][nx] && regionAssigned[ny][nx] === -1) {
+              if (
+                !padded[ny][nx] &&
+                !external[ny][nx] &&
+                regionAssigned[ny][nx] === -1
+              ) {
                 regionAssigned[ny][nx] = regionId;
                 regionQueue.push([ny, nx]);
               }
@@ -1022,7 +834,13 @@ export function getCharacterBoundaries(char: string): CharacterBoundaries {
             const ny = cy + dy;
             const nx = cx + dx;
             // Check if neighbor is a filled cell (in padded coords)
-            if (ny >= 1 && ny <= height && nx >= 1 && nx <= width && padded[ny][nx]) {
+            if (
+              ny >= 1 &&
+              ny <= height &&
+              nx >= 1 &&
+              nx <= width &&
+              padded[ny][nx]
+            ) {
               // Convert back to original coords
               const origY = ny - 1;
               const origX = nx - 1;
@@ -1031,7 +849,14 @@ export function getCharacterBoundaries(char: string): CharacterBoundaries {
                 addedCells.add(key);
                 // The side indicates direction FROM the filled cell TO the enclosed region
                 // We need to flip it: if empty is north of filled, entry is 'top' on the filled cell
-                const flippedSide = side === 'top' ? 'bottom' : side === 'bottom' ? 'top' : side === 'left' ? 'right' : 'left';
+                const flippedSide =
+                  side === 'top'
+                    ? 'bottom'
+                    : side === 'bottom'
+                      ? 'top'
+                      : side === 'left'
+                        ? 'right'
+                        : 'left';
                 regionBoundary.push({ x: origX, y: origY, side: flippedSide });
               }
             }
@@ -1061,7 +886,10 @@ export function getCharacterBoundaries(char: string): CharacterBoundaries {
  * External: min 3, max scales with boundary size
  * Internal: min 1, max scales with boundary size
  */
-export function calculateEntryCountRange(boundarySize: number, isInternal: boolean): { min: number; max: number } {
+export function calculateEntryCountRange(
+  boundarySize: number,
+  isInternal: boolean
+): { min: number; max: number } {
   if (boundarySize === 0) return { min: 0, max: 0 };
 
   const min = isInternal ? 1 : 3;
@@ -1080,5 +908,8 @@ export function isValidChar(char: string): boolean {
 
 // Filter a string to only include valid characters
 export function filterToValidChars(str: string): string {
-  return str.split('').filter(char => isValidChar(char)).join('');
+  return str
+    .split('')
+    .filter((char) => isValidChar(char))
+    .join('');
 }

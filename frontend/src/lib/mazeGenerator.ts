@@ -1,5 +1,11 @@
 import { createRng, type Rng } from './seededRandom';
-import { getCharWidth, getTextDimensions, getCharPattern, getCharacterBoundaries, calculateEntryCountRange } from './pixelFont';
+import {
+  getCharWidth,
+  getTextDimensions,
+  getCharPattern,
+  getCharacterBoundaries,
+  calculateEntryCountRange,
+} from './pixelFont';
 import { CellType, type Cell, type MazeData, type Position } from '../types';
 
 const CHAR_HEIGHT = 8;
@@ -61,11 +67,15 @@ function layoutText(text: string): TextLayout {
   return {
     lines,
     width: maxWidth,
-    height: lines.length * (CHAR_HEIGHT + LINE_SPACING) - LINE_SPACING
+    height: lines.length * (CHAR_HEIGHT + LINE_SPACING) - LINE_SPACING,
   };
 }
 
-function calculateMazeDimensions(text: string): { width: number; height: number; textLayout: TextLayout } {
+function calculateMazeDimensions(text: string): {
+  width: number;
+  height: number;
+  textLayout: TextLayout;
+} {
   const textLayout = layoutText(text);
   const marginCells = Math.ceil(MARGIN_CHARS * 6);
   const width = textLayout.width + marginCells * 2;
@@ -75,7 +85,7 @@ function calculateMazeDimensions(text: string): { width: number; height: number;
   return {
     width: Math.max(width, minSize),
     height: Math.max(height, minSize),
-    textLayout
+    textLayout,
   };
 }
 
@@ -87,7 +97,7 @@ function createEmptyMaze(width: number, height: number): MazeData {
       cells[y][x] = {
         southWall: true,
         eastWall: true,
-        cellType: CellType.Normal
+        cellType: CellType.Normal,
       };
     }
   }
@@ -95,7 +105,10 @@ function createEmptyMaze(width: number, height: number): MazeData {
 }
 
 // Mark text cells and track character placements for connectivity
-function embedTextCells(maze: MazeData, textLayout: TextLayout): CharPlacement[] {
+function embedTextCells(
+  maze: MazeData,
+  textLayout: TextLayout
+): CharPlacement[] {
   const { width, height, cells } = maze;
   const placements: CharPlacement[] = [];
 
@@ -123,14 +136,18 @@ function embedTextCells(maze: MazeData, textLayout: TextLayout): CharPlacement[]
         startX: currentX,
         startY: currentY,
         width: charWidth,
-        height: CHAR_HEIGHT
+        height: CHAR_HEIGHT,
       });
 
       // Determine cell type based on character
       const upperChar = char.toUpperCase();
       const isZkLetter = upperChar === 'Z' || upperChar === 'K';
       const isCrown = char === '♚';
-      const cellType = isCrown ? CellType.CrownText : isZkLetter ? CellType.ZkText : CellType.Text;
+      const cellType = isCrown
+        ? CellType.CrownText
+        : isZkLetter
+          ? CellType.ZkText
+          : CellType.Text;
 
       // Mark all filled cells with appropriate type
       for (let py = 0; py < charPattern.length; py++) {
@@ -156,7 +173,11 @@ function embedTextCells(maze: MazeData, textLayout: TextLayout): CharPlacement[]
 }
 
 // Create internal paths through each character using a simple spanning tree
-function createInternalLetterPaths(maze: MazeData, placements: CharPlacement[], rng: Rng): void {
+function createInternalLetterPaths(
+  maze: MazeData,
+  placements: CharPlacement[],
+  rng: Rng
+): void {
   const { width, height, cells } = maze;
 
   for (const placement of placements) {
@@ -215,12 +236,12 @@ function createInternalLetterPaths(maze: MazeData, placements: CharPlacement[], 
     for (const cell of textCells) {
       // Check south neighbor
       const southPos = { x: cell.x, y: cell.y + 1 };
-      if (textCells.some(c => c.x === southPos.x && c.y === southPos.y)) {
+      if (textCells.some((c) => c.x === southPos.x && c.y === southPos.y)) {
         walls.push({ from: cell, to: southPos, direction: 'S' });
       }
       // Check east neighbor
       const eastPos = { x: cell.x + 1, y: cell.y };
-      if (textCells.some(c => c.x === eastPos.x && c.y === eastPos.y)) {
+      if (textCells.some((c) => c.x === eastPos.x && c.y === eastPos.y)) {
         walls.push({ from: cell, to: eastPos, direction: 'E' });
       }
     }
@@ -282,7 +303,11 @@ function createLetterBoundaryWalls(maze: MazeData): void {
 
 // Create entry points connecting letters to the maze (external boundaries)
 // and connecting letter cells to enclosed regions (internal boundaries)
-function createLetterEntryPoints(maze: MazeData, placements: CharPlacement[], rng: Rng): void {
+function createLetterEntryPoints(
+  maze: MazeData,
+  placements: CharPlacement[],
+  rng: Rng
+): void {
   const { width, height, cells } = maze;
 
   for (const placement of placements) {
@@ -291,7 +316,10 @@ function createLetterEntryPoints(maze: MazeData, placements: CharPlacement[], rn
     // External entries: each disconnected filled region gets its own entry points
     // This ensures characters like '?' or ':' have all parts accessible
     for (const filledRegion of boundaries.external) {
-      const externalRange = calculateEntryCountRange(filledRegion.length, false);
+      const externalRange = calculateEntryCountRange(
+        filledRegion.length,
+        false
+      );
       const numExternal = rng.nextInt(externalRange.min, externalRange.max);
       const selectedExternal = rng.shuffle(filledRegion).slice(0, numExternal);
 
@@ -299,10 +327,19 @@ function createLetterEntryPoints(maze: MazeData, placements: CharPlacement[], rn
         const cellX = placement.startX + entry.x;
         const cellY = placement.startY + entry.y;
 
-        if (cellX < 0 || cellX >= width || cellY < 0 || cellY >= height) continue;
+        if (cellX < 0 || cellX >= width || cellY < 0 || cellY >= height)
+          continue;
 
         // Remove the wall in the direction specified by the entry point
-        removeWallForEntry(cells, cellX, cellY, entry.side, width, height, false);
+        removeWallForEntry(
+          cells,
+          cellX,
+          cellY,
+          entry.side,
+          width,
+          height,
+          false
+        );
       }
     }
 
@@ -317,10 +354,19 @@ function createLetterEntryPoints(maze: MazeData, placements: CharPlacement[], rn
         const cellX = placement.startX + entry.x;
         const cellY = placement.startY + entry.y;
 
-        if (cellX < 0 || cellX >= width || cellY < 0 || cellY >= height) continue;
+        if (cellX < 0 || cellX >= width || cellY < 0 || cellY >= height)
+          continue;
 
         // Remove wall between letter cell and enclosed region
-        removeWallForEntry(cells, cellX, cellY, entry.side, width, height, true);
+        removeWallForEntry(
+          cells,
+          cellX,
+          cellY,
+          entry.side,
+          width,
+          height,
+          true
+        );
       }
     }
   }
@@ -492,7 +538,10 @@ function generateNonTextMazePaths(maze: MazeData, rng: Rng): void {
   }
 }
 
-function findValidPositions(maze: MazeData, rng: Rng): { kingPos: Position; keyPos: Position; goalPos: Position } {
+function findValidPositions(
+  maze: MazeData,
+  rng: Rng
+): { kingPos: Position; keyPos: Position; goalPos: Position } {
   const { width, height, cells } = maze;
 
   const candidates: Position[] = [];
@@ -504,8 +553,13 @@ function findValidPositions(maze: MazeData, rng: Rng): { kingPos: Position; keyP
     }
   }
 
-  const pool = candidates.length >= 3 ? candidates :
-    Array.from({ length: width * height }, (_, i) => ({ x: i % width, y: Math.floor(i / width) }));
+  const pool =
+    candidates.length >= 3
+      ? candidates
+      : Array.from({ length: width * height }, (_, i) => ({
+          x: i % width,
+          y: Math.floor(i / width),
+        }));
 
   const shuffled = rng.shuffle(pool);
 
@@ -608,7 +662,11 @@ export function generateMaze(seed: string, opts: GenerateOptions = {}): Generate
   return { maze, kingPos, keyPos, goalPos };
 }
 
-export function canMove(maze: MazeData, from: Position, direction: 'up' | 'down' | 'left' | 'right'): boolean {
+export function canMove(
+  maze: MazeData,
+  from: Position,
+  direction: 'up' | 'down' | 'left' | 'right'
+): boolean {
   const { width, height, cells } = maze;
   const { x, y } = from;
 
@@ -630,7 +688,11 @@ export function canMove(maze: MazeData, from: Position, direction: 'up' | 'down'
   }
 }
 
-export function getNewPosition(maze: MazeData, from: Position, direction: 'up' | 'down' | 'left' | 'right'): Position {
+export function getNewPosition(
+  maze: MazeData,
+  from: Position,
+  direction: 'up' | 'down' | 'left' | 'right'
+): Position {
   const { width, height } = maze;
   const { x, y } = from;
 

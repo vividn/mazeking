@@ -1,10 +1,20 @@
-import { useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi';
+import {
+  useWriteContract,
+  useWaitForTransactionReceipt,
+  useAccount,
+} from 'wagmi';
 import MazeKingNFTAbi from '../lib/abi/MazeKingNFT.json';
 import { getContractAddress } from '../lib/contracts';
-import { PUBLIC_INPUTS_LENGTH } from '../lib/mazeConstants.generated';
 
 /**
- * Hook to mint NFT by proving ZK proof of maze completion
+ * Hook to mint an NFT under the hash-as-public-input architecture
+ * (ma-6cr.6). The on-chain signature is now:
+ *
+ *   mintWithProof(bytes proof, bytes32 mazeHash, bytes layout, uint16 moveCount)
+ *
+ * `mazeHash` is the Pedersen hash of the canonical layout (computed via
+ * bb.js — that wiring lives in ma-6cr.8). `layout` is the canonical bytes
+ * the same hash is computed over.
  */
 export function useMintNFT() {
   const { chain } = useAccount();
@@ -20,15 +30,10 @@ export function useMintNFT() {
     hash,
   });
 
-  /**
-   * Mint NFT with ZK proof
-   * @param proof - The ZK proof bytes
-   * @param publicInputs - Array of PUBLIC_INPUTS_LENGTH public inputs as hex strings
-   * @param moveCount - Number of moves taken
-   */
   const mintWithProof = async (
     proof: Uint8Array,
-    publicInputs: string[],
+    mazeHash: `0x${string}`,
+    layout: Uint8Array,
     moveCount: number
   ) => {
     if (!chain) {
@@ -42,31 +47,18 @@ export function useMintNFT() {
       );
     }
 
-    // Validate inputs
-    if (publicInputs.length !== PUBLIC_INPUTS_LENGTH) {
-      throw new Error(
-        `Invalid public inputs length: expected ${PUBLIC_INPUTS_LENGTH}, got ${publicInputs.length}`
-      );
-    }
-
-    // Format proof as hex string
     const proofHex = `0x${Array.from(proof)
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('')}` as `0x${string}`;
-
-    // Format publicInputs as bytes32[] - ensure each is 64 hex chars (32 bytes)
-    const publicInputsBytes32 = publicInputs.map((input) => {
-      // Remove 0x prefix if present
-      const cleaned = input.startsWith('0x') ? input.slice(2) : input;
-      // Pad to 64 chars (32 bytes)
-      const padded = cleaned.padStart(64, '0');
-      return `0x${padded}` as `0x${string}`;
-    });
+    const layoutHex = `0x${Array.from(layout)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')}` as `0x${string}`;
 
     console.log('Minting NFT with proof:', {
       nftAddress,
       proofLength: proof.length,
-      publicInputsLength: publicInputs.length,
+      layoutLength: layout.length,
+      mazeHash,
       moveCount,
       chainId: chain.id,
       chainName: chain.name,
@@ -76,7 +68,7 @@ export function useMintNFT() {
       address: nftAddress,
       abi: MazeKingNFTAbi,
       functionName: 'mintWithProof',
-      args: [proofHex, publicInputsBytes32, moveCount],
+      args: [proofHex, mazeHash, layoutHex, moveCount],
     });
   };
 

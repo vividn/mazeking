@@ -50,7 +50,9 @@ export function ProofProgress({ stage, progress, colors }: ProofProgressProps) {
     borderRadius: '4px',
     transition: isIndeterminate ? 'none' : 'width 0.3s ease',
     width: isIndeterminate ? '30%' : `${progress}%`,
-    animation: isIndeterminate ? 'slideProgress 1.5s ease-in-out infinite' : 'none',
+    animation: isIndeterminate
+      ? 'slideProgress 1.5s ease-in-out infinite'
+      : 'none',
   };
 
   const percentageStyle: React.CSSProperties = {

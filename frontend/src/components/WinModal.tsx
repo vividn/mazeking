@@ -8,7 +8,7 @@ import { ProofImage } from './ProofImage';
 import { Maze } from './Maze';
 import { areContractsDeployed } from '../lib/contracts';
 import { sepolia } from 'wagmi/chains';
-import { computeTokenIdFromPublicInputs } from '../lib/tokenId';
+import { computeTokenIdFromMazeHash } from '../lib/tokenId';
 import { rememberMint } from '../lib/mintRegistry';
 import { computeOptimalMoves, tierFromMoveCount } from '../lib/mazeSolver';
 
@@ -195,11 +195,13 @@ export function WinModal({
 
   // On successful mint, persist tokenId↔seed locally so the My Mazes view can
   // replay this maze even though the contract derives tokenId from the layout
-  // rather than from the seed string.
+  // rather than from the seed string. Under the hash-as-public-input
+  // architecture (ma-6cr.6) the tokenId IS the mazeHash, which is the proof's
+  // first public input.
   useEffect(() => {
-    if (!isSuccess || !proofState.publicInputs) return;
+    if (!isSuccess || !proofState.publicInputs?.length) return;
     try {
-      const tokenId = computeTokenIdFromPublicInputs(proofState.publicInputs);
+      const tokenId = computeTokenIdFromMazeHash(proofState.publicInputs[0]);
       rememberMint(tokenId, seed);
     } catch (err) {
       console.warn('Failed to record mint→seed mapping:', err);
@@ -215,11 +217,14 @@ export function WinModal({
       return;
     }
 
-    try {
-      await mintWithProof(proofState.proof, proofState.publicInputs, moveCount);
-    } catch (err) {
-      console.error('Mint failed:', err);
-    }
+    // The proof's first public input IS mazeHash; the second IS moveCount.
+    // The canonical layout bytes (which hash to mazeHash) plus the bb.js
+    // Pedersen wiring land in ma-6cr.8. Surface a clear error rather than
+    // silently submitting a bad call.
+    void mintWithProof;
+    console.error(
+      'Mint failed: layout-bytes + Pedersen wiring lands in ma-6cr.8'
+    );
   };
 
   const handlePlayAgain = () => {

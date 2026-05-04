@@ -14,7 +14,7 @@ function colorForChar(
   char: string,
   base: string,
   zk?: string,
-  crown?: string,
+  crown?: string
 ): string {
   if (char === '♚') return crown ?? base;
   const u = char.toUpperCase();
@@ -32,7 +32,7 @@ export function Wordmark({
   lineSpacing = 3,
 }: WordmarkProps) {
   const lines = text.split('\n');
-  const lineDims = lines.map(l => getTextDimensions(l));
+  const lineDims = lines.map((l) => getTextDimensions(l));
   const maxWidth = lineDims.reduce((m, d) => Math.max(m, d.width), 0);
   const totalH =
     lineDims.reduce((sum, d) => sum + d.height, 0) +
@@ -78,7 +78,7 @@ export function Wordmark({
                 width={pixelSize}
                 height={pixelSize}
                 fill={fill}
-              />,
+              />
             );
           }
         }

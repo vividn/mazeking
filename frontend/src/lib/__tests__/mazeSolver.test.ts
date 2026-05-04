@@ -12,7 +12,11 @@ function openMaze(width: number, height: number): MazeData {
   for (let y = 0; y < height; y++) {
     const row = [];
     for (let x = 0; x < width; x++) {
-      row.push({ southWall: false, eastWall: false, cellType: CellType.Normal });
+      row.push({
+        southWall: false,
+        eastWall: false,
+        cellType: CellType.Normal,
+      });
     }
     cells.push(row);
   }

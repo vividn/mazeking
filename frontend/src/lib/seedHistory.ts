@@ -27,7 +27,7 @@ export function addSeedToHistory(seed: string): void {
     const history = getSeedHistory();
 
     // Remove if already exists
-    const filtered = history.filter(entry => entry.seed !== seed);
+    const filtered = history.filter((entry) => entry.seed !== seed);
 
     // Add to beginning
     const newEntry: SeedHistoryEntry = {
@@ -46,7 +46,7 @@ export function addSeedToHistory(seed: string): void {
 export function removeSeedFromHistory(seed: string): void {
   try {
     const history = getSeedHistory();
-    const filtered = history.filter(entry => entry.seed !== seed);
+    const filtered = history.filter((entry) => entry.seed !== seed);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
   } catch {
     // Ignore localStorage errors
@@ -64,5 +64,5 @@ export function clearSeedHistory(): void {
 
 // Get just the seed strings (most recent first)
 export function getRecentSeeds(): string[] {
-  return getSeedHistory().map(entry => entry.seed);
+  return getSeedHistory().map((entry) => entry.seed);
 }

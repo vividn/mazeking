@@ -17,13 +17,18 @@ export interface ProofResult {
   publicInputs: string[];
 }
 
-export type ProofProgressCallback = (stage: ProofStage, progress: number) => void;
+export type ProofProgressCallback = (
+  stage: ProofStage,
+  progress: number
+) => void;
 
 let circuitCache: CompiledCircuit | null = null;
 let noirInstance: Noir | null = null;
 let backendInstance: UltraHonkBackend | null = null;
 
-async function loadCircuit(onProgress?: ProofProgressCallback): Promise<CompiledCircuit> {
+async function loadCircuit(
+  onProgress?: ProofProgressCallback
+): Promise<CompiledCircuit> {
   if (circuitCache) {
     return circuitCache;
   }

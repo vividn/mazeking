@@ -1,9 +1,11 @@
 mod types;
 mod position;
 mod walls;
+mod hash;
 
-use types::{Position, Cell, DIR_UP, DIR_RIGHT, DIR_DOWN, DIR_LEFT};
+use hash::compute_maze_hash;
 use position::next_position;
+use types::{Cell, DIR_DOWN, DIR_LEFT, DIR_RIGHT, DIR_UP, Position};
 use walls::can_move;
 
 // Maximum cells supported
@@ -13,25 +15,24 @@ global MAX_PACKED_BYTES: u32 = MAX_MAZE_CELLS / 2;
 // Maximum moves supported
 global MAX_MOVES: u32 = 1000;
 
-// Main proof function
-// Verifies that a sequence of moves:
+// Verify that a sequence of moves:
 // 1. Never passes through walls
 // 2. Passes through the key position
 // 3. Ends at the goal position
-fn main(
-    // Public inputs - maze definition
-    width: pub u16,
-    height: pub u16,
-    start_x: pub u16,
-    start_y: pub u16,
-    key_x: pub u16,
-    key_y: pub u16,
-    goal_x: pub u16,
-    goal_y: pub u16,
-    packed_cells: pub [u8; MAX_PACKED_BYTES],
-    move_count: pub u32,
-
-    // Private input - solution path
+//
+// Pure path-validity check; no hash binding. Used both by `main` (after
+// the hash binding) and directly by tests.
+pub fn verify_solution(
+    width: u16,
+    height: u16,
+    start_x: u16,
+    start_y: u16,
+    key_x: u16,
+    key_y: u16,
+    goal_x: u16,
+    goal_y: u16,
+    packed_cells: [u8; MAX_PACKED_BYTES],
+    move_count: u32,
     moves: [u8; MAX_MOVES],
 ) {
     // Validate dimensions
@@ -79,8 +80,62 @@ fn main(
     }
 
     // Final assertions
-    assert(has_key);           // Must have collected the key
+    assert(has_key); // Must have collected the key
     assert(pos.equals(goal_pos)); // Must end at goal
+}
+
+// Main proof entry point.
+//
+// Public inputs (committed to in the verifier):
+//   maze_hash:  Pedersen hash of the canonical layout (see hash.nr)
+//   move_count: number of moves used in the solution
+//
+// Private inputs (witness only):
+//   width/height, start/key/goal positions, packed cell layout, the
+//   move sequence. The Pedersen hash binds them to `maze_hash`.
+fn main(
+    maze_hash: pub Field,
+    move_count: pub u32,
+    width: u16,
+    height: u16,
+    start_x: u16,
+    start_y: u16,
+    key_x: u16,
+    key_y: u16,
+    goal_x: u16,
+    goal_y: u16,
+    packed_cells: [u8; MAX_PACKED_BYTES],
+    moves: [u8; MAX_MOVES],
+) {
+    // Bind the public maze_hash to the private layout witness. After
+    // this assertion, mutating any byte of the layout invalidates the
+    // proof.
+    let computed = compute_maze_hash(
+        width,
+        height,
+        start_x,
+        start_y,
+        key_x,
+        key_y,
+        goal_x,
+        goal_y,
+        packed_cells,
+    );
+    assert(computed == maze_hash);
+
+    verify_solution(
+        width,
+        height,
+        start_x,
+        start_y,
+        key_x,
+        key_y,
+        goal_x,
+        goal_y,
+        packed_cells,
+        move_count,
+        moves,
+    );
 }
 
 // ============================================================================
@@ -96,25 +151,25 @@ fn pack_cells(even: u8, odd: u8) -> u8 {
 // Path: (0,0) -> Right x3 to (3,0) [key] -> Down x3 to (3,3) -> Left to (2,3) [goal]
 fn create_4x4_test_maze() -> [u8; 8] {
     // 16 cells -> 8 packed bytes
-    let c0 = Cell::from_parts(false, false, 0).data;  // (0,0) start
-    let c1 = Cell::from_parts(true, false, 0).data;   // (1,0) south wall
-    let c2 = Cell::from_parts(true, false, 0).data;   // (2,0) south wall
-    let c3 = Cell::from_parts(false, true, 0).data;   // (3,0) key - east wall
+    let c0 = Cell::from_parts(false, false, 0).data; // (0,0) start
+    let c1 = Cell::from_parts(true, false, 0).data; // (1,0) south wall
+    let c2 = Cell::from_parts(true, false, 0).data; // (2,0) south wall
+    let c3 = Cell::from_parts(false, true, 0).data; // (3,0) key - east wall
 
-    let c4 = Cell::from_parts(false, true, 0).data;   // (0,1) east wall
-    let c5 = Cell::from_parts(true, true, 0).data;    // (1,1) blocked
-    let c6 = Cell::from_parts(true, true, 0).data;    // (2,1) blocked
-    let c7 = Cell::from_parts(false, true, 0).data;   // (3,1) east wall
+    let c4 = Cell::from_parts(false, true, 0).data; // (0,1) east wall
+    let c5 = Cell::from_parts(true, true, 0).data; // (1,1) blocked
+    let c6 = Cell::from_parts(true, true, 0).data; // (2,1) blocked
+    let c7 = Cell::from_parts(false, true, 0).data; // (3,1) east wall
 
-    let c8 = Cell::from_parts(false, true, 0).data;   // (0,2) east wall
-    let c9 = Cell::from_parts(true, true, 0).data;    // (1,2) blocked
-    let c10 = Cell::from_parts(true, true, 0).data;   // (2,2) blocked
-    let c11 = Cell::from_parts(false, true, 0).data;  // (3,2) east wall
+    let c8 = Cell::from_parts(false, true, 0).data; // (0,2) east wall
+    let c9 = Cell::from_parts(true, true, 0).data; // (1,2) blocked
+    let c10 = Cell::from_parts(true, true, 0).data; // (2,2) blocked
+    let c11 = Cell::from_parts(false, true, 0).data; // (3,2) east wall
 
-    let c12 = Cell::from_parts(true, false, 0).data;  // (0,3) south wall
-    let c13 = Cell::from_parts(true, false, 0).data;  // (1,3) south wall
-    let c14 = Cell::from_parts(true, false, 0).data;  // (2,3) goal
-    let c15 = Cell::from_parts(true, true, 0).data;   // (3,3) both walls
+    let c12 = Cell::from_parts(true, false, 0).data; // (0,3) south wall
+    let c13 = Cell::from_parts(true, false, 0).data; // (1,3) south wall
+    let c14 = Cell::from_parts(true, false, 0).data; // (2,3) goal
+    let c15 = Cell::from_parts(true, true, 0).data; // (3,3) both walls
 
     let mut packed: [u8; 8] = [0; 8];
     packed[0] = pack_cells(c0, c1);
@@ -143,18 +198,10 @@ fn test_valid_4x4_solution() {
     moves[2] = DIR_RIGHT; // Now at key (3,0)
     moves[3] = DIR_DOWN;
     moves[4] = DIR_DOWN;
-    moves[5] = DIR_DOWN;  // Now at (3,3)
-    moves[6] = DIR_LEFT;  // Now at goal (2,3)
+    moves[5] = DIR_DOWN; // Now at (3,3)
+    moves[6] = DIR_LEFT; // Now at goal (2,3)
 
-    main(
-        4, 4,
-        0, 0,
-        3, 0,
-        2, 3,
-        padded_cells,
-        7,
-        moves
-    );
+    verify_solution(4, 4, 0, 0, 3, 0, 2, 3, padded_cells, 7, moves);
 }
 
 #[test(should_fail)]
@@ -173,15 +220,7 @@ fn test_miss_key() {
     moves[3] = DIR_RIGHT;
     moves[4] = DIR_RIGHT;
 
-    main(
-        4, 4,
-        0, 0,
-        3, 0,
-        2, 3,
-        padded_cells,
-        5,
-        moves
-    );
+    verify_solution(4, 4, 0, 0, 3, 0, 2, 3, padded_cells, 5, moves);
 }
 
 #[test(should_fail)]
@@ -200,15 +239,7 @@ fn test_wrong_destination() {
     moves[3] = DIR_DOWN;
     moves[4] = DIR_DOWN;
 
-    main(
-        4, 4,
-        0, 0,
-        3, 0,
-        2, 3,
-        padded_cells,
-        5,
-        moves
-    );
+    verify_solution(4, 4, 0, 0, 3, 0, 2, 3, padded_cells, 5, moves);
 }
 
 #[test(should_fail)]
@@ -224,15 +255,7 @@ fn test_through_wall() {
     moves[0] = DIR_DOWN;
     moves[1] = DIR_RIGHT;
 
-    main(
-        4, 4,
-        0, 0,
-        3, 0,
-        2, 3,
-        padded_cells,
-        2,
-        moves
-    );
+    verify_solution(4, 4, 0, 0, 3, 0, 2, 3, padded_cells, 2, moves);
 }
 
 // ============================================================================
@@ -319,15 +342,7 @@ fn test_10x10_valid_solution() {
         idx += 1;
     }
 
-    main(
-        10, 10,
-        0, 0,
-        9, 0,
-        5, 9,
-        padded_cells,
-        22,
-        moves
-    );
+    verify_solution(10, 10, 0, 0, 9, 0, 5, 9, padded_cells, 22, moves);
 }
 
 #[test(should_fail)]
@@ -341,15 +356,7 @@ fn test_10x10_skip_key() {
 
     let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
 
-    main(
-        10, 10,
-        0, 0,
-        9, 0,
-        5, 9,
-        padded_cells,
-        0,
-        moves
-    );
+    verify_solution(10, 10, 0, 0, 9, 0, 5, 9, padded_cells, 0, moves);
 }
 
 #[test(should_fail)]
@@ -364,15 +371,7 @@ fn test_10x10_invalid_move() {
     let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
     moves[0] = DIR_DOWN; // Should fail - south wall at (0,0)
 
-    main(
-        10, 10,
-        0, 0,
-        9, 0,
-        5, 9,
-        padded_cells,
-        1,
-        moves
-    );
+    verify_solution(10, 10, 0, 0, 9, 0, 5, 9, padded_cells, 1, moves);
 }
 
 // Test toroidal wrapping in a small open maze
@@ -400,21 +399,13 @@ fn test_wrap_around_solution() {
     }
 
     let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
-    moves[0] = DIR_LEFT;  // (0,0) -> (2,0) wrap
-    moves[1] = DIR_DOWN;  // (2,0) -> (2,1)
-    moves[2] = DIR_DOWN;  // (2,1) -> (2,2) = key
-    moves[3] = DIR_LEFT;  // (2,2) -> (1,2)
-    moves[4] = DIR_UP;    // (1,2) -> (1,1) = goal
+    moves[0] = DIR_LEFT; // (0,0) -> (2,0) wrap
+    moves[1] = DIR_DOWN; // (2,0) -> (2,1)
+    moves[2] = DIR_DOWN; // (2,1) -> (2,2) = key
+    moves[3] = DIR_LEFT; // (2,2) -> (1,2)
+    moves[4] = DIR_UP; // (1,2) -> (1,1) = goal
 
-    main(
-        3, 3,
-        0, 0,
-        2, 2,
-        1, 1,
-        padded_cells,
-        5,
-        moves
-    );
+    verify_solution(3, 3, 0, 0, 2, 2, 1, 1, padded_cells, 5, moves);
 }
 
 #[test]
@@ -430,13 +421,57 @@ fn test_start_on_key() {
     moves[0] = DIR_RIGHT;
     moves[1] = DIR_DOWN;
 
-    main(
-        3, 3,
-        0, 0,
-        0, 0,
-        1, 1,
-        padded_cells,
-        2,
-        moves
-    );
+    verify_solution(3, 3, 0, 0, 0, 0, 1, 1, padded_cells, 2, moves);
+}
+
+// ============================================================================
+// End-to-end main() test (hash binding + path validity)
+// ============================================================================
+
+#[test]
+fn test_main_4x4_with_hash() {
+    let cells = create_4x4_test_maze();
+
+    let mut padded_cells: [u8; MAX_PACKED_BYTES] = [0; MAX_PACKED_BYTES];
+    for i in 0..8 {
+        padded_cells[i] = cells[i];
+    }
+
+    let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
+    moves[0] = DIR_RIGHT;
+    moves[1] = DIR_RIGHT;
+    moves[2] = DIR_RIGHT;
+    moves[3] = DIR_DOWN;
+    moves[4] = DIR_DOWN;
+    moves[5] = DIR_DOWN;
+    moves[6] = DIR_LEFT;
+
+    let h = compute_maze_hash(4, 4, 0, 0, 3, 0, 2, 3, padded_cells);
+
+    main(h, 7, 4, 4, 0, 0, 3, 0, 2, 3, padded_cells, moves);
+}
+
+#[test(should_fail)]
+fn test_main_rejects_wrong_hash() {
+    let cells = create_4x4_test_maze();
+
+    let mut padded_cells: [u8; MAX_PACKED_BYTES] = [0; MAX_PACKED_BYTES];
+    for i in 0..8 {
+        padded_cells[i] = cells[i];
+    }
+
+    let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
+    moves[0] = DIR_RIGHT;
+    moves[1] = DIR_RIGHT;
+    moves[2] = DIR_RIGHT;
+    moves[3] = DIR_DOWN;
+    moves[4] = DIR_DOWN;
+    moves[5] = DIR_DOWN;
+    moves[6] = DIR_LEFT;
+
+    // Truth hash for the actual layout, perturbed by +1 - should fail.
+    let truth = compute_maze_hash(4, 4, 0, 0, 3, 0, 2, 3, padded_cells);
+    let bogus = truth + 1;
+
+    main(bogus, 7, 4, 4, 0, 0, 3, 0, 2, 3, padded_cells, moves);
 }
