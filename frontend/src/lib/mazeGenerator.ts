@@ -540,7 +540,43 @@ export interface GeneratedMaze {
   goalPos: Position;
 }
 
-export function generateMaze(seed: string): GeneratedMaze {
+export interface GenerateOptions {
+  debug?: boolean;
+}
+
+const DEBUG_WALL_REMOVAL_PROBABILITY = 0.66;
+
+// Remove ~66% of remaining internal walls between non-text cells.
+// Leaves wordmark/letter boundaries and outer perimeter intact so the maze
+// still renders correctly but is trivial to solve.
+function debugRemoveInternalWalls(maze: MazeData, rng: Rng): void {
+  const { width, height, cells } = maze;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const cell = cells[y][x];
+      if (isTextCell(cell)) continue;
+
+      // East wall — skip outer perimeter (rightmost column wraps around)
+      if (cell.eastWall && x < width - 1) {
+        const east = cells[y][x + 1];
+        if (!isTextCell(east) && rng.next() < DEBUG_WALL_REMOVAL_PROBABILITY) {
+          cell.eastWall = false;
+        }
+      }
+
+      // South wall — skip outer perimeter (bottom row wraps around)
+      if (cell.southWall && y < height - 1) {
+        const south = cells[y + 1][x];
+        if (!isTextCell(south) && rng.next() < DEBUG_WALL_REMOVAL_PROBABILITY) {
+          cell.southWall = false;
+        }
+      }
+    }
+  }
+}
+
+export function generateMaze(seed: string, opts: GenerateOptions = {}): GeneratedMaze {
   const rng = createRng(seed);
 
   const { width, height, textLayout } = calculateMazeDimensions(seed);
@@ -560,6 +596,11 @@ export function generateMaze(seed: string): GeneratedMaze {
 
   // 5. Generate maze paths for non-text areas
   generateNonTextMazePaths(maze, rng);
+
+  // 5b. Debug mode: blow out most non-text internal walls for fast testing
+  if (opts.debug) {
+    debugRemoveInternalWalls(maze, rng);
+  }
 
   // 6. Find positions for king, key, goal
   const { kingPos, keyPos, goalPos } = findValidPositions(maze, rng);

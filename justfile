@@ -48,10 +48,8 @@ default:
 setup:
     @echo -e "{{BLUE}}[setup]{{NC}} Installing project dependencies..."
     @just _check-tools
-    @echo -e "{{YELLOW}}[setup]{{NC}} Installing frontend dependencies..."
-    cd {{frontend_dir}} && {{pnpm}} install
-    @echo -e "{{YELLOW}}[setup]{{NC}} Installing build tool dependencies..."
-    cd {{tools_dir}} && {{pnpm}} install
+    @echo -e "{{YELLOW}}[setup]{{NC}} Installing pnpm workspace dependencies..."
+    cd {{project_root}} && {{pnpm}} install
     @echo -e "{{YELLOW}}[setup]{{NC}} Installing contract dependencies..."
     cd {{contracts_dir}} && {{forge}} install
     @echo -e "{{GREEN}}[setup]{{NC}} Setup complete!"
