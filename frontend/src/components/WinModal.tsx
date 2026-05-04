@@ -682,7 +682,7 @@ export function WinModal({
                               fontSize: '12px',
                             }}
                           >
-                            {(mintError as any)?.message ||
+                            {(mintError as Error | null)?.message ||
                               'Mint failed. Please try again.'}
                           </div>
                         )}

@@ -188,20 +188,20 @@ function createInternalLetterPaths(maze: MazeData, placements: CharPlacement[], 
       parent.set(key(cell), key(cell));
     }
 
-    function find(k: string): string {
+    const find = (k: string): string => {
       if (parent.get(k) !== k) {
         parent.set(k, find(parent.get(k)!));
       }
       return parent.get(k)!;
-    }
+    };
 
-    function union(a: string, b: string): boolean {
+    const union = (a: string, b: string): boolean => {
       const pa = find(a);
       const pb = find(b);
       if (pa === pb) return false;
       parent.set(pa, pb);
       return true;
-    }
+    };
 
     // Collect internal walls between text cells
     interface InternalWall {
