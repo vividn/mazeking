@@ -176,6 +176,7 @@ _ensure-anvil:
     # Check if Anvil is already running
     if lsof -Pi :{{anvil_port}} -sTCP:LISTEN -t >/dev/null 2>&1; then
         echo -e "{{GREEN}}[anvil]{{NC}} Anvil already running on port {{anvil_port}}"
+        {{scripts_dir}}/inject-multicall3.sh {{anvil_rpc}}
         exit 0
     fi
 
@@ -191,6 +192,7 @@ _ensure-anvil:
         if lsof -Pi :{{anvil_port}} -sTCP:LISTEN -t >/dev/null 2>&1; then
             echo -e "{{GREEN}}[anvil]{{NC}} Anvil started successfully (PID: $ANVIL_PID)"
             echo -e "{{BLUE}}[anvil]{{NC}} Logs: /tmp/anvil.log"
+            {{scripts_dir}}/inject-multicall3.sh {{anvil_rpc}}
             exit 0
         fi
         sleep 0.5
