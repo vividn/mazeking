@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { GameState, MazeData, Move, ColorScheme, Position } from '../types';
+import { useAccount } from 'wagmi';
+import type {
+  GameState,
+  MazeData,
+  Move,
+  ColorScheme,
+  Position,
+} from '../types';
 import { generateMaze, canMove, getNewPosition } from '../lib/mazeGenerator';
 import { generateColorScheme } from '../lib/colorGenerator';
 import { addSeedToHistory } from '../lib/seedHistory';
@@ -9,6 +16,7 @@ import { Controls } from './Controls';
 import { WinModal } from './WinModal';
 import { SeedBar } from './SeedBar';
 import { HistorySidebar } from './HistorySidebar';
+import { MyMazesSidebar } from './MyMazesSidebar';
 import { MazeSizeWarning } from './MazeSizeWarning';
 import { Wordmark } from './Wordmark';
 
@@ -18,10 +26,10 @@ interface GameProps {
 }
 
 const DIRECTION_TO_MOVE: Record<string, Move> = {
-  up: 0,    // Move.Up
+  up: 0, // Move.Up
   right: 1, // Move.Right
-  down: 2,  // Move.Down
-  left: 3,  // Move.Left
+  down: 2, // Move.Down
+  left: 3, // Move.Left
 };
 
 export function Game({ initialSeed, onSeedChange }: GameProps) {
@@ -37,6 +45,8 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   // on the goal cell without regalia. Cleared as soon as they step away.
   const [showKinglyHint, setShowKinglyHint] = useState(false);
   const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
+  const [myMazesSidebarOpen, setMyMazesSidebarOpen] = useState(false);
+  const { isConnected } = useAccount();
   const [copied, setCopied] = useState(false);
   const [initialPositions, setInitialPositions] = useState<{
     startPos: Position;
@@ -65,38 +75,41 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   }, [colors]);
 
   // Initialize game from seed
-  const initGame = useCallback((newSeed: string) => {
-    const generated = generateMaze(newSeed);
-    const newColors = generateColorScheme(newSeed);
+  const initGame = useCallback(
+    (newSeed: string) => {
+      const generated = generateMaze(newSeed);
+      const newColors = generateColorScheme(newSeed);
 
-    setMaze(generated.maze);
-    setColors(newColors);
+      setMaze(generated.maze);
+      setColors(newColors);
 
-    // Store initial positions for ZK proof generation
-    setInitialPositions({
-      startPos: { ...generated.kingPos },
-      keyPos: { ...generated.keyPos },
-      goalPos: { ...generated.goalPos },
-    });
+      // Store initial positions for ZK proof generation
+      setInitialPositions({
+        startPos: { ...generated.kingPos },
+        keyPos: { ...generated.keyPos },
+        goalPos: { ...generated.goalPos },
+      });
 
-    // Initialize visited with starting position
-    const startKey = `${generated.kingPos.x},${generated.kingPos.y}`;
-    setVisited(new Set([startKey]));
-    setShowKinglyHint(false);
+      // Initialize visited with starting position
+      const startKey = `${generated.kingPos.x},${generated.kingPos.y}`;
+      setVisited(new Set([startKey]));
+      setShowKinglyHint(false);
 
-    setGameState({
-      playerPos: { ...generated.kingPos },
-      keyPos: { ...generated.keyPos },
-      goalPos: { ...generated.goalPos },
-      hasKey: false,
-      moveCount: 0,
-      moves: [],
-      gameWon: false,
-    });
-    setSeed(newSeed);
-    onSeedChange(newSeed);
-    addSeedToHistory(newSeed);
-  }, [onSeedChange]);
+      setGameState({
+        playerPos: { ...generated.kingPos },
+        keyPos: { ...generated.keyPos },
+        goalPos: { ...generated.goalPos },
+        hasKey: false,
+        moveCount: 0,
+        moves: [],
+        gameWon: false,
+      });
+      setSeed(newSeed);
+      onSeedChange(newSeed);
+      addSeedToHistory(newSeed);
+    },
+    [onSeedChange]
+  );
 
   // Initialize on mount or seed change
   useEffect(() => {
@@ -104,51 +117,58 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   }, [initialSeed, initGame]);
 
   // Handle movement
-  const handleMove = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
-    if (!maze || !gameState || gameState.gameWon) return;
+  const handleMove = useCallback(
+    (direction: 'up' | 'down' | 'left' | 'right') => {
+      if (!maze || !gameState || gameState.gameWon) return;
 
-    if (canMove(maze, gameState.playerPos, direction)) {
-      const newPos = getNewPosition(maze, gameState.playerPos, direction);
+      if (canMove(maze, gameState.playerPos, direction)) {
+        const newPos = getNewPosition(maze, gameState.playerPos, direction);
 
-      // Add new position to visited
-      const posKey = `${newPos.x},${newPos.y}`;
-      setVisited(prev => new Set([...prev, posKey]));
+        // Add new position to visited
+        const posKey = `${newPos.x},${newPos.y}`;
+        setVisited((prev) => new Set([...prev, posKey]));
 
-      setGameState(prev => {
-        if (!prev) return prev;
+        setGameState((prev) => {
+          if (!prev) return prev;
 
-        const newState = {
-          ...prev,
-          playerPos: newPos,
-          moveCount: prev.moveCount + 1,
-          moves: [...prev.moves, DIRECTION_TO_MOVE[direction] as Move],
-        };
+          const newState = {
+            ...prev,
+            playerPos: newPos,
+            moveCount: prev.moveCount + 1,
+            moves: [...prev.moves, DIRECTION_TO_MOVE[direction] as Move],
+          };
 
-        // Check if picked up key
-        if (prev.keyPos && newPos.x === prev.keyPos.x && newPos.y === prev.keyPos.y) {
-          newState.hasKey = true;
-          newState.keyPos = { x: -1, y: -1 }; // Mark as collected
-        }
+          // Check if picked up key
+          if (
+            prev.keyPos &&
+            newPos.x === prev.keyPos.x &&
+            newPos.y === prev.keyPos.y
+          ) {
+            newState.hasKey = true;
+            newState.keyPos = { x: -1, y: -1 }; // Mark as collected
+          }
 
-        const reachedGoal =
-          newPos.x === prev.goalPos.x && newPos.y === prev.goalPos.y;
+          const reachedGoal =
+            newPos.x === prev.goalPos.x && newPos.y === prev.goalPos.y;
 
-        // Reaching the crown only wins when wearing regalia. Without it,
-        // surface the hint instead — the goal stays unclaimed.
-        if (reachedGoal && newState.hasKey) {
-          newState.gameWon = true;
-          setShowKinglyHint(false);
-        } else if (reachedGoal && !newState.hasKey) {
-          setShowKinglyHint(true);
-        } else {
-          // Stepping off the goal cell clears the hint.
-          setShowKinglyHint(false);
-        }
+          // Reaching the crown only wins when wearing regalia. Without it,
+          // surface the hint instead — the goal stays unclaimed.
+          if (reachedGoal && newState.hasKey) {
+            newState.gameWon = true;
+            setShowKinglyHint(false);
+          } else if (reachedGoal && !newState.hasKey) {
+            setShowKinglyHint(true);
+          } else {
+            // Stepping off the goal cell clears the hint.
+            setShowKinglyHint(false);
+          }
 
-        return newState;
-      });
-    }
-  }, [maze, gameState]);
+          return newState;
+        });
+      }
+    },
+    [maze, gameState]
+  );
 
   // Keyboard controls
   useEffect(() => {
@@ -161,6 +181,15 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         if (e.key === 'Escape') {
           e.preventDefault();
           setHistorySidebarOpen(false);
+        }
+        return;
+      }
+
+      // Same for the My Mazes sidebar — let Escape close it, swallow others.
+      if (myMazesSidebarOpen) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setMyMazesSidebarOpen(false);
         }
         return;
       }
@@ -223,7 +252,15 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleMove, gameState?.gameWon, seedBarOpen, historySidebarOpen, initGame, seed]);
+  }, [
+    handleMove,
+    gameState?.gameWon,
+    seedBarOpen,
+    historySidebarOpen,
+    myMazesSidebarOpen,
+    initGame,
+    seed,
+  ]);
 
   const handleSeedBarStart = (newSeed: string) => {
     initGame(newSeed);
@@ -247,7 +284,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   };
 
   const toggleZoom = () => {
-    setZoom(prev => prev === 1 ? 2 : 1);
+    setZoom((prev) => (prev === 1 ? 2 : 1));
   };
 
   const handleCopyLink = useCallback(async () => {
@@ -269,11 +306,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   }, []);
 
   if (!maze || !colors || !gameState || !initialPositions) {
-    return (
-      <div style={styles.loading}>
-        Loading maze...
-      </div>
-    );
+    return <div style={styles.loading}>Loading maze...</div>;
   }
 
   // Calculate contrasting text color for buttons
@@ -312,41 +345,81 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
             <span style={styles.stat}>
               Moves: <strong>{gameState.moveCount}</strong>
             </span>
-            <span style={{ ...styles.stat, color: gameState.hasKey ? colors.keyColor : '#888' }}>
+            <span
+              style={{
+                ...styles.stat,
+                color: gameState.hasKey ? colors.keyColor : '#888',
+              }}
+            >
               {gameState.hasKey ? 'Regalia collected!' : 'Find the regalia'}
             </span>
           </div>
           {!isMobile && (
             <div style={styles.keymap}>
-              <span style={styles.keymapItem}>Move: <kbd style={styles.kbd}>Arrows</kbd> <kbd style={styles.kbd}>WASD</kbd></span>
-              <span style={styles.keymapItem}>Restart: <kbd style={styles.kbd}>R</kbd></span>
-              <span style={styles.keymapItem}>New: <kbd style={styles.kbd}>N</kbd></span>
+              <span style={styles.keymapItem}>
+                Move: <kbd style={styles.kbd}>Arrows</kbd>{' '}
+                <kbd style={styles.kbd}>WASD</kbd>
+              </span>
+              <span style={styles.keymapItem}>
+                Restart: <kbd style={styles.kbd}>R</kbd>
+              </span>
+              <span style={styles.keymapItem}>
+                New: <kbd style={styles.kbd}>N</kbd>
+              </span>
             </div>
           )}
           {!isMobile && (
             <div style={styles.headerButtons}>
               <button
                 onClick={toggleZoom}
-                style={{ ...styles.actionButton, backgroundColor: colors.wallColor, color: getContrastColor(colors.wallColor) }}
+                style={{
+                  ...styles.actionButton,
+                  backgroundColor: colors.wallColor,
+                  color: getContrastColor(colors.wallColor),
+                }}
               >
                 {zoom === 1 ? 'Zoom In' : 'Zoom Out'}
               </button>
               <button
                 onClick={handleCopyLink}
-                style={{ ...styles.actionButton, backgroundColor: colors.textBackgroundColor, color: getContrastColor(colors.textBackgroundColor) }}
+                style={{
+                  ...styles.actionButton,
+                  backgroundColor: colors.textBackgroundColor,
+                  color: getContrastColor(colors.textBackgroundColor),
+                }}
                 title="Copy link to clipboard"
               >
                 {copied ? 'Copied!' : 'Share'}
               </button>
               <button
                 onClick={() => setHistorySidebarOpen(true)}
-                style={{ ...styles.actionButton, backgroundColor: colors.wallColor, color: getContrastColor(colors.wallColor) }}
+                style={{
+                  ...styles.actionButton,
+                  backgroundColor: colors.wallColor,
+                  color: getContrastColor(colors.wallColor),
+                }}
               >
                 History
               </button>
+              {isConnected && (
+                <button
+                  onClick={() => setMyMazesSidebarOpen(true)}
+                  style={{
+                    ...styles.actionButton,
+                    backgroundColor: colors.keyColor,
+                    color: getContrastColor(colors.keyColor),
+                  }}
+                >
+                  My Mazes
+                </button>
+              )}
               <button
                 onClick={() => setSeedBarOpen(true)}
-                style={{ ...styles.actionButton, backgroundColor: colors.uiAccentColor, color: buttonTextColor }}
+                style={{
+                  ...styles.actionButton,
+                  backgroundColor: colors.uiAccentColor,
+                  color: buttonTextColor,
+                }}
               >
                 New Game
               </button>
@@ -357,7 +430,12 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
 
       <MazeSizeWarning width={maze.width} height={maze.height} />
 
-      <div style={{ ...styles.mazeContainer, ...(isMobile ? styles.mazeContainerMobile : null) }}>
+      <div
+        style={{
+          ...styles.mazeContainer,
+          ...(isMobile ? styles.mazeContainerMobile : null),
+        }}
+      >
         <Maze
           maze={maze}
           playerPos={gameState.playerPos}
@@ -416,6 +494,13 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         colors={colors}
         onSelectSeed={handleHistorySelect}
         onClose={() => setHistorySidebarOpen(false)}
+      />
+
+      <MyMazesSidebar
+        isOpen={myMazesSidebarOpen}
+        colors={colors}
+        onSelectSeed={handleHistorySelect}
+        onClose={() => setMyMazesSidebarOpen(false)}
       />
     </div>
   );

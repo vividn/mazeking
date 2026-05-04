@@ -8,6 +8,8 @@ import { ProofImage } from './ProofImage';
 import { Maze } from './Maze';
 import { areContractsDeployed } from '../lib/contracts';
 import { sepolia } from 'wagmi/chains';
+import { computeTokenIdFromPublicInputs } from '../lib/tokenId';
+import { rememberMint } from '../lib/mintRegistry';
 
 interface WinModalProps {
   isOpen: boolean;
@@ -44,9 +46,10 @@ function ConfettiCanvas({ colors, active }: ConfettiCanvasProps) {
 
   useEffect(() => {
     if (!active) return;
-    const reduced = typeof window !== 'undefined'
-      && window.matchMedia
-      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduced) return;
 
     const canvas = canvasRef.current;
@@ -147,13 +150,11 @@ export function WinModal({
   goalPos,
   visited,
 }: WinModalProps) {
-  const { state: proofState, startProofGeneration, reset: resetProof } = useZkProof(
-    maze,
-    moves,
-    startPos,
-    keyPos,
-    goalPos
-  );
+  const {
+    state: proofState,
+    startProofGeneration,
+    reset: resetProof,
+  } = useZkProof(maze, moves, startPos, keyPos, goalPos);
 
   // Delay mounting the maze thumbnail until after the modal slide-in animation
   // settles, so canvas measurement uses final post-transform dimensions.
@@ -174,7 +175,26 @@ export function WinModal({
   const { switchChain } = useSwitchChain();
 
   // NFT minting
-  const { mintWithProof, isPending, isConfirming, isSuccess, error: mintError } = useMintNFT();
+  const {
+    mintWithProof,
+    isPending,
+    isConfirming,
+    isSuccess,
+    error: mintError,
+  } = useMintNFT();
+
+  // On successful mint, persist tokenId↔seed locally so the My Mazes view can
+  // replay this maze even though the contract derives tokenId from the layout
+  // rather than from the seed string.
+  useEffect(() => {
+    if (!isSuccess || !proofState.publicInputs) return;
+    try {
+      const tokenId = computeTokenIdFromPublicInputs(proofState.publicInputs);
+      rememberMint(tokenId, seed);
+    } catch (err) {
+      console.warn('Failed to record mint→seed mapping:', err);
+    }
+  }, [isSuccess, proofState.publicInputs, seed]);
 
   // Check if contracts are deployed on current chain
   const contractsDeployed = chain ? areContractsDeployed(chain.id) : false;
@@ -202,7 +222,10 @@ export function WinModal({
     onNewMaze();
   };
 
-  const isProving = proofState.stage !== 'idle' && proofState.stage !== 'complete' && proofState.stage !== 'error';
+  const isProving =
+    proofState.stage !== 'idle' &&
+    proofState.stage !== 'complete' &&
+    proofState.stage !== 'error';
 
   // Escape: replay the same maze (the primary action). Skip while proving so
   // we don't tear down the in-flight ZK pipeline mid-keypress.
@@ -475,7 +498,13 @@ export function WinModal({
       </style>
       <ConfettiCanvas colors={colors} active={isOpen} />
       <div style={overlayStyle} onClick={(e) => e.stopPropagation()}>
-        <div className="win-modal" style={modalStyle} role="dialog" aria-labelledby="win-title" aria-modal="true">
+        <div
+          className="win-modal"
+          style={modalStyle}
+          role="dialog"
+          aria-labelledby="win-title"
+          aria-modal="true"
+        >
           <div className="win-crown" style={crownStyle} aria-hidden="true">
             👑
           </div>
@@ -484,9 +513,7 @@ export function WinModal({
             Victory!
           </h2>
 
-          <p style={subtitleStyle}>
-            {subtitle}
-          </p>
+          <p style={subtitleStyle}>{subtitle}</p>
 
           <div style={certificateFrameStyle}>
             <div style={thumbnailStyle}>
@@ -537,94 +564,122 @@ export function WinModal({
               />
             )}
 
-            {proofState.stage === 'complete' && proofState.imageDataUrl && proofState.proof && (
-              <>
-                <ProofImage
-                  imageDataUrl={proofState.imageDataUrl}
-                  proofSizeBytes={proofState.proof.length}
-                  colors={colors}
-                />
+            {proofState.stage === 'complete' &&
+              proofState.imageDataUrl &&
+              proofState.proof && (
+                <>
+                  <ProofImage
+                    imageDataUrl={proofState.imageDataUrl}
+                    proofSizeBytes={proofState.proof.length}
+                    colors={colors}
+                  />
 
-                {/* Minting section */}
-                <div style={{ marginTop: '24px' }}>
-                  {!isConnected ? (
-                    <button
-                      className="win-button"
-                      style={{ ...primaryButtonStyle, backgroundColor: colors.goalColor }}
-                      onClick={() => connect({ connector: connectors[0] })}
-                      aria-label="Connect wallet to mint NFT"
-                    >
-                      Connect Wallet to Mint NFT
-                    </button>
-                  ) : !contractsDeployed ? (
-                    <div style={errorStyle}>
-                      Contracts not deployed on {chain?.name || 'this network'}.
-                      {areContractsDeployed(sepolia.id) && (
-                        <button
-                          className="win-button"
-                          style={{ ...zkButtonStyle, marginTop: '12px', display: 'block', width: '100%' }}
-                          onClick={() => switchChain({ chainId: sepolia.id })}
-                        >
-                          Switch to Sepolia
-                        </button>
-                      )}
-                    </div>
-                  ) : isSuccess ? (
-                    <div
-                      style={{
-                        ...errorStyle,
-                        backgroundColor: 'rgba(0, 255, 0, 0.1)',
-                        border: '1px solid rgba(0, 255, 0, 0.3)',
-                        color: '#4ade80',
-                      }}
-                    >
-                      ✓ NFT Minted Successfully!
-                      <div style={{ marginTop: '8px', fontSize: '12px', opacity: 0.8 }}>
-                        Connected: {address?.slice(0, 6)}...{address?.slice(-4)}
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div
-                        style={{
-                          marginBottom: '12px',
-                          fontSize: '12px',
-                          textAlign: 'center',
-                          color: colors.wallColor,
-                          opacity: 0.7,
-                        }}
-                      >
-                        Connected: {address?.slice(0, 6)}...{address?.slice(-4)}
-                        {' • '}
-                        {chain?.name}
-                      </div>
-
+                  {/* Minting section */}
+                  <div style={{ marginTop: '24px' }}>
+                    {!isConnected ? (
                       <button
                         className="win-button"
                         style={{
                           ...primaryButtonStyle,
                           backgroundColor: colors.goalColor,
-                          opacity: isPending || isConfirming ? 0.7 : 1,
                         }}
-                        onClick={handleMint}
-                        disabled={isPending || isConfirming}
-                        aria-label="Mint achievement NFT"
+                        onClick={() => connect({ connector: connectors[0] })}
+                        aria-label="Connect wallet to mint NFT"
                       >
-                        {isPending && 'Preparing Transaction...'}
-                        {isConfirming && 'Confirming on Chain...'}
-                        {!isPending && !isConfirming && 'Mint Achievement NFT'}
+                        Connect Wallet to Mint NFT
                       </button>
-
-                      {mintError && (
-                        <div style={{ ...errorStyle, marginTop: '12px', fontSize: '12px' }}>
-                          {(mintError as any)?.message || 'Mint failed. Please try again.'}
+                    ) : !contractsDeployed ? (
+                      <div style={errorStyle}>
+                        Contracts not deployed on{' '}
+                        {chain?.name || 'this network'}.
+                        {areContractsDeployed(sepolia.id) && (
+                          <button
+                            className="win-button"
+                            style={{
+                              ...zkButtonStyle,
+                              marginTop: '12px',
+                              display: 'block',
+                              width: '100%',
+                            }}
+                            onClick={() => switchChain({ chainId: sepolia.id })}
+                          >
+                            Switch to Sepolia
+                          </button>
+                        )}
+                      </div>
+                    ) : isSuccess ? (
+                      <div
+                        style={{
+                          ...errorStyle,
+                          backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                          border: '1px solid rgba(0, 255, 0, 0.3)',
+                          color: '#4ade80',
+                        }}
+                      >
+                        ✓ NFT Minted Successfully!
+                        <div
+                          style={{
+                            marginTop: '8px',
+                            fontSize: '12px',
+                            opacity: 0.8,
+                          }}
+                        >
+                          Connected: {address?.slice(0, 6)}...
+                          {address?.slice(-4)}
                         </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </>
-            )}
+                      </div>
+                    ) : (
+                      <>
+                        <div
+                          style={{
+                            marginBottom: '12px',
+                            fontSize: '12px',
+                            textAlign: 'center',
+                            color: colors.wallColor,
+                            opacity: 0.7,
+                          }}
+                        >
+                          Connected: {address?.slice(0, 6)}...
+                          {address?.slice(-4)}
+                          {' • '}
+                          {chain?.name}
+                        </div>
+
+                        <button
+                          className="win-button"
+                          style={{
+                            ...primaryButtonStyle,
+                            backgroundColor: colors.goalColor,
+                            opacity: isPending || isConfirming ? 0.7 : 1,
+                          }}
+                          onClick={handleMint}
+                          disabled={isPending || isConfirming}
+                          aria-label="Mint achievement NFT"
+                        >
+                          {isPending && 'Preparing Transaction...'}
+                          {isConfirming && 'Confirming on Chain...'}
+                          {!isPending &&
+                            !isConfirming &&
+                            'Mint Achievement NFT'}
+                        </button>
+
+                        {mintError && (
+                          <div
+                            style={{
+                              ...errorStyle,
+                              marginTop: '12px',
+                              fontSize: '12px',
+                            }}
+                          >
+                            {(mintError as any)?.message ||
+                              'Mint failed. Please try again.'}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
 
             {proofState.stage === 'error' && (
               <div style={errorStyle}>
