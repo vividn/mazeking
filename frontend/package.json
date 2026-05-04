@@ -11,8 +11,8 @@
     "test:run": "vitest run"
   },
   "dependencies": {
-    "@aztec/bb.js": "^2.1.9",
-    "@noir-lang/noir_js": "1.0.0-beta.17",
+    "@aztec/bb.js": "catalog:zktools",
+    "@noir-lang/noir_js": "catalog:zktools",
     "@tanstack/react-query": "^5.90.16",
     "buffer": "^6.0.3",
     "react": "^18.2.0",

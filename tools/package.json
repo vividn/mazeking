@@ -10,7 +10,7 @@
     "verifier": "node generate-verifier.mjs verifier"
   },
   "dependencies": {
-    "@aztec/bb.js": "2.1.9",
-    "@noir-lang/noir_wasm": "1.0.0-beta.17"
+    "@aztec/bb.js": "catalog:zktools",
+    "@noir-lang/noir_wasm": "catalog:zktools"
   }
 }
