@@ -6,7 +6,7 @@ import {
   type ColorScheme,
 } from '../types';
 import { drawArrow, drawCornerWarp, getArrowColor } from '../glyphs';
-import { drawPerson, drawRegalia, drawCrownGoal } from '../lib/spriteGlyphs';
+import { drawPerson, drawRegalia, drawCrownGoal, CrownTier } from '../lib/spriteGlyphs';
 
 interface MazeProps {
   maze: MazeData;
@@ -25,6 +25,11 @@ interface MazeProps {
    * (WinModal thumbnail). Takes precedence over the regalia silhouette.
    */
   playerWearsCrown?: boolean;
+  /**
+   * Tier variant for the worn crown. Only used when `playerWearsCrown` is
+   * true. Defaults to Plain (the un-tiered registered-solve crown).
+   */
+  crownTier?: CrownTier;
   /**
    * When true, render a small "you don't look like the king" speech bubble
    * above the player. Shown when the player reaches the goal without regalia.
@@ -153,6 +158,7 @@ export const Maze: React.FC<MazeProps> = ({
   showEntities = true,
   enableTouchTransform = false,
   playerWearsCrown = false,
+  crownTier = CrownTier.Plain,
   showKinglyHint = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -629,7 +635,8 @@ export const Maze: React.FC<MazeProps> = ({
         hasKey,
         colors.keyColor,
         playerWearsCrown,
-        colors.keyColor
+        colors.keyColor,
+        crownTier
       );
 
       // Anti-shortcut hint: speech bubble above the player when they reach
@@ -660,6 +667,7 @@ export const Maze: React.FC<MazeProps> = ({
     userZoom,
     userPan,
     playerWearsCrown,
+    crownTier,
     showKinglyHint,
   ]);
 

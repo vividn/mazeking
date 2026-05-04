@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAccount, useConnect, useDisconnect, useSwitchChain } from 'wagmi';
 import type { ColorScheme, MazeData, Move, Position } from '../types';
 import { useZkProof } from '../hooks/useZkProof';
@@ -10,6 +10,7 @@ import { areContractsDeployed } from '../lib/contracts';
 import { sepolia } from 'wagmi/chains';
 import { computeTokenIdFromPublicInputs } from '../lib/tokenId';
 import { rememberMint } from '../lib/mintRegistry';
+import { computeOptimalMoves, tierFromMoveCount } from '../lib/mazeSolver';
 
 interface WinModalProps {
   isOpen: boolean;
@@ -155,6 +156,15 @@ export function WinModal({
     startProofGeneration,
     reset: resetProof,
   } = useZkProof(maze, moves, startPos, keyPos, goalPos);
+
+  // Crown tier preview — computed locally from the same thresholds the
+  // on-chain DefaultBadgeAwarder uses, so the player sees what they earned
+  // immediately. Memoized on maze identity to avoid resolving BFS each render.
+  const crownTier = useMemo(() => {
+    if (!isOpen) return undefined;
+    const optimal = computeOptimalMoves(maze, startPos, keyPos, goalPos);
+    return tierFromMoveCount(moveCount, optimal);
+  }, [isOpen, maze, startPos, keyPos, goalPos, moveCount]);
 
   // Delay mounting the maze thumbnail until after the modal slide-in animation
   // settles, so canvas measurement uses final post-transform dimensions.
@@ -530,6 +540,7 @@ export function WinModal({
                   showEntities={true}
                   enableTouchTransform={false}
                   playerWearsCrown={true}
+                  crownTier={crownTier}
                 />
               )}
             </div>

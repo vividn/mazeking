@@ -43,24 +43,46 @@ export const PERSON_WITH_REGALIA: SpritePattern = s([
   '.######.',
 ]);
 
-// Person wearing the crown — reserved for the WIN moment (modal/NFT).
-// Body identical to PERSON_NO_REGALIA so the crown band reads as the change.
-export const PERSON_WITH_CROWN: SpritePattern = s([
-  '#.#.#.#.',
-  '########',
-  '..####..',
-  '.######.',
-  '.######.',
-  '.######.',
-  '.##..##.',
-  '.##..##.',
+/**
+ * Tiered crown variants reflect the player's best badge for a maze.
+ * Worn at the WIN moment — never on the in-game goal sprite.
+ *
+ * Visual progression (worse → better):
+ *   Stone < Plain < Copper < Silver < Gold < Robot
+ *
+ * Plain = REGISTERED solve with no medal yet (default).
+ * Stone = max-moves "you barely made it" sentinel.
+ * Copper/Silver/Gold = within 1.25x / 1.15x / 1.05x of optimal.
+ * Robot = exact optimal — angular, futuristic.
+ */
+export enum CrownTier {
+  Stone = 'stone',
+  Plain = 'plain',
+  Copper = 'copper',
+  Silver = 'silver',
+  Gold = 'gold',
+  Robot = 'robot',
+}
+
+// Crown overlays — 8x8 patterns that paint the crown on top of PERSON_NO_REGALIA.
+// Only the top rows carry crown pixels; the rest are empty so the body shows.
+//
+// Designs target legibility at 12-20px cell sizes: differences are concentrated
+// in spike count / band density / silhouette height so the tier reads at a glance.
+const CROWN_OVERLAY_STONE: SpritePattern = s([
+  '#...#...', // chipped — only 2 left spikes survive
+  '##.#####', // band with a missing chunk top-left
+  '........',
+  '........',
+  '........',
+  '........',
+  '........',
+  '........',
 ]);
 
-// Just the crown rows of PERSON_WITH_CROWN, used to tint the worn crown
-// in the win-modal sprite when crownColor differs from playerColor.
-const PERSON_CROWN_OVERLAY: SpritePattern = s([
-  '#.#.#.#.',
-  '########',
+const CROWN_OVERLAY_PLAIN: SpritePattern = s([
+  '#.#.#.#.', // 4 evenly spaced spikes
+  '########', // solid band
   '........',
   '........',
   '........',
@@ -68,6 +90,64 @@ const PERSON_CROWN_OVERLAY: SpritePattern = s([
   '........',
   '........',
 ]);
+
+const CROWN_OVERLAY_COPPER: SpritePattern = s([
+  '#.#.#.#.', // same 4 spikes as plain
+  '##.##.##', // band with 2 jewel notches
+  '........',
+  '........',
+  '........',
+  '........',
+  '........',
+  '........',
+]);
+
+const CROWN_OVERLAY_SILVER: SpritePattern = s([
+  '##.##.##', // 3 stout merlon spikes
+  '########', // clean solid band
+  '...##...', // single big jewel hanging below band
+  '........',
+  '........',
+  '........',
+  '........',
+  '........',
+]);
+
+const CROWN_OVERLAY_GOLD: SpritePattern = s([
+  '.#.##.#.', // outer spikes shorter, twin tall center spikes
+  '########', // ornate cresting (top band)
+  '##.##.##', // jewel band
+  '........',
+  '........',
+  '........',
+  '........',
+  '........',
+]);
+
+const CROWN_OVERLAY_ROBOT: SpritePattern = s([
+  '...##...', // single sharp center antenna
+  '#.####.#', // narrow geometric band with corner brackets
+  '........',
+  '........',
+  '........',
+  '........',
+  '........',
+  '........',
+]);
+
+const CROWN_OVERLAYS: Record<CrownTier, SpritePattern> = {
+  [CrownTier.Stone]: CROWN_OVERLAY_STONE,
+  [CrownTier.Plain]: CROWN_OVERLAY_PLAIN,
+  [CrownTier.Copper]: CROWN_OVERLAY_COPPER,
+  [CrownTier.Silver]: CROWN_OVERLAY_SILVER,
+  [CrownTier.Gold]: CROWN_OVERLAY_GOLD,
+  [CrownTier.Robot]: CROWN_OVERLAY_ROBOT,
+};
+
+/** Crown overlay sprite for a given tier. Compose over PERSON_NO_REGALIA. */
+export function getCrownSprite(tier: CrownTier): SpritePattern {
+  return CROWN_OVERLAYS[tier];
+}
 
 // Collectible regalia: scepter on the left, robe silhouette on the right.
 // Reads as "royal vestments" without using a crown shape (crown is reserved
@@ -172,8 +252,9 @@ export function drawSprite(
 /**
  * Draw the player figure.
  *
- * - `wearingCrown` — render PERSON_WITH_CROWN with optional crown-color tint.
- *   Used for the win-modal/NFT moment.
+ * - `wearingCrown` — render the player wearing a crown. Used for the
+ *   win-modal/NFT moment. `crownTier` selects the variant (default: Plain);
+ *   pass `crownColor` to tint the crown distinct from the player.
  * - `wearingRegalia` (when not wearing crown) — render PERSON_WITH_REGALIA.
  * - Otherwise — plain PERSON_NO_REGALIA.
  *
@@ -188,17 +269,18 @@ export function drawPerson(
   wearingRegalia: boolean,
   regaliaColor?: string,
   wearingCrown: boolean = false,
-  crownColor?: string
+  crownColor?: string,
+  crownTier: CrownTier = CrownTier.Plain
 ): void {
   if (wearingCrown) {
-    if (crownColor && crownColor !== color) {
-      drawSprite(ctx, x, y, size, PERSON_NO_REGALIA, color);
-      drawSprite(ctx, x, y, size, PERSON_CROWN_OVERLAY, crownColor, {
-        shadow: false,
-      });
-    } else {
-      drawSprite(ctx, x, y, size, PERSON_WITH_CROWN, color);
-    }
+    const overlay = getCrownSprite(crownTier);
+    // Always two-pass: body in player color, then crown overlay.
+    // When colors match the second pass simply overpaints — visually identical
+    // to a single-pass render but keeps tier dispatch in one place.
+    drawSprite(ctx, x, y, size, PERSON_NO_REGALIA, color);
+    drawSprite(ctx, x, y, size, overlay, crownColor ?? color, {
+      shadow: false,
+    });
     return;
   }
 
