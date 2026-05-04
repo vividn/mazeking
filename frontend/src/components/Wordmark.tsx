@@ -34,8 +34,18 @@ export function Wordmark({
   const lines = text.split('\n');
   const lineDims = lines.map(l => getTextDimensions(l));
   const maxWidth = lineDims.reduce((m, d) => Math.max(m, d.width), 0);
-  const lineH = lineDims[0]?.height ?? 8;
-  const totalH = lines.length * lineH + (lines.length - 1) * lineSpacing;
+  const totalH =
+    lineDims.reduce((sum, d) => sum + d.height, 0) +
+    Math.max(0, lines.length - 1) * lineSpacing;
+
+  const baseYs: number[] = [];
+  {
+    let acc = 0;
+    for (let i = 0; i < lineDims.length; i++) {
+      baseYs.push(acc);
+      acc += lineDims[i].height + lineSpacing;
+    }
+  }
 
   const svgW = maxWidth * pixelSize;
   const svgH = totalH * pixelSize;
@@ -45,7 +55,7 @@ export function Wordmark({
   for (let li = 0; li < lines.length; li++) {
     const line = lines[li];
     const dims = lineDims[li];
-    const baseY = li * (lineH + lineSpacing);
+    const baseY = baseYs[li];
     let cursorX = Math.floor((maxWidth - dims.width) / 2);
 
     for (let i = 0; i < line.length; i++) {

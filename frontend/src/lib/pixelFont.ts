@@ -808,6 +808,7 @@ export function getCharWidth(char: string): number {
 
 export function getTextDimensions(text: string): { width: number; height: number } {
   let width = 0;
+  let height = 0;
 
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
@@ -815,9 +816,13 @@ export function getTextDimensions(text: string): { width: number; height: number
     if (i < text.length - 1) {
       width += 1; // spacing between characters
     }
+    const pattern = getCharPattern(char);
+    if (pattern && pattern.length > height) {
+      height = pattern.length;
+    }
   }
 
-  return { width, height: 8 };
+  return { width, height };
 }
 
 // Get pattern for a character, supporting both cases
