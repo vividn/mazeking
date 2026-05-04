@@ -1,10 +1,13 @@
 /**
- * Contract configuration (manually maintained for now).
+ * Public-network contract addresses (Sepolia, mainnet, etc.).
  *
- * NOTE: this file is intentionally tracked in git so that statichost.eu's
- * build can find it. The `scripts/generate-contracts-config.js` generator
- * may overwrite this file during local `just deploy-local` / `just deploy-sepolia`
- * runs; commit the result if you redeploy.
+ * This file is intentionally tracked in git so that statichost.eu's build
+ * picks up the live addresses. `just deploy-sepolia` overwrites it via
+ * `scripts/generate-contracts-config.js`; commit the diff after redeploying.
+ *
+ * Local anvil (chainId 31337) addresses live in the gitignored sibling file
+ * `contracts.local.ts`, written by `just deploy-local`. The loader in
+ * `contracts.ts` merges both so consumers see a single map.
  *
  * ABIs are NOT inlined here — they live in `frontend/src/lib/abi/*.json` and
  * are imported directly by the consumers that need them.
@@ -20,23 +23,3 @@ export const CONTRACT_ADDRESSES: Record<
     verifier: '0xa09528e41b638dfdbd9daa1d1bfe5f34712d39b6',
   },
 };
-
-export type ContractType = 'nft' | 'verifier';
-
-/**
- * Get contract address for a given chain and contract type.
- */
-export function getContractAddress(
-  chainId: number,
-  contract: ContractType
-): `0x${string}` | undefined {
-  return CONTRACT_ADDRESSES[chainId]?.[contract];
-}
-
-/**
- * True iff both NFT and verifier are deployed on the given chain.
- */
-export function areContractsDeployed(chainId: number): boolean {
-  const addrs = CONTRACT_ADDRESSES[chainId];
-  return !!addrs?.nft && !!addrs?.verifier;
-}
