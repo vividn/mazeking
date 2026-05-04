@@ -201,18 +201,20 @@ export function SeedBar({ isOpen, onStartGame, onCancel }: SeedBarProps) {
               animation: shake ? 'shake 0.3s ease-in-out' : undefined,
             }}
           />
-          <button
-            className="seed-bar-random"
-            onClick={handleRandomPhrase}
-            style={{
-              ...styles.randomButton,
-              backgroundColor: accentColor,
-              color: barBgColor,
-            }}
-            title="Generate random phrase (Shift+N)"
-          >
-            Random
-          </button>
+          {inputValue.trim() === '' && (
+            <button
+              className="seed-bar-random"
+              onClick={handleRandomPhrase}
+              style={{
+                ...styles.randomButton,
+                backgroundColor: accentColor,
+                color: barBgColor,
+              }}
+              title="Surprise me with a random phrase (Shift+N)"
+            >
+              Surprise me
+            </button>
+          )}
           <span style={{ ...styles.hint, color: textColor }}>
             Enter to start · Esc to cancel
           </span>
