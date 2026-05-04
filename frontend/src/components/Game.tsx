@@ -14,7 +14,7 @@ import { computeMazeHash } from '../lib/mazeIdentity';
 import { layoutBytesForSeed } from '../lib/tokenId';
 import { addSeedToHistory } from '../lib/seedHistory';
 import { getRandomPhrase } from '../lib/seedPhrases';
-import { Maze } from './Maze';
+import { Maze, type MazeHandle } from './Maze';
 import { Controls } from './Controls';
 import { WinModal } from './WinModal';
 import { SeedBar } from './SeedBar';
@@ -38,6 +38,7 @@ const DIRECTION_TO_MOVE: Record<string, Move> = {
 };
 
 export function Game({ initialSeed, onSeedChange }: GameProps) {
+  const mazeRef = useRef<MazeHandle>(null);
   const [seed, setSeed] = useState(initialSeed);
   const [maze, setMaze] = useState<MazeData | null>(null);
   const [colors, setColors] = useState<ColorScheme | null>(null);
@@ -237,6 +238,13 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
       if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
         initGame(seed);
+        return;
+      }
+
+      // 0 key resets the maze pan/zoom transform (works even when won).
+      if (e.key === '0') {
+        e.preventDefault();
+        mazeRef.current?.resetView();
         return;
       }
 
@@ -498,6 +506,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         }}
       >
         <Maze
+          ref={mazeRef}
           maze={maze}
           playerPos={gameState.playerPos}
           keyPos={gameState.keyPos.x >= 0 ? gameState.keyPos : null}

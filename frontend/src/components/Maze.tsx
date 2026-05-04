@@ -1,4 +1,11 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  forwardRef,
+  useImperativeHandle,
+} from 'react';
 import {
   CellType,
   type MazeData,
@@ -45,13 +52,23 @@ interface MazeProps {
   showKinglyHint?: boolean;
 }
 
-const MIN_USER_ZOOM = 0.6;
 const MAX_USER_ZOOM = 6;
 const DOUBLE_TAP_MS = 300;
 const MOUSE_DRAG_THRESHOLD_PX = 5;
 const WHEEL_ZOOM_STEP = 1.15;
+const RESET_ANIM_MS = 150;
 const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
+
+const prefersReducedMotion = (): boolean =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+export interface MazeHandle {
+  /** Snap (or animate) back to fit-to-viewport, centered. */
+  resetView: () => void;
+}
 
 const KINGLY_HINT_TEXT = "you don't look like the king";
 
@@ -156,22 +173,29 @@ function drawKinglyHint(
  * Maze renderer component that displays the toroidal maze with player, key, and goal.
  * Uses Canvas for performant rendering with zoom support centered on player.
  */
-export const Maze: React.FC<MazeProps> = ({
-  maze,
-  playerPos,
-  keyPos,
-  goalPos,
-  hasKey,
-  colors,
-  zoom,
-  visited,
-  showEntities = true,
-  enableTouchTransform = false,
-  enableMouseTransform = false,
-  playerWearsCrown = false,
-  crownTier = CrownTier.Plain,
-  showKinglyHint = false,
-}) => {
+export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
+  {
+    maze,
+    playerPos,
+    keyPos,
+    goalPos,
+    hasKey,
+    colors,
+    zoom,
+    visited,
+    showEntities = true,
+    enableTouchTransform = false,
+    enableMouseTransform = false,
+    playerWearsCrown = false,
+    crownTier = CrownTier.Plain,
+    showKinglyHint = false,
+  },
+  ref
+) {
+  // Lower bound such that the maze never shrinks past fit-to-viewport.
+  // baseCellSize = min(viewport/maze) which is the exact-fit cell size at
+  // totalZoom=1. So minUserZoom = 1 / zoom keeps totalZoom >= 1.
+  const minUserZoom = 1 / zoom;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -190,10 +214,10 @@ export const Maze: React.FC<MazeProps> = ({
   useEffect(() => {
     if (lastMazeKeyRef.current !== mazeKey) {
       lastMazeKeyRef.current = mazeKey;
-      setUserZoom(1);
+      setUserZoom(minUserZoom);
       setUserPan({ x: 0, y: 0 });
     }
-  }, [mazeKey]);
+  }, [mazeKey, minUserZoom]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -740,7 +764,7 @@ export const Maze: React.FC<MazeProps> = ({
         const now = Date.now();
         // Double-tap to reset transform
         if (now - lastTapRef.current < DOUBLE_TAP_MS) {
-          setUserZoom(1);
+          setUserZoom(minUserZoom);
           setUserPan({ x: 0, y: 0 });
           lastTapRef.current = 0;
           gestureRef.current = { mode: null };
@@ -781,7 +805,14 @@ export const Maze: React.FC<MazeProps> = ({
         };
       }
     },
-    [enableTouchTransform, zoom, userZoom, userPan, computeNeutralOffset]
+    [
+      enableTouchTransform,
+      zoom,
+      userZoom,
+      userPan,
+      minUserZoom,
+      computeNeutralOffset,
+    ]
   );
 
   const handleTouchMove = useCallback(
@@ -812,22 +843,29 @@ export const Maze: React.FC<MazeProps> = ({
         const ratio = dist / g.startDist;
         const newUserZoom = clamp(
           g.startUserZoom * ratio,
-          MIN_USER_ZOOM,
+          minUserZoom,
           MAX_USER_ZOOM
         );
-        // Effective applied ratio after clamping
-        const k = (zoom * newUserZoom) / g.startTotalZoom;
-        // New offset that anchors midpoint
-        const newOffsetX = g.startMid.x - (g.startMid.x - g.startOffset.x) * k;
-        const newOffsetY = g.startMid.y - (g.startMid.y - g.startOffset.y) * k;
-        // Convert back to userPan: newPan = newOffset - centerOffset(newTotalZoom)
-        const neutral = computeNeutralOffset(zoom * newUserZoom);
         setUserZoom(newUserZoom);
-        setUserPan({ x: newOffsetX - neutral.x, y: newOffsetY - neutral.y });
+        if (newUserZoom <= minUserZoom) {
+          // At fit-to-viewport: lock the maze centered.
+          setUserPan({ x: 0, y: 0 });
+        } else {
+          // Effective applied ratio after clamping
+          const k = (zoom * newUserZoom) / g.startTotalZoom;
+          // New offset that anchors midpoint
+          const newOffsetX =
+            g.startMid.x - (g.startMid.x - g.startOffset.x) * k;
+          const newOffsetY =
+            g.startMid.y - (g.startMid.y - g.startOffset.y) * k;
+          // Convert back to userPan: newPan = newOffset - centerOffset(newTotalZoom)
+          const neutral = computeNeutralOffset(zoom * newUserZoom);
+          setUserPan({ x: newOffsetX - neutral.x, y: newOffsetY - neutral.y });
+        }
         e.preventDefault();
       }
     },
-    [enableTouchTransform, zoom, computeNeutralOffset]
+    [enableTouchTransform, zoom, minUserZoom, computeNeutralOffset]
   );
 
   const handleTouchEnd = useCallback(
@@ -850,6 +888,44 @@ export const Maze: React.FC<MazeProps> = ({
     [enableTouchTransform]
   );
 
+  // Animated reset back to fit-to-viewport, centered. Snaps under
+  // prefers-reduced-motion. Cancels any in-flight reset via a generation token.
+  const resetAnimRef = useRef(0);
+  const resetView = useCallback(() => {
+    const targetZoom = minUserZoom;
+    const targetPan = { x: 0, y: 0 };
+    resetAnimRef.current += 1;
+    const myGen = resetAnimRef.current;
+
+    if (prefersReducedMotion()) {
+      setUserZoom(targetZoom);
+      setUserPan(targetPan);
+      return;
+    }
+
+    const fromZoom = userZoom;
+    const fromPan = userPan;
+    if (fromZoom === targetZoom && fromPan.x === 0 && fromPan.y === 0) return;
+
+    const start = performance.now();
+    const ease = (t: number) =>
+      t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    const step = (now: number) => {
+      if (resetAnimRef.current !== myGen) return; // superseded
+      const t = Math.min(1, (now - start) / RESET_ANIM_MS);
+      const k = ease(t);
+      setUserZoom(fromZoom + (targetZoom - fromZoom) * k);
+      setUserPan({
+        x: fromPan.x + (targetPan.x - fromPan.x) * k,
+        y: fromPan.y + (targetPan.y - fromPan.y) * k,
+      });
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [minUserZoom, userZoom, userPan]);
+
+  useImperativeHandle(ref, () => ({ resetView }), [resetView]);
+
   // Mouse drag pan: a small threshold prevents an accidental click from
   // counting as a pan; once exceeded, deltas update userPan directly.
   const mouseDragRef = useRef<{
@@ -862,6 +938,12 @@ export const Maze: React.FC<MazeProps> = ({
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (!enableMouseTransform) return;
+      // Middle-click: reset transform to fit-to-viewport. Don't start a drag.
+      if (e.button === 1) {
+        e.preventDefault();
+        resetView();
+        return;
+      }
       if (e.button !== 0) return;
       mouseDragRef.current = {
         startX: e.clientX,
@@ -870,7 +952,7 @@ export const Maze: React.FC<MazeProps> = ({
         isDragging: false,
       };
     },
-    [enableMouseTransform, userPan]
+    [enableMouseTransform, userPan, resetView]
   );
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -908,18 +990,19 @@ export const Maze: React.FC<MazeProps> = ({
       const startOffsetY = neutral.y + userPan.y;
 
       const factor = e.deltaY < 0 ? WHEEL_ZOOM_STEP : 1 / WHEEL_ZOOM_STEP;
-      const newUserZoom = clamp(
-        userZoom * factor,
-        MIN_USER_ZOOM,
-        MAX_USER_ZOOM
-      );
+      const newUserZoom = clamp(userZoom * factor, minUserZoom, MAX_USER_ZOOM);
       if (newUserZoom === userZoom) return;
 
+      setUserZoom(newUserZoom);
+      if (newUserZoom <= minUserZoom) {
+        // At fit-to-viewport: lock centered, no panning makes sense.
+        setUserPan({ x: 0, y: 0 });
+        return;
+      }
       const k = (zoom * newUserZoom) / startTotalZoom;
       const newOffsetX = cursorX - (cursorX - startOffsetX) * k;
       const newOffsetY = cursorY - (cursorY - startOffsetY) * k;
       const newNeutral = computeNeutralOffset(zoom * newUserZoom);
-      setUserZoom(newUserZoom);
       setUserPan({
         x: newOffsetX - newNeutral.x,
         y: newOffsetY - newNeutral.y,
@@ -927,7 +1010,14 @@ export const Maze: React.FC<MazeProps> = ({
     };
     container.addEventListener('wheel', onWheel, { passive: false });
     return () => container.removeEventListener('wheel', onWheel);
-  }, [enableMouseTransform, zoom, userZoom, userPan, computeNeutralOffset]);
+  }, [
+    enableMouseTransform,
+    zoom,
+    userZoom,
+    userPan,
+    minUserZoom,
+    computeNeutralOffset,
+  ]);
 
   return (
     <div
@@ -964,4 +1054,4 @@ export const Maze: React.FC<MazeProps> = ({
       />
     </div>
   );
-};
+});
