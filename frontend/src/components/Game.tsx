@@ -346,9 +346,11 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
       >
         <div style={styles.wordmarkRow}>
           <Wordmark
-            text="MAZEKING"
+            text={'maze♚\n♚king'}
             pixelSize={isMobile ? 3 : 4}
             color={colors.textBackgroundColor}
+            zkColor={colors.zkBackgroundColor}
+            crownColor={colors.crownBackgroundColor}
             ariaLabel="MAZEKING"
           />
         </div>
