@@ -2,6 +2,6 @@
   "database": "dolt",
   "backend": "dolt",
   "dolt_mode": "server",
-  "dolt_database": "ma",
-  "project_id": "f934a4ff-e51c-4b2c-9e56-b490f6978563"
+  "dolt_database": "mazeking",
+  "project_id": "08ca309f-0e19-4a95-93b7-c66aeb600f25"
 }
