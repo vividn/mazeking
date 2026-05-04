@@ -45,24 +45,43 @@ export function PublicGallerySidebar({
   const accentColor = colors.uiAccentColor;
   const textColor = colors.wallColor;
 
+  const shortId = (tokenId: bigint): string => {
+    const hex = tokenId.toString(16).padStart(64, '0');
+    return `0x${hex.slice(0, 4)}…${hex.slice(-4)}`;
+  };
+
   const renderTile = (maze: GalleryMaze) => {
-    const onClick = () => {
-      onSelectSeed(maze.seed);
-      onClose();
-    };
+    const replayable = !!maze.seed;
+    const onClick = replayable
+      ? () => {
+          onSelectSeed(maze.seed!);
+          onClose();
+        }
+      : undefined;
+    const label = maze.seed ?? shortId(maze.tokenId);
     return (
       <button
         key={maze.tokenId.toString()}
         className="gallery-tile"
         onClick={onClick}
-        title={`Play "${maze.seed}"`}
-        style={{ ...styles.tile, color: textColor }}
+        disabled={!replayable}
+        title={
+          replayable
+            ? `Play "${maze.seed}"`
+            : 'Seed not published — solve again from this device to recover.'
+        }
+        style={{
+          ...styles.tile,
+          color: textColor,
+          cursor: replayable ? 'pointer' : 'default',
+          opacity: replayable ? 1 : 0.7,
+        }}
       >
         <div style={{ ...styles.thumb, backgroundColor: 'rgba(0,0,0,0.25)' }}>
           {maze.imageUrl ? (
             <img
               src={maze.imageUrl}
-              alt={`Maze ${maze.seed}`}
+              alt={`Maze ${label}`}
               style={styles.thumbImg}
               draggable={false}
             />
@@ -83,9 +102,7 @@ export function PublicGallerySidebar({
           </div>
         </div>
         <div style={styles.tileLabel}>
-          <span style={{ ...styles.seedLabel, color: textColor }}>
-            {maze.seed}
-          </span>
+          <span style={{ ...styles.seedLabel, color: textColor }}>{label}</span>
           <span style={{ ...styles.metaLabel, color: textColor }}>
             {maze.minMoves !== null ? `best ${maze.minMoves}` : 'unsolved'}
           </span>

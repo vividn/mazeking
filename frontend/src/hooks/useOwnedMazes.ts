@@ -101,7 +101,9 @@ function decodeImageFromTokenUri(tokenUri: string): string | null {
   }
 }
 
-export function useOwnedMazes(): State & { refresh: () => void } {
+export function useOwnedMazes(
+  enabled: boolean = true
+): State & { refresh: () => void } {
   const { address, chain } = useAccount();
   const publicClient = usePublicClient();
   const [state, setState] = useState<State>({
@@ -112,6 +114,12 @@ export function useOwnedMazes(): State & { refresh: () => void } {
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
+    // Gating on `enabled` (re-runs when it flips false→true) means the post-
+    // mint UI sees fresh logs every time the sidebar opens. Without this, the
+    // hook would be mounted once at app start, populate state with whatever
+    // existed pre-mint, and never re-fetch when the user opens the sidebar
+    // after a successful mint — which is exactly the bug ma-dn4 fixes.
+    if (!enabled) return;
     let cancelled = false;
 
     async function run() {
@@ -209,7 +217,7 @@ export function useOwnedMazes(): State & { refresh: () => void } {
     return () => {
       cancelled = true;
     };
-  }, [address, chain, publicClient, tick]);
+  }, [enabled, address, chain, publicClient, tick]);
 
   return { ...state, refresh: () => setTick((t) => t + 1) };
 }
