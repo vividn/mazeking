@@ -121,7 +121,7 @@ export function PublicGallerySidebar({
   } else if (sorted.length === 0) {
     body = (
       <div style={{ ...styles.empty, color: textColor }}>
-        No registered mazes yet. Mint one to start the gallery.
+        No mazes yet. Mint one to start the gallery.
       </div>
     );
   } else {
