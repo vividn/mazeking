@@ -1,6 +1,12 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { CellType, type MazeData, type Position, type ColorScheme } from '../types';
-import { drawCrown, drawKey, drawChest, drawArrow, drawCornerWarp, getArrowColor } from '../glyphs';
+import {
+  CellType,
+  type MazeData,
+  type Position,
+  type ColorScheme,
+} from '../types';
+import { drawArrow, drawCornerWarp, getArrowColor } from '../glyphs';
+import { drawPerson, drawCrown, drawCastle } from '../lib/spriteGlyphs';
 
 interface MazeProps {
   maze: MazeData;
@@ -19,7 +25,8 @@ interface MazeProps {
 const MIN_USER_ZOOM = 0.6;
 const MAX_USER_ZOOM = 6;
 const DOUBLE_TAP_MS = 300;
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+const clamp = (v: number, lo: number, hi: number) =>
+  Math.max(lo, Math.min(hi, v));
 
 /**
  * Maze renderer component that displays the toroidal maze with player, key, and goal.
@@ -125,16 +132,24 @@ export const Maze: React.FC<MazeProps> = ({
         let bgColor: string;
         switch (cell.cellType) {
           case CellType.CrownText:
-            bgColor = isVisited ? colors.crownVisitedColor : colors.crownBackgroundColor;
+            bgColor = isVisited
+              ? colors.crownVisitedColor
+              : colors.crownBackgroundColor;
             break;
           case CellType.ZkText:
-            bgColor = isVisited ? colors.zkVisitedColor : colors.zkBackgroundColor;
+            bgColor = isVisited
+              ? colors.zkVisitedColor
+              : colors.zkBackgroundColor;
             break;
           case CellType.Text:
-            bgColor = isVisited ? colors.textVisitedColor : colors.textBackgroundColor;
+            bgColor = isVisited
+              ? colors.textVisitedColor
+              : colors.textBackgroundColor;
             break;
           default:
-            bgColor = isVisited ? colors.visitedColor : colors.mazeBackgroundColor;
+            bgColor = isVisited
+              ? colors.visitedColor
+              : colors.mazeBackgroundColor;
         }
 
         // Fill cell background
@@ -264,32 +279,68 @@ export const Maze: React.FC<MazeProps> = ({
     }
 
     // Identify corner positions (where both vertical and horizontal warps exist)
-    const topLeftCornerV = verticalArrows.find(a => a.x === 0);
-    const topLeftCornerH = horizontalArrows.find(a => a.y === 0);
-    const topRightCornerV = verticalArrows.find(a => a.x === maze.width - 1);
-    const topRightCornerH = horizontalArrows.find(a => a.y === 0);
-    const bottomLeftCornerV = verticalArrows.find(a => a.x === 0);
-    const bottomLeftCornerH = horizontalArrows.find(a => a.y === maze.height - 1);
-    const bottomRightCornerV = verticalArrows.find(a => a.x === maze.width - 1);
-    const bottomRightCornerH = horizontalArrows.find(a => a.y === maze.height - 1);
+    const topLeftCornerV = verticalArrows.find((a) => a.x === 0);
+    const topLeftCornerH = horizontalArrows.find((a) => a.y === 0);
+    const topRightCornerV = verticalArrows.find((a) => a.x === maze.width - 1);
+    const topRightCornerH = horizontalArrows.find((a) => a.y === 0);
+    const bottomLeftCornerV = verticalArrows.find((a) => a.x === 0);
+    const bottomLeftCornerH = horizontalArrows.find(
+      (a) => a.y === maze.height - 1
+    );
+    const bottomRightCornerV = verticalArrows.find(
+      (a) => a.x === maze.width - 1
+    );
+    const bottomRightCornerH = horizontalArrows.find(
+      (a) => a.y === maze.height - 1
+    );
 
     // Draw corner warps with special 4-way indicator
     if (topLeftCornerV && topLeftCornerH) {
-      drawCornerWarp(ctx, arrowSize * 1.2, arrowSize * 1.2, topLeftCornerV.color, topLeftCornerH.color, arrowSize);
+      drawCornerWarp(
+        ctx,
+        arrowSize * 1.2,
+        arrowSize * 1.2,
+        topLeftCornerV.color,
+        topLeftCornerH.color,
+        arrowSize
+      );
     }
     if (topRightCornerV && topRightCornerH) {
-      drawCornerWarp(ctx, maze.width * cellSize - arrowSize * 1.2, arrowSize * 1.2, topRightCornerV.color, topRightCornerH.color, arrowSize);
+      drawCornerWarp(
+        ctx,
+        maze.width * cellSize - arrowSize * 1.2,
+        arrowSize * 1.2,
+        topRightCornerV.color,
+        topRightCornerH.color,
+        arrowSize
+      );
     }
     if (bottomLeftCornerV && bottomLeftCornerH) {
-      drawCornerWarp(ctx, arrowSize * 1.2, maze.height * cellSize - arrowSize * 1.2, bottomLeftCornerV.color, bottomLeftCornerH.color, arrowSize);
+      drawCornerWarp(
+        ctx,
+        arrowSize * 1.2,
+        maze.height * cellSize - arrowSize * 1.2,
+        bottomLeftCornerV.color,
+        bottomLeftCornerH.color,
+        arrowSize
+      );
     }
     if (bottomRightCornerV && bottomRightCornerH) {
-      drawCornerWarp(ctx, maze.width * cellSize - arrowSize * 1.2, maze.height * cellSize - arrowSize * 1.2, bottomRightCornerV.color, bottomRightCornerH.color, arrowSize);
+      drawCornerWarp(
+        ctx,
+        maze.width * cellSize - arrowSize * 1.2,
+        maze.height * cellSize - arrowSize * 1.2,
+        bottomRightCornerV.color,
+        bottomRightCornerH.color,
+        arrowSize
+      );
     }
 
     // Draw top arrows (pointing up) - skip corners that have both warps
     for (const arrow of verticalArrows) {
-      const isCorner = (arrow.x === 0 && topLeftCornerH) || (arrow.x === maze.width - 1 && topRightCornerH);
+      const isCorner =
+        (arrow.x === 0 && topLeftCornerH) ||
+        (arrow.x === maze.width - 1 && topRightCornerH);
       if (!isCorner) {
         const cellX = arrow.x * cellSize + cellSize / 2;
         const cellY = arrowSize * 1.2;
@@ -299,7 +350,9 @@ export const Maze: React.FC<MazeProps> = ({
 
     // Draw bottom arrows (pointing down) - skip corners that have both warps
     for (const arrow of verticalArrows) {
-      const isCorner = (arrow.x === 0 && bottomLeftCornerH) || (arrow.x === maze.width - 1 && bottomRightCornerH);
+      const isCorner =
+        (arrow.x === 0 && bottomLeftCornerH) ||
+        (arrow.x === maze.width - 1 && bottomRightCornerH);
       if (!isCorner) {
         const cellX = arrow.x * cellSize + cellSize / 2;
         const cellY = maze.height * cellSize - arrowSize * 1.2;
@@ -309,7 +362,9 @@ export const Maze: React.FC<MazeProps> = ({
 
     // Draw left arrows (pointing left) - skip corners that have both warps
     for (const arrow of horizontalArrows) {
-      const isCorner = (arrow.y === 0 && topLeftCornerV) || (arrow.y === maze.height - 1 && bottomLeftCornerV);
+      const isCorner =
+        (arrow.y === 0 && topLeftCornerV) ||
+        (arrow.y === maze.height - 1 && bottomLeftCornerV);
       if (!isCorner) {
         const cellX = arrowSize * 1.2;
         const cellY = arrow.y * cellSize + cellSize / 2;
@@ -319,7 +374,9 @@ export const Maze: React.FC<MazeProps> = ({
 
     // Draw right arrows (pointing right) - skip corners that have both warps
     for (const arrow of horizontalArrows) {
-      const isCorner = (arrow.y === 0 && topRightCornerV) || (arrow.y === maze.height - 1 && bottomRightCornerV);
+      const isCorner =
+        (arrow.y === 0 && topRightCornerV) ||
+        (arrow.y === maze.height - 1 && bottomRightCornerV);
       if (!isCorner) {
         const cellX = maze.width * cellSize - arrowSize * 1.2;
         const cellY = arrow.y * cellSize + cellSize / 2;
@@ -328,31 +385,44 @@ export const Maze: React.FC<MazeProps> = ({
     }
 
     // Helper to check if movement from one cell to another is blocked by a wall
-    const canMove = (fromX: number, fromY: number, toX: number, toY: number): boolean => {
+    const canMove = (
+      fromX: number,
+      fromY: number,
+      toX: number,
+      toY: number
+    ): boolean => {
       const dx = toX - fromX;
       const dy = toY - fromY;
 
       // Check movement direction and corresponding wall
-      if (dx === 1 || (dx === -(maze.width - 1))) {
+      if (dx === 1 || dx === -(maze.width - 1)) {
         // Moving east (or wrapping from right edge to left)
         return !maze.cells[fromY][fromX].eastWall;
-      } else if (dx === -1 || (dx === maze.width - 1)) {
+      } else if (dx === -1 || dx === maze.width - 1) {
         // Moving west (or wrapping from left edge to right)
-        return !maze.cells[fromY][(fromX - 1 + maze.width) % maze.width].eastWall;
-      } else if (dy === 1 || (dy === -(maze.height - 1))) {
+        return !maze.cells[fromY][(fromX - 1 + maze.width) % maze.width]
+          .eastWall;
+      } else if (dy === 1 || dy === -(maze.height - 1)) {
         // Moving south (or wrapping from bottom to top)
         return !maze.cells[fromY][fromX].southWall;
-      } else if (dy === -1 || (dy === maze.height - 1)) {
+      } else if (dy === -1 || dy === maze.height - 1) {
         // Moving north (or wrapping from top to bottom)
-        return !maze.cells[(fromY - 1 + maze.height) % maze.height][fromX].southWall;
+        return !maze.cells[(fromY - 1 + maze.height) % maze.height][fromX]
+          .southWall;
       }
       return false;
     };
 
     // BFS to find accessible cells within distance, respecting walls
-    const getAccessibleCells = (startX: number, startY: number, maxDist: number): Map<string, number> => {
+    const getAccessibleCells = (
+      startX: number,
+      startY: number,
+      maxDist: number
+    ): Map<string, number> => {
       const distances = new Map<string, number>();
-      const queue: { x: number; y: number; dist: number }[] = [{ x: startX, y: startY, dist: 0 }];
+      const queue: { x: number; y: number; dist: number }[] = [
+        { x: startX, y: startY, dist: 0 },
+      ];
       distances.set(`${startX},${startY}`, 0);
 
       while (queue.length > 0) {
@@ -362,9 +432,9 @@ export const Maze: React.FC<MazeProps> = ({
         // Check all 4 directions
         const dirs = [
           { dx: 0, dy: -1 }, // north
-          { dx: 1, dy: 0 },  // east
-          { dx: 0, dy: 1 },  // south
-          { dx: -1, dy: 0 }  // west
+          { dx: 1, dy: 0 }, // east
+          { dx: 0, dy: 1 }, // south
+          { dx: -1, dy: 0 }, // west
         ];
 
         for (const { dx, dy } of dirs) {
@@ -383,7 +453,11 @@ export const Maze: React.FC<MazeProps> = ({
     };
 
     // Helper to draw colored square under an entity with distance-based transparency
-    const drawAccessibleHighlight = (pos: Position, baseColor: { r: number; g: number; b: number }, maxDist: number) => {
+    const drawAccessibleHighlight = (
+      pos: Position,
+      baseColor: { r: number; g: number; b: number },
+      maxDist: number
+    ) => {
       const accessible = getAccessibleCells(pos.x, pos.y, maxDist);
 
       for (const [key, dist] of accessible) {
@@ -399,33 +473,68 @@ export const Maze: React.FC<MazeProps> = ({
     };
 
     if (showEntities) {
-      // Draw treasure chest with accessible square highlights
-      // Chest color: red when locked, green when unlocked
-      const chestColor = hasKey ? { r: 100, g: 200, b: 100 } : { r: 200, g: 60, b: 60 };
-      drawAccessibleHighlight(goalPos, chestColor, 2);
+      // Castle goal — green-tinted accessible halo when crowned, red while locked.
+      const castleHalo = hasKey
+        ? { r: 100, g: 200, b: 100 }
+        : { r: 200, g: 60, b: 60 };
+      drawAccessibleHighlight(goalPos, castleHalo, 2);
+      drawCastle(
+        ctx,
+        goalPos.x * cellSize + cellSize / 2,
+        goalPos.y * cellSize + cellSize / 2,
+        cellSize * 0.9,
+        colors.goalColor,
+        hasKey,
+        colors.goalGlowColor
+      );
 
-      // Draw treasure chest icon (open with gold when player has key)
-      drawChest(ctx, goalPos.x * cellSize + cellSize / 2, goalPos.y * cellSize + cellSize / 2, cellSize * 0.9, hasKey);
-
-      // Draw key with gold accessible square highlights (if not collected)
+      // Crown collectible at the key position — only visible until picked up.
       if (keyPos !== null) {
-        const keyColor = { r: 255, g: 200, b: 50 };
-        drawAccessibleHighlight(keyPos, keyColor, 2);
-        drawKey(ctx, keyPos.x * cellSize + cellSize / 2, keyPos.y * cellSize + cellSize / 2, cellSize * 0.85);
+        const keyHalo = { r: 255, g: 200, b: 50 };
+        drawAccessibleHighlight(keyPos, keyHalo, 2);
+        drawCrown(
+          ctx,
+          keyPos.x * cellSize + cellSize / 2,
+          keyPos.y * cellSize + cellSize / 2,
+          cellSize * 0.85,
+          colors.keyColor
+        );
       }
 
-      // Draw player (crown)
-      drawCrown(ctx, playerPos.x * cellSize + cellSize / 2, playerPos.y * cellSize + cellSize / 2, cellSize * 0.85);
+      // Player figure: a person walking the maze; once they have the crown,
+      // they wear it (rendered in keyColor so the worn crown reads as the same
+      // item the player picked up).
+      drawPerson(
+        ctx,
+        playerPos.x * cellSize + cellSize / 2,
+        playerPos.y * cellSize + cellSize / 2,
+        cellSize * 0.85,
+        colors.playerColor,
+        hasKey,
+        colors.keyColor
+      );
     }
 
     ctx.restore();
-  }, [maze, playerPos, keyPos, goalPos, hasKey, colors, zoom, visited, showEntities, userZoom, userPan]);
+  }, [
+    maze,
+    playerPos,
+    keyPos,
+    goalPos,
+    hasKey,
+    colors,
+    zoom,
+    visited,
+    showEntities,
+    userZoom,
+    userPan,
+  ]);
 
   // Handle window resize - force re-render by changing a counter
   const [, setResizeCount] = React.useState(0);
   useEffect(() => {
     const handleResize = () => {
-      setResizeCount(c => c + 1);
+      setResizeCount((c) => c + 1);
     };
 
     window.addEventListener('resize', handleResize);
@@ -445,119 +554,141 @@ export const Maze: React.FC<MazeProps> = ({
     centerOffsetFn?: (z: number) => { x: number; y: number };
   }>({ mode: null });
 
-  const computeNeutralOffset = useCallback((totalZoom: number) => {
-    const container = containerRef.current;
-    if (!container) return { x: 0, y: 0 };
-    const rect = container.getBoundingClientRect();
-    const baseCellSize = Math.min(rect.width / maze.width, rect.height / maze.height);
-    const cellSize = baseCellSize * totalZoom;
-    return {
-      x: (rect.width - maze.width * cellSize) / 2,
-      y: (rect.height - maze.height * cellSize) / 2,
-    };
-  }, [maze.width, maze.height]);
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!enableTouchTransform) return;
-    if (e.touches.length === 1) {
-      const t = e.touches[0];
-      const now = Date.now();
-      // Double-tap to reset transform
-      if (now - lastTapRef.current < DOUBLE_TAP_MS) {
-        setUserZoom(1);
-        setUserPan({ x: 0, y: 0 });
-        lastTapRef.current = 0;
-        gestureRef.current = { mode: null };
-        return;
-      }
-      lastTapRef.current = now;
-      gestureRef.current = {
-        mode: 'pan',
-        last: { x: t.clientX, y: t.clientY },
-      };
-    } else if (e.touches.length === 2) {
+  const computeNeutralOffset = useCallback(
+    (totalZoom: number) => {
       const container = containerRef.current;
-      const rect = container?.getBoundingClientRect();
-      const t1 = e.touches[0];
-      const t2 = e.touches[1];
-      const dx = t2.clientX - t1.clientX;
-      const dy = t2.clientY - t1.clientY;
-      const dist = Math.hypot(dx, dy);
-      const midScreenX = (t1.clientX + t2.clientX) / 2;
-      const midScreenY = (t1.clientY + t2.clientY) / 2;
-      // Convert mid to canvas-local coords
-      const midX = rect ? midScreenX - rect.left : midScreenX;
-      const midY = rect ? midScreenY - rect.top : midScreenY;
-
-      const startTotalZoom = zoom * userZoom;
-      const neutral = computeNeutralOffset(startTotalZoom);
-      const startOffsetX = neutral.x + userPan.x;
-      const startOffsetY = neutral.y + userPan.y;
-
-      gestureRef.current = {
-        mode: 'pinch',
-        startDist: dist,
-        startTotalZoom,
-        startUserZoom: userZoom,
-        startMid: { x: midX, y: midY },
-        startOffset: { x: startOffsetX, y: startOffsetY },
-        startPan: { ...userPan },
+      if (!container) return { x: 0, y: 0 };
+      const rect = container.getBoundingClientRect();
+      const baseCellSize = Math.min(
+        rect.width / maze.width,
+        rect.height / maze.height
+      );
+      const cellSize = baseCellSize * totalZoom;
+      return {
+        x: (rect.width - maze.width * cellSize) / 2,
+        y: (rect.height - maze.height * cellSize) / 2,
       };
-    }
-  }, [enableTouchTransform, zoom, userZoom, userPan, computeNeutralOffset]);
+    },
+    [maze.width, maze.height]
+  );
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!enableTouchTransform) return;
-    const g = gestureRef.current;
-    if (g.mode === 'pan' && e.touches.length === 1 && g.last) {
-      const t = e.touches[0];
-      const dx = t.clientX - g.last.x;
-      const dy = t.clientY - g.last.y;
-      g.last = { x: t.clientX, y: t.clientY };
-      setUserPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-      e.preventDefault();
-    } else if (
-      g.mode === 'pinch' &&
-      e.touches.length === 2 &&
-      g.startDist &&
-      g.startUserZoom !== undefined &&
-      g.startMid &&
-      g.startOffset &&
-      g.startTotalZoom !== undefined
-    ) {
-      const t1 = e.touches[0];
-      const t2 = e.touches[1];
-      const dx = t2.clientX - t1.clientX;
-      const dy = t2.clientY - t1.clientY;
-      const dist = Math.hypot(dx, dy);
-      const ratio = dist / g.startDist;
-      const newUserZoom = clamp(g.startUserZoom * ratio, MIN_USER_ZOOM, MAX_USER_ZOOM);
-      // Effective applied ratio after clamping
-      const k = (zoom * newUserZoom) / g.startTotalZoom;
-      // New offset that anchors midpoint
-      const newOffsetX = g.startMid.x - (g.startMid.x - g.startOffset.x) * k;
-      const newOffsetY = g.startMid.y - (g.startMid.y - g.startOffset.y) * k;
-      // Convert back to userPan: newPan = newOffset - centerOffset(newTotalZoom)
-      const neutral = computeNeutralOffset(zoom * newUserZoom);
-      setUserZoom(newUserZoom);
-      setUserPan({ x: newOffsetX - neutral.x, y: newOffsetY - neutral.y });
-      e.preventDefault();
-    }
-  }, [enableTouchTransform, zoom, computeNeutralOffset]);
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (!enableTouchTransform) return;
+      if (e.touches.length === 1) {
+        const t = e.touches[0];
+        const now = Date.now();
+        // Double-tap to reset transform
+        if (now - lastTapRef.current < DOUBLE_TAP_MS) {
+          setUserZoom(1);
+          setUserPan({ x: 0, y: 0 });
+          lastTapRef.current = 0;
+          gestureRef.current = { mode: null };
+          return;
+        }
+        lastTapRef.current = now;
+        gestureRef.current = {
+          mode: 'pan',
+          last: { x: t.clientX, y: t.clientY },
+        };
+      } else if (e.touches.length === 2) {
+        const container = containerRef.current;
+        const rect = container?.getBoundingClientRect();
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const dx = t2.clientX - t1.clientX;
+        const dy = t2.clientY - t1.clientY;
+        const dist = Math.hypot(dx, dy);
+        const midScreenX = (t1.clientX + t2.clientX) / 2;
+        const midScreenY = (t1.clientY + t2.clientY) / 2;
+        // Convert mid to canvas-local coords
+        const midX = rect ? midScreenX - rect.left : midScreenX;
+        const midY = rect ? midScreenY - rect.top : midScreenY;
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!enableTouchTransform) return;
-    if (e.touches.length === 0) {
-      gestureRef.current = { mode: null };
-    } else if (e.touches.length === 1 && gestureRef.current.mode === 'pinch') {
-      // Switch to pan with the remaining finger
-      const t = e.touches[0];
-      gestureRef.current = {
-        mode: 'pan',
-        last: { x: t.clientX, y: t.clientY },
-      };
-    }
-  }, [enableTouchTransform]);
+        const startTotalZoom = zoom * userZoom;
+        const neutral = computeNeutralOffset(startTotalZoom);
+        const startOffsetX = neutral.x + userPan.x;
+        const startOffsetY = neutral.y + userPan.y;
+
+        gestureRef.current = {
+          mode: 'pinch',
+          startDist: dist,
+          startTotalZoom,
+          startUserZoom: userZoom,
+          startMid: { x: midX, y: midY },
+          startOffset: { x: startOffsetX, y: startOffsetY },
+          startPan: { ...userPan },
+        };
+      }
+    },
+    [enableTouchTransform, zoom, userZoom, userPan, computeNeutralOffset]
+  );
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!enableTouchTransform) return;
+      const g = gestureRef.current;
+      if (g.mode === 'pan' && e.touches.length === 1 && g.last) {
+        const t = e.touches[0];
+        const dx = t.clientX - g.last.x;
+        const dy = t.clientY - g.last.y;
+        g.last = { x: t.clientX, y: t.clientY };
+        setUserPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+        e.preventDefault();
+      } else if (
+        g.mode === 'pinch' &&
+        e.touches.length === 2 &&
+        g.startDist &&
+        g.startUserZoom !== undefined &&
+        g.startMid &&
+        g.startOffset &&
+        g.startTotalZoom !== undefined
+      ) {
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const dx = t2.clientX - t1.clientX;
+        const dy = t2.clientY - t1.clientY;
+        const dist = Math.hypot(dx, dy);
+        const ratio = dist / g.startDist;
+        const newUserZoom = clamp(
+          g.startUserZoom * ratio,
+          MIN_USER_ZOOM,
+          MAX_USER_ZOOM
+        );
+        // Effective applied ratio after clamping
+        const k = (zoom * newUserZoom) / g.startTotalZoom;
+        // New offset that anchors midpoint
+        const newOffsetX = g.startMid.x - (g.startMid.x - g.startOffset.x) * k;
+        const newOffsetY = g.startMid.y - (g.startMid.y - g.startOffset.y) * k;
+        // Convert back to userPan: newPan = newOffset - centerOffset(newTotalZoom)
+        const neutral = computeNeutralOffset(zoom * newUserZoom);
+        setUserZoom(newUserZoom);
+        setUserPan({ x: newOffsetX - neutral.x, y: newOffsetY - neutral.y });
+        e.preventDefault();
+      }
+    },
+    [enableTouchTransform, zoom, computeNeutralOffset]
+  );
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (!enableTouchTransform) return;
+      if (e.touches.length === 0) {
+        gestureRef.current = { mode: null };
+      } else if (
+        e.touches.length === 1 &&
+        gestureRef.current.mode === 'pinch'
+      ) {
+        // Switch to pan with the remaining finger
+        const t = e.touches[0];
+        gestureRef.current = {
+          mode: 'pan',
+          last: { x: t.clientX, y: t.clientY },
+        };
+      }
+    },
+    [enableTouchTransform]
+  );
 
   return (
     <div
@@ -582,7 +713,7 @@ export const Maze: React.FC<MazeProps> = ({
         ref={canvasRef}
         style={{
           display: 'block',
-          imageRendering: 'crisp-edges'
+          imageRendering: 'crisp-edges',
         }}
         aria-label={`Maze grid ${maze.width} by ${maze.height}. Player at ${playerPos.x}, ${playerPos.y}. ${hasKey ? 'Key collected' : `Key at ${keyPos?.x}, ${keyPos?.y}`}. Goal at ${goalPos.x}, ${goalPos.y}.`}
         role="img"
