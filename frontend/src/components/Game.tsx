@@ -18,6 +18,7 @@ import { Maze, type MazeHandle } from './Maze';
 import { Controls } from './Controls';
 import { WinModal } from './WinModal';
 import { SeedBar } from './SeedBar';
+import { HeaderSeedInput } from './HeaderSeedInput';
 import { HistorySidebar } from './HistorySidebar';
 import { MyMazesSidebar } from './MyMazesSidebar';
 import { PublicGallerySidebar } from './PublicGallerySidebar';
@@ -479,121 +480,142 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
               />
             </button>
             {statsGroupNode}
-            <div style={styles.headerSpacer} />
-            <div style={styles.iconButtonRow}>
-              <button
-                onClick={handleCopyLink}
-                style={{
-                  ...styles.iconButton,
-                  borderColor: getContrastColor(colors.headerBackgroundColor),
-                  color: getContrastColor(colors.headerBackgroundColor),
-                }}
-                title={copied ? 'Copied!' : 'Copy link to clipboard'}
-                aria-label="Share — copy link to clipboard"
-              >
-                {copied ? '✓' : '🔗'}
-              </button>
-              <button
-                onClick={() => setHistorySidebarOpen(true)}
-                style={{
-                  ...styles.iconButton,
-                  borderColor: getContrastColor(colors.headerBackgroundColor),
-                  color: getContrastColor(colors.headerBackgroundColor),
-                }}
-                title="History"
-                aria-label="Open history"
-              >
-                🕘
-              </button>
-              {isConnected && (
-                <button
-                  onClick={() => setMyMazesSidebarOpen(true)}
-                  style={{
-                    ...styles.iconButton,
-                    borderColor: getContrastColor(colors.headerBackgroundColor),
-                    color: getContrastColor(colors.headerBackgroundColor),
-                  }}
-                  title="My Mazes"
-                  aria-label="Open my mazes"
-                >
-                  👤
-                </button>
-              )}
-              <button
-                onClick={() => setGallerySidebarOpen(true)}
-                style={{
-                  ...styles.iconButton,
-                  borderColor: getContrastColor(colors.headerBackgroundColor),
-                  color: getContrastColor(colors.headerBackgroundColor),
-                }}
-                title="Gallery"
-                aria-label="Open public gallery"
-              >
-                🖼
-              </button>
-              <div
-                style={styles.helpWrapper}
-                onMouseEnter={() => setHelpOpen(true)}
-                onMouseLeave={() => setHelpOpen(false)}
-              >
-                <button
-                  onClick={() => setHelpOpen((v) => !v)}
-                  onFocus={() => setHelpOpen(true)}
-                  onBlur={() => setHelpOpen(false)}
-                  style={{
-                    ...styles.iconButton,
-                    borderColor: getContrastColor(colors.headerBackgroundColor),
-                    color: getContrastColor(colors.headerBackgroundColor),
-                  }}
-                  title="Keyboard shortcuts"
-                  aria-label="Show keyboard shortcuts"
-                  aria-expanded={helpOpen}
-                >
-                  ?
-                </button>
-                {helpOpen && (
-                  <div
-                    role="tooltip"
+            {seedBarOpen ? (
+              <HeaderSeedInput
+                onStartGame={handleSeedBarStart}
+                onCancel={handleSeedBarCancel}
+                accentColor={colors.uiAccentColor}
+                textColor={getContrastColor(colors.headerBackgroundColor)}
+              />
+            ) : (
+              <>
+                <div style={styles.headerSpacer} />
+                <div style={styles.iconButtonRow}>
+                  <button
+                    onClick={handleCopyLink}
                     style={{
-                      ...styles.helpPopover,
-                      backgroundColor: colors.wallColor,
-                      color: getContrastColor(colors.wallColor),
-                      borderColor: getContrastColor(colors.wallColor),
+                      ...styles.iconButton,
+                      borderColor: getContrastColor(
+                        colors.headerBackgroundColor
+                      ),
+                      color: getContrastColor(colors.headerBackgroundColor),
                     }}
+                    title={copied ? 'Copied!' : 'Copy link to clipboard'}
+                    aria-label="Share — copy link to clipboard"
                   >
-                    <div style={styles.helpRow}>
-                      <kbd style={styles.kbd}>Arrows</kbd>
-                      <kbd style={styles.kbd}>WASD</kbd>
-                      <span>move</span>
-                    </div>
-                    <div style={styles.helpRow}>
-                      <kbd style={styles.kbd}>R</kbd>
-                      <span>restart</span>
-                    </div>
-                    <div style={styles.helpRow}>
-                      <kbd style={styles.kbd}>N</kbd>
-                      <span>new</span>
-                    </div>
-                    <div style={styles.helpRow}>
-                      <kbd style={styles.kbd}>0</kbd>
-                      <span>reset zoom</span>
-                    </div>
+                    {copied ? '✓' : '🔗'}
+                  </button>
+                  <button
+                    onClick={() => setHistorySidebarOpen(true)}
+                    style={{
+                      ...styles.iconButton,
+                      borderColor: getContrastColor(
+                        colors.headerBackgroundColor
+                      ),
+                      color: getContrastColor(colors.headerBackgroundColor),
+                    }}
+                    title="History"
+                    aria-label="Open history"
+                  >
+                    🕘
+                  </button>
+                  {isConnected && (
+                    <button
+                      onClick={() => setMyMazesSidebarOpen(true)}
+                      style={{
+                        ...styles.iconButton,
+                        borderColor: getContrastColor(
+                          colors.headerBackgroundColor
+                        ),
+                        color: getContrastColor(colors.headerBackgroundColor),
+                      }}
+                      title="My Mazes"
+                      aria-label="Open my mazes"
+                    >
+                      👤
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setGallerySidebarOpen(true)}
+                    style={{
+                      ...styles.iconButton,
+                      borderColor: getContrastColor(
+                        colors.headerBackgroundColor
+                      ),
+                      color: getContrastColor(colors.headerBackgroundColor),
+                    }}
+                    title="Gallery"
+                    aria-label="Open public gallery"
+                  >
+                    🖼
+                  </button>
+                  <div
+                    style={styles.helpWrapper}
+                    onMouseEnter={() => setHelpOpen(true)}
+                    onMouseLeave={() => setHelpOpen(false)}
+                  >
+                    <button
+                      onClick={() => setHelpOpen((v) => !v)}
+                      onFocus={() => setHelpOpen(true)}
+                      onBlur={() => setHelpOpen(false)}
+                      style={{
+                        ...styles.iconButton,
+                        borderColor: getContrastColor(
+                          colors.headerBackgroundColor
+                        ),
+                        color: getContrastColor(colors.headerBackgroundColor),
+                      }}
+                      title="Keyboard shortcuts"
+                      aria-label="Show keyboard shortcuts"
+                      aria-expanded={helpOpen}
+                    >
+                      ?
+                    </button>
+                    {helpOpen && (
+                      <div
+                        role="tooltip"
+                        style={{
+                          ...styles.helpPopover,
+                          backgroundColor: colors.wallColor,
+                          color: getContrastColor(colors.wallColor),
+                          borderColor: getContrastColor(colors.wallColor),
+                        }}
+                      >
+                        <div style={styles.helpRow}>
+                          <kbd style={styles.kbd}>Arrows</kbd>
+                          <kbd style={styles.kbd}>WASD</kbd>
+                          <span>move</span>
+                        </div>
+                        <div style={styles.helpRow}>
+                          <kbd style={styles.kbd}>R</kbd>
+                          <span>restart</span>
+                        </div>
+                        <div style={styles.helpRow}>
+                          <kbd style={styles.kbd}>N</kbd>
+                          <span>new</span>
+                        </div>
+                        <div style={styles.helpRow}>
+                          <kbd style={styles.kbd}>0</kbd>
+                          <span>reset zoom</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={() => setSeedBarOpen(true)}
-              style={{
-                ...styles.primaryCta,
-                backgroundColor: colors.uiAccentColor,
-                color: buttonTextColor,
-              }}
-              title="Start a new game with a custom seed"
-              aria-label="New game"
-            >
-              + New Game
-            </button>
+                </div>
+                <button
+                  onClick={() => setSeedBarOpen(true)}
+                  style={{
+                    ...styles.primaryCta,
+                    backgroundColor: colors.uiAccentColor,
+                    color: buttonTextColor,
+                  }}
+                  title="Start a new game with a custom seed"
+                  aria-label="New game"
+                >
+                  + New Game
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -658,11 +680,13 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         }}
       />
 
-      <SeedBar
-        isOpen={seedBarOpen}
-        onStartGame={handleSeedBarStart}
-        onCancel={handleSeedBarCancel}
-      />
+      {isMobile && (
+        <SeedBar
+          isOpen={seedBarOpen}
+          onStartGame={handleSeedBarStart}
+          onCancel={handleSeedBarCancel}
+        />
+      )}
 
       <HistorySidebar
         isOpen={historySidebarOpen}
