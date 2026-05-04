@@ -51,6 +51,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   const [showKinglyHint, setShowKinglyHint] = useState(false);
   const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
   const [myMazesSidebarOpen, setMyMazesSidebarOpen] = useState(false);
+  const [winModalDismissed, setWinModalDismissed] = useState(false);
   const [gallerySidebarOpen, setGallerySidebarOpen] = useState(false);
   const { isConnected } = useAccount();
   const [copied, setCopied] = useState(false);
@@ -135,6 +136,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         moves: [],
         gameWon: false,
       });
+      setWinModalDismissed(false);
       setSeed(newSeed);
       onSeedChange(newSeed);
       addSeedToHistory(newSeed);
@@ -537,7 +539,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
       )}
 
       <WinModal
-        isOpen={gameState.gameWon}
+        isOpen={gameState.gameWon && !winModalDismissed}
         moveCount={gameState.moveCount}
         seed={seed}
         onPlayAgain={handlePlayAgain}
@@ -551,6 +553,10 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         keyPos={initialPositions.keyPos}
         goalPos={initialPositions.goalPos}
         visited={visited}
+        onViewCollection={() => {
+          setWinModalDismissed(true);
+          setMyMazesSidebarOpen(true);
+        }}
       />
 
       <SeedBar

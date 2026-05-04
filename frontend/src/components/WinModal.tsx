@@ -29,6 +29,7 @@ interface WinModalProps {
   keyPos: Position;
   goalPos: Position;
   visited: Set<string>;
+  onViewCollection: () => void;
 }
 
 function getSubtitleVariant(moveCount: number, maze: MazeData): string {
@@ -152,6 +153,7 @@ export function WinModal({
   keyPos,
   goalPos,
   visited,
+  onViewCollection,
 }: WinModalProps) {
   const {
     state: proofState,
@@ -636,26 +638,41 @@ export function WinModal({
                         )}
                       </div>
                     ) : isSuccess ? (
-                      <div
-                        style={{
-                          ...errorStyle,
-                          backgroundColor: 'rgba(0, 255, 0, 0.1)',
-                          border: '1px solid rgba(0, 255, 0, 0.3)',
-                          color: '#4ade80',
-                        }}
-                      >
-                        ✓ NFT Minted Successfully!
+                      <>
                         <div
                           style={{
-                            marginTop: '8px',
-                            fontSize: '12px',
-                            opacity: 0.8,
+                            ...errorStyle,
+                            backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                            border: '1px solid rgba(0, 255, 0, 0.3)',
+                            color: '#4ade80',
                           }}
                         >
-                          Connected: {address?.slice(0, 6)}...
-                          {address?.slice(-4)}
+                          ✓ NFT Minted Successfully!
+                          <div
+                            style={{
+                              marginTop: '8px',
+                              fontSize: '12px',
+                              opacity: 0.8,
+                            }}
+                          >
+                            Connected: {address?.slice(0, 6)}...
+                            {address?.slice(-4)}
+                          </div>
                         </div>
-                      </div>
+                        <button
+                          className="win-button"
+                          style={{
+                            ...primaryButtonStyle,
+                            backgroundColor: colors.goalColor,
+                            color: pickTextColor(colors.goalColor),
+                            width: '100%',
+                          }}
+                          onClick={onViewCollection}
+                          aria-label="View your minted maze collection"
+                        >
+                          View Collection →
+                        </button>
+                      </>
                     ) : (
                       <>
                         <div
