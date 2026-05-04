@@ -298,29 +298,38 @@ export function WinModal({
 
   const kingHeroStyle: React.CSSProperties = {
     display: 'block',
-    margin: '8px auto 20px',
     width: 'auto',
     height: 'auto',
-    maxWidth: '200px',
-    maxHeight: '180px',
+    maxWidth: '160px',
+    maxHeight: '140px',
+    flexShrink: 0,
     filter: 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35))',
   };
 
   const titleStyle: React.CSSProperties = {
     fontSize: '36px',
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: '8px',
+    textAlign: 'left',
+    margin: '0 0 4px',
     color: colors.playerColor,
     textShadow: '2px 2px 4px rgba(0, 0, 0, 0.2)',
+    lineHeight: 1.05,
+  };
+
+  const leadStyle: React.CSSProperties = {
+    fontSize: '18px',
+    textAlign: 'left',
+    margin: '0 0 6px',
+    color: colors.wallColor,
+    fontWeight: 600,
   };
 
   const subtitleStyle: React.CSSProperties = {
-    fontSize: '18px',
-    textAlign: 'center',
-    marginBottom: '24px',
+    fontSize: '14px',
+    textAlign: 'left',
+    margin: 0,
     color: colors.wallColor,
-    opacity: 0.85,
+    opacity: 0.75,
     fontStyle: 'italic',
   };
 
@@ -486,6 +495,34 @@ export function WinModal({
             transform-origin: center bottom;
           }
 
+          .win-hero {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 24px;
+          }
+
+          .win-hero-text {
+            flex: 1;
+            min-width: 0;
+          }
+
+          @media (max-width: 480px) {
+            .win-hero {
+              flex-direction: column;
+              gap: 12px;
+              text-align: center;
+            }
+            .win-hero-text {
+              text-align: center;
+            }
+            .win-hero-text > h2,
+            .win-hero-text > p {
+              text-align: center !important;
+            }
+          }
+
           @keyframes stampIn {
             0% { transform: rotate(20deg) scale(2); opacity: 0; }
             60% { transform: rotate(-12deg) scale(0.92); opacity: 1; }
@@ -530,19 +567,22 @@ export function WinModal({
           aria-labelledby="win-title"
           aria-modal="true"
         >
-          <h2 id="win-title" style={titleStyle}>
-            Victory!
-          </h2>
-
-          <p style={subtitleStyle}>{subtitle}</p>
-
-          <img
-            className="win-king-hero"
-            src={kingUrl}
-            alt=""
-            aria-hidden="true"
-            style={kingHeroStyle}
-          />
+          <div className="win-hero">
+            <img
+              className="win-king-hero"
+              src={kingUrl}
+              alt=""
+              aria-hidden="true"
+              style={kingHeroStyle}
+            />
+            <div className="win-hero-text">
+              <h2 id="win-title" style={titleStyle}>
+                Coronation!
+              </h2>
+              <p style={leadStyle}>This castle is yours</p>
+              <p style={subtitleStyle}>{subtitle}</p>
+            </div>
+          </div>
 
           <div style={certificateFrameStyle}>
             <div style={thumbnailStyle}>
