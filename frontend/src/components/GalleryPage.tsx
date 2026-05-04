@@ -4,6 +4,7 @@ import { generateColorScheme } from '../lib/colorGenerator';
 import { pickTextColor } from '../lib/contrastText';
 import { useAppOutlet } from '../App';
 import { PageHeader } from './PageHeader';
+import { KaztleText } from './KaztleText';
 
 type SortMode = 'solves' | 'minMoves' | 'newest';
 
@@ -156,7 +157,15 @@ export function GalleryPage() {
           }
         `}
       </style>
-      <PageHeader title="Public Gallery" colors={colors} current="gallery" />
+      <PageHeader
+        title={
+          <>
+            Public <KaztleText word="kaztles" colors={colors} />
+          </>
+        }
+        colors={colors}
+        current="gallery"
+      />
       <div style={styles.sortRow}>
         {sortButton('solves', 'Most solved')}
         {sortButton('minMoves', 'Best score')}

@@ -6,6 +6,7 @@ import { useMintNFT } from '../hooks/useMintNFT';
 import { ProofProgress } from './ProofProgress';
 import { ProofImage } from './ProofImage';
 import { Maze } from './Maze';
+import { KaztleText } from './KaztleText';
 import { areContractsDeployed } from '../lib/contracts';
 import { sepolia } from 'wagmi/chains';
 import { computeTokenIdFromMazeHash } from '../lib/tokenId';
@@ -571,7 +572,9 @@ export function WinModal({
               <h2 id="win-title" style={titleStyle}>
                 Coronation!
               </h2>
-              <p style={heroSubtitleStyle}>This castle is yours</p>
+              <p style={heroSubtitleStyle}>
+                This <KaztleText colors={colors} /> is yours
+              </p>
               <p style={variantSubtitleStyle}>{subtitle}</p>
             </div>
           </div>

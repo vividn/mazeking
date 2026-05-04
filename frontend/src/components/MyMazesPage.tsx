@@ -4,6 +4,7 @@ import { useOwnedMazes, type OwnedMaze } from '../hooks/useOwnedMazes';
 import { generateColorScheme } from '../lib/colorGenerator';
 import { useAppOutlet } from '../App';
 import { PageHeader } from './PageHeader';
+import { KaztleText } from './KaztleText';
 
 function shortId(tokenId: bigint): string {
   const hex = tokenId.toString(16).padStart(64, '0');
@@ -126,7 +127,15 @@ export function MyMazesPage() {
           }
         `}
       </style>
-      <PageHeader title="My Mazes" colors={colors} current="mazes" />
+      <PageHeader
+        title={
+          <>
+            Your <KaztleText word="kaztles" colors={colors} />
+          </>
+        }
+        colors={colors}
+        current="mazes"
+      />
       <div style={styles.body}>{body}</div>
     </div>
   );

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAccount } from 'wagmi';
 import type { ColorScheme } from '../types';
@@ -5,7 +6,7 @@ import { Wordmark } from './Wordmark';
 import { pickTextColor } from '../lib/contrastText';
 
 interface PageHeaderProps {
-  title: string;
+  title: ReactNode;
   colors: ColorScheme;
   // Which page we're on; the matching icon is hidden so users don't navigate
   // to the page they're already viewing.
