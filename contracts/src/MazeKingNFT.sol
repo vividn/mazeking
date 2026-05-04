@@ -43,6 +43,9 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
     mapping(uint256 => uint32) public optimalMoves;
     mapping(uint256 => bool) public registered;
     mapping(uint256 => bool) public registrarApproved;
+    // Mazes flagged by the registrar as unacceptable (filtered from public views).
+    // Tokens already minted remain owned; this is a display-layer signal.
+    mapping(uint256 => bool) public disqualified;
 
     // Stats struct for tracking user achievements per maze
     struct Stats {
@@ -73,6 +76,7 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
     event OptimalMovesSet(uint256 indexed tokenId, uint32 optimalMoves);
     event RegisteredSet(uint256 indexed tokenId, bool value);
     event RegistrarApprovedSet(uint256 indexed tokenId, bool value);
+    event MazeDisqualified(uint256 indexed tokenId, bool flag);
     event ProofVerified(address indexed solver, uint256 indexed tokenId, uint16 moveCount);
     event FirstSolve(address indexed solver, uint256 indexed tokenId, uint16 moveCount);
     event NewBestScore(address indexed solver, uint256 indexed tokenId, uint16 newBest);
@@ -251,6 +255,16 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
     function setRegistrarApproved(uint256 tokenId, bool value) external onlyRole(REGISTRAR_ROLE) {
         registrarApproved[tokenId] = value;
         emit RegistrarApprovedSet(tokenId, value);
+    }
+
+    /// @notice Flag (or unflag) a maze as disqualified from public views
+    /// @dev Token ownership is unaffected; clients should filter `disqualified == true`
+    ///      from public galleries while still allowing local play.
+    /// @param tokenId The maze tokenId / maze hash
+    /// @param flag True to disqualify, false to restore
+    function disqualifyMaze(uint256 tokenId, bool flag) external onlyRole(REGISTRAR_ROLE) {
+        disqualified[tokenId] = flag;
+        emit MazeDisqualified(tokenId, flag);
     }
 
     /// @notice Update the verifier contract address

@@ -305,6 +305,30 @@ contract MazeKingNFTTest is Test {
         nft.setRegistrarApproved(1, true);
     }
 
+    function test_DisqualifyMaze() public {
+        uint256 tokenId = 7777;
+
+        assertFalse(nft.disqualified(tokenId));
+
+        vm.expectEmit(true, false, false, true);
+        emit MazeKingNFT.MazeDisqualified(tokenId, true);
+        vm.prank(owner);
+        nft.disqualifyMaze(tokenId, true);
+        assertTrue(nft.disqualified(tokenId));
+
+        vm.expectEmit(true, false, false, true);
+        emit MazeKingNFT.MazeDisqualified(tokenId, false);
+        vm.prank(owner);
+        nft.disqualifyMaze(tokenId, false);
+        assertFalse(nft.disqualified(tokenId));
+    }
+
+    function test_RevertDisqualifyMazeWithoutRole() public {
+        vm.prank(user);
+        vm.expectRevert();
+        nft.disqualifyMaze(1, true);
+    }
+
     function test_MintWithProof_AwardsRegisteredBadge() public {
         DefaultBadgeAwarder awarder = new DefaultBadgeAwarder(address(nft));
         bytes32[] memory publicInputs = _createMockPublicInputs();
