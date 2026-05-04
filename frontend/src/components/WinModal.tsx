@@ -298,29 +298,42 @@ export function WinModal({
 
   const kingHeroStyle: React.CSSProperties = {
     display: 'block',
-    margin: '8px auto 20px',
     width: 'auto',
     height: 'auto',
-    maxWidth: '200px',
-    maxHeight: '180px',
+    maxWidth: '160px',
+    maxHeight: '140px',
     filter: 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35))',
+    flexShrink: 0,
+  };
+
+  const heroTextStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    minWidth: 0,
   };
 
   const titleStyle: React.CSSProperties = {
     fontSize: '36px',
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: '8px',
+    margin: 0,
     color: colors.playerColor,
     textShadow: '2px 2px 4px rgba(0, 0, 0, 0.2)',
+    lineHeight: 1.05,
   };
 
-  const subtitleStyle: React.CSSProperties = {
-    fontSize: '18px',
-    textAlign: 'center',
-    marginBottom: '24px',
+  const heroSubtitleStyle: React.CSSProperties = {
+    fontSize: '16px',
+    margin: '6px 0 0',
     color: colors.wallColor,
-    opacity: 0.85,
+    opacity: 0.9,
+  };
+
+  const variantSubtitleStyle: React.CSSProperties = {
+    fontSize: '13px',
+    margin: '6px 0 0',
+    color: colors.wallColor,
+    opacity: 0.7,
     fontStyle: 'italic',
   };
 
@@ -486,6 +499,22 @@ export function WinModal({
             transform-origin: center bottom;
           }
 
+          .win-hero-row {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 20px;
+            margin: 8px 0 24px;
+          }
+
+          @media (max-width: 480px) {
+            .win-hero-row {
+              flex-direction: column;
+              text-align: center;
+              gap: 12px;
+            }
+          }
+
           @keyframes stampIn {
             0% { transform: rotate(20deg) scale(2); opacity: 0; }
             60% { transform: rotate(-12deg) scale(0.92); opacity: 1; }
@@ -530,19 +559,22 @@ export function WinModal({
           aria-labelledby="win-title"
           aria-modal="true"
         >
-          <h2 id="win-title" style={titleStyle}>
-            Victory!
-          </h2>
-
-          <p style={subtitleStyle}>{subtitle}</p>
-
-          <img
-            className="win-king-hero"
-            src={kingUrl}
-            alt=""
-            aria-hidden="true"
-            style={kingHeroStyle}
-          />
+          <div className="win-hero-row">
+            <img
+              className="win-king-hero"
+              src={kingUrl}
+              alt=""
+              aria-hidden="true"
+              style={kingHeroStyle}
+            />
+            <div style={heroTextStyle}>
+              <h2 id="win-title" style={titleStyle}>
+                Coronation!
+              </h2>
+              <p style={heroSubtitleStyle}>This castle is yours</p>
+              <p style={variantSubtitleStyle}>{subtitle}</p>
+            </div>
+          </div>
 
           <div style={certificateFrameStyle}>
             <div style={thumbnailStyle}>
