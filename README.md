@@ -145,7 +145,7 @@ The game uses [Noir](https://noir-lang.org/) to generate zero-knowledge proofs t
 **MazeKingNFT.sol** - ERC-1155 NFT contract featuring:
 - `mintWithProof()` - Verify ZK proof and mint achievement NFT
 - Stats tracking per user per maze
-- Badge system (Verified, Robot, Gold, Silver, Copper, Stone)
+- Badge system (Registered, Robot, Gold, Silver, Copper, Stone)
 - Updatable verifier contract
 - Role-based access control (Owner, Withdrawer, Registrar, Minter)
 
@@ -173,7 +173,7 @@ For each maze you solve, the contract tracks:
 
 ### Badge System
 
-- 🔒 **BADGE_VERIFIED** (0): Proof-verified solve
+- 🔒 **BADGE_REGISTERED** (0): Maze is officially registered
 - 🤖 **BADGE_ROBOT** (1): Perfect/optimal solution
 - 🥇 **BADGE_GOLD** (2): <1.05x optimal moves
 - 🥈 **BADGE_SILVER** (3): <1.15x optimal moves

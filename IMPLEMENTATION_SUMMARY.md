@@ -14,7 +14,7 @@ All components have been successfully implemented! Here's what was completed and
    - Stats tracking per user per maze (minMoves, timesSolved, badges, usdcDonated)
    - REGISTRAR_ROLE for maze seed registration
    - Verifier contract integration with updateable address
-   - Badge system constants (VERIFIED, ROBOT, GOLD, SILVER, COPPER, STONE)
+   - Badge system constants (REGISTERED, ROBOT, GOLD, SILVER, COPPER, STONE)
    - Events for all key actions
 
 3. **Tests** - All 21 tests passing
@@ -166,7 +166,7 @@ The contract tracks these stats per user per maze:
 - **minMoves**: Best score (minimum moves to solve)
 - **timesSolved**: How many times user has solved this maze
 - **badges**: Bitfield for 32 different badge types
-  - BADGE_VERIFIED (0): Has ZK proof verification
+  - BADGE_REGISTERED (0): Maze is officially registered
   - BADGE_ROBOT (1): Perfect solution (optimal moves)
   - BADGE_GOLD (2): <1.05x optimal
   - BADGE_SILVER (3): <1.15x optimal

@@ -101,7 +101,7 @@
   },
   {
     "type": "function",
-    "name": "BADGE_VERIFIED",
+    "name": "BADGE_REGISTERED",
     "inputs": [],
     "outputs": [
       {

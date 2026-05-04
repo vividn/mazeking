@@ -36,7 +36,7 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
     }
 
     // Badge constants (bitfield positions)
-    uint32 public constant BADGE_VERIFIED = 1 << 0;  // 0. Maze is officially registered
+    uint32 public constant BADGE_REGISTERED = 1 << 0;  // 0. Maze is officially registered
     uint32 public constant BADGE_ROBOT = 1 << 1;     // 1. Robot/Perfect (optimal moves)
     uint32 public constant BADGE_GOLD = 1 << 2;      // 2. Gold (<1.05x optimal)
     uint32 public constant BADGE_SILVER = 1 << 3;    // 3. Silver (<1.15x optimal)
@@ -119,7 +119,7 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
         if (isFirstMint) {
             userStats.minMoves = moveCount;
             userStats.timesSolved = 1;
-            userStats.badges = BADGE_VERIFIED;
+            userStats.badges = BADGE_REGISTERED;
             emit FirstSolve(msg.sender, tokenId, moveCount);
         } else {
             if (moveCount < userStats.minMoves) {

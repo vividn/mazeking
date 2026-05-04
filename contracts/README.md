@@ -109,7 +109,7 @@ mapping(uint256 => mapping(address => Stats)) public stats;
 **Badge System:**
 
 ```solidity
-uint32 public constant BADGE_VERIFIED = 1 << 0;  // Has ZK proof
+uint32 public constant BADGE_REGISTERED = 1 << 0;  // Maze is officially registered
 uint32 public constant BADGE_ROBOT = 1 << 1;     // Perfect/optimal
 uint32 public constant BADGE_GOLD = 1 << 2;      // <1.05x optimal
 uint32 public constant BADGE_SILVER = 1 << 3;    // <1.15x optimal

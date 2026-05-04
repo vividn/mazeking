@@ -142,7 +142,7 @@ contract MazeKingNFTTest is Test {
         (uint16 minMoves, uint16 timesSolved, uint32 badges,) = nft.stats(expectedTokenId, user);
         assertEq(minMoves, 100);
         assertEq(timesSolved, 1);
-        assertEq(badges, nft.BADGE_VERIFIED());
+        assertEq(badges, nft.BADGE_REGISTERED());
     }
 
     function test_MintWithProof_InvalidProof() public {
