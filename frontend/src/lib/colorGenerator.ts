@@ -20,6 +20,10 @@ export interface ColorScheme {
   playerGlowColor: string;
   keyGlowColor: string;
   goalGlowColor: string;
+  // Page-level chrome — share wallHue so header/page/modals tint with the seed
+  pageBackgroundColor: string;
+  headerBackgroundColor: string;
+  modalOverlayColor: string;
 }
 
 /**
@@ -94,6 +98,14 @@ export function generateColorScheme(seed: string): ColorScheme {
   const uiHue = (baseHue + 210 + rng.next() * 60 - 30) % 360;
   const uiAccentColor = hsl(uiHue, 75 + rng.next() * 20, 55 + rng.next() * 10);
 
+  // Chrome colors: page background, header tint, and modal overlay all share
+  // the wall's hue family so the UI reads as one palette. Computed from
+  // baseHue without consuming the rng — keeps every seed's existing colors
+  // (wall/path/ui/etc.) stable; only adds new fields.
+  const pageBackgroundColor = hsl(baseHue, 22, 9);
+  const headerBackgroundColor = hsla(baseHue, 28, 14, 0.55);
+  const modalOverlayColor = hsla(baseHue, 30, 8, 0.7);
+
   return {
     wallColor,
     pathColor,
@@ -113,5 +125,8 @@ export function generateColorScheme(seed: string): ColorScheme {
     playerGlowColor,
     keyGlowColor,
     goalGlowColor,
+    pageBackgroundColor,
+    headerBackgroundColor,
+    modalOverlayColor,
   };
 }

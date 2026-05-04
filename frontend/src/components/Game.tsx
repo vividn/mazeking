@@ -55,11 +55,13 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Sync mobile status-bar theme-color to seed's wall color
+  // Sync mobile status-bar theme-color to seed's wall color, and tint the
+  // page background so the chrome around the maze shares the seed's palette.
   useEffect(() => {
     if (!colors) return;
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', colors.wallColor);
+    document.body.style.backgroundColor = colors.pageBackgroundColor;
   }, [colors]);
 
   // Initialize game from seed
@@ -290,7 +292,13 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
 
   return (
     <div style={styles.container} ref={gameContainerRef}>
-      <div style={{ ...styles.header, ...(isMobile ? styles.headerMobile : null) }}>
+      <div
+        style={{
+          ...styles.header,
+          ...(isMobile ? styles.headerMobile : null),
+          backgroundColor: colors.headerBackgroundColor,
+        }}
+      >
         <div style={styles.wordmarkRow}>
           <Wordmark
             text="MAZEKING"

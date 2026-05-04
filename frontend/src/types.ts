@@ -166,4 +166,13 @@ export interface ColorScheme {
 
   /** Glow color for goal highlight */
   goalGlowColor: string;
+
+  /** Page background — anchored to wallHue so the chrome shares the seed's palette */
+  pageBackgroundColor: string;
+
+  /** Translucent header tint, layered over pageBackgroundColor */
+  headerBackgroundColor: string;
+
+  /** Translucent dim for modal overlays, hue-shared with the rest of the chrome */
+  modalOverlayColor: string;
 }

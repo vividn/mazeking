@@ -229,7 +229,7 @@ export function WinModal({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: colors.modalOverlayColor,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',

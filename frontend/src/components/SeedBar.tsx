@@ -163,7 +163,12 @@ export function SeedBar({ isOpen, onStartGame, onCancel }: SeedBarProps) {
       </style>
 
       {previewMaze && previewColors && (
-        <div style={styles.previewOverlay}>
+        <div
+          style={{
+            ...styles.previewOverlay,
+            backgroundColor: previewColors.pageBackgroundColor,
+          }}
+        >
           <MazeSizeWarning width={previewMaze.width} height={previewMaze.height} />
           <Maze
             maze={previewMaze}

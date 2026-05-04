@@ -50,7 +50,7 @@ export function HistorySidebar({
       </style>
 
       <div
-        style={styles.overlay}
+        style={{ ...styles.overlay, backgroundColor: colors.modalOverlayColor }}
         onClick={onClose}
       />
 
