@@ -2,9 +2,10 @@
 // solhint-disable-next-line unsafe-cheatcode
 pragma solidity ^0.8.24;
 
-import {Script, console} from "forge-std/Script.sol";
-import {MazeKingNFT} from "../src/MazeKingNFT.sol";
-import {HonkVerifier} from "../src/generated/MazeVerifier.sol";
+import { Script, console } from "forge-std/Script.sol";
+import { MazeKingNFT } from "../src/MazeKingNFT.sol";
+import { DefaultBadgeAwarder } from "../src/DefaultBadgeAwarder.sol";
+import { HonkVerifier } from "../src/generated/MazeVerifier.sol";
 
 /**
  * @title DeployScript
@@ -20,7 +21,7 @@ import {HonkVerifier} from "../src/generated/MazeVerifier.sol";
  *       --private-key $PRIVATE_KEY --broadcast --verify
  */
 contract DeployScript is Script {
-    function run() external returns (address verifier, address nft) {
+    function run() external returns (address verifier, address nft, address awarder) {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
 
@@ -43,24 +44,30 @@ contract DeployScript is Script {
         // Step 2: Deploy NFT
         console.log("Deploying MazeKingNFT...");
         MazeKingNFT nftContract = new MazeKingNFT(
-            "MazeKing",
-            "MAZE",
-            "https://api.mazeking.xyz/token/",
-            deployer,
-            verifier
+            "MazeKing", "MAZE", "https://api.mazeking.xyz/token/", deployer, verifier
         );
         nft = address(nftContract);
         console.log("MazeKingNFT deployed at:", nft);
         console.log("");
 
+        // Step 3: Deploy default badge awarder and wire it
+        console.log("Deploying DefaultBadgeAwarder...");
+        DefaultBadgeAwarder awarderContract = new DefaultBadgeAwarder(nft);
+        awarder = address(awarderContract);
+        console.log("DefaultBadgeAwarder deployed at:", awarder);
+        nftContract.setBadgeAwarder(awarder);
+        console.log("Wired badge awarder on NFT");
+        console.log("");
+
         vm.stopBroadcast();
 
-        // Step 3: Save deployment addresses
+        // Step 4: Save deployment addresses
         console.log("==================================================");
         console.log("Deployment Complete");
         console.log("==================================================");
         console.log("Verifier:", verifier);
         console.log("NFT:", nft);
+        console.log("BadgeAwarder:", awarder);
         console.log("Owner:", deployer);
         console.log("");
 
@@ -77,21 +84,30 @@ contract DeployScript is Script {
         }
 
         string memory json = string.concat(
-            '{\n',
-            '  "chainId": ', vm.toString(block.chainid), ',\n',
-            '  "verifier": "', vm.toString(verifier), '",\n',
-            '  "nft": "', vm.toString(nft), '",\n',
-            '  "deployer": "', vm.toString(deployer), '",\n',
-            '  "timestamp": ', vm.toString(block.timestamp), '\n',
-            '}'
+            "{\n",
+            '  "chainId": ',
+            vm.toString(block.chainid),
+            ",\n",
+            '  "verifier": "',
+            vm.toString(verifier),
+            '",\n',
+            '  "nft": "',
+            vm.toString(nft),
+            '",\n',
+            '  "badgeAwarder": "',
+            vm.toString(awarder),
+            '",\n',
+            '  "deployer": "',
+            vm.toString(deployer),
+            '",\n',
+            '  "timestamp": ',
+            vm.toString(block.timestamp),
+            "\n",
+            "}"
         );
 
-        string memory filepath = string.concat(
-            deploymentsDir,
-            "/",
-            vm.toString(block.chainid),
-            ".json"
-        );
+        string memory filepath =
+            string.concat(deploymentsDir, "/", vm.toString(block.chainid), ".json");
 
         vm.writeFile(filepath, json);
         console.log("Deployment info saved to:", filepath);

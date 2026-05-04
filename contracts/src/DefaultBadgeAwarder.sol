@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import { IBadgeAwarder } from "./IBadgeAwarder.sol";
+import { MazeConstants } from "./MazeConstants.sol";
+
+/// @notice Subset of MazeKingNFT used by the default awarder
+interface IMazeKingBadgeView {
+    function registrarApproved(uint256 tokenId) external view returns (bool);
+    function optimalMoves(uint256 tokenId) external view returns (uint32);
+    function BADGE_REGISTERED() external view returns (uint32);
+    function BADGE_ROBOT() external view returns (uint32);
+    function BADGE_GOLD() external view returns (uint32);
+    function BADGE_SILVER() external view returns (uint32);
+    function BADGE_COPPER() external view returns (uint32);
+    function BADGE_STONE() external view returns (uint32);
+}
+
+/// @title DefaultBadgeAwarder
+/// @notice Ships the 6 basic MazeKing badges:
+///         REGISTERED, ROBOT, GOLD, SILVER, COPPER, STONE
+/// @dev Pure-stateless strategy: reads admin-set state from the NFT contract.
+///      Replaceable via MazeKingNFT.setBadgeAwarder for future strategies.
+contract DefaultBadgeAwarder is IBadgeAwarder {
+    IMazeKingBadgeView public immutable nft;
+
+    constructor(address _nft) {
+        nft = IMazeKingBadgeView(_nft);
+    }
+
+    /// @inheritdoc IBadgeAwarder
+    function awardBadges(address, uint256 mazeHash, uint32 moveCount)
+        external
+        view
+        override
+        returns (uint32 newBadges)
+    {
+        if (nft.registrarApproved(mazeHash)) {
+            newBadges |= nft.BADGE_REGISTERED();
+        }
+
+        uint32 optimal = nft.optimalMoves(mazeHash);
+        if (optimal > 0) {
+            if (moveCount == optimal) {
+                newBadges |= nft.BADGE_ROBOT();
+            } else if (moveCount > optimal) {
+                // Tiered medals — highest tier wins (mutually exclusive).
+                // Compare moveCount * 100 against optimal * threshold to avoid
+                // fractional math.
+                uint256 scaled = uint256(moveCount) * 100;
+                uint256 base = uint256(optimal);
+                if (scaled < base * 105) {
+                    newBadges |= nft.BADGE_GOLD();
+                } else if (scaled < base * 115) {
+                    newBadges |= nft.BADGE_SILVER();
+                } else if (scaled < base * 125) {
+                    newBadges |= nft.BADGE_COPPER();
+                }
+            }
+        }
+
+        if (moveCount == MazeConstants.MAX_MOVES) {
+            newBadges |= nft.BADGE_STONE();
+        }
+    }
+}

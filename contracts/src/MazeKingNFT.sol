@@ -3,9 +3,12 @@ pragma solidity ^0.8.24;
 
 import { ERC1155 } from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
-import { ERC1155Burnable } from "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
+import {
+    ERC1155Burnable
+} from "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 import { ERC1155Supply } from "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import { MazeConstants } from "./MazeConstants.sol";
+import { IBadgeAwarder } from "./IBadgeAwarder.sol";
 
 /// @title MazeKingNFT
 /// @notice ERC-1155 NFT contract for MazeKing game achievements
@@ -21,27 +24,35 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
     // ZK Proof verifier contract address (updatable)
     address public verifierContract;
 
+    // Pluggable badge-awarding strategy (updatable; address(0) disables awards)
+    address public badgeAwarder;
+
     // Maze registry: seed hash -> official maze token ID
     mapping(bytes32 => uint256) public officialMazes;
 
     // Stats tracking: tokenId => user => Stats
     mapping(uint256 => mapping(address => Stats)) public stats;
 
+    // Per-maze admin state (keyed by tokenId / maze hash)
+    mapping(uint256 => uint32) public optimalMoves;
+    mapping(uint256 => bool) public registered;
+    mapping(uint256 => bool) public registrarApproved;
+
     // Stats struct for tracking user achievements per maze
     struct Stats {
-        uint16 minMoves;      // Minimum moves achieved
-        uint16 timesSolved;   // Number of times solved
-        uint32 badges;        // Bitfield for 32 badge types
-        uint128 usdcDonated;  // USDC donated (future use)
+        uint16 minMoves; // Minimum moves achieved
+        uint16 timesSolved; // Number of times solved
+        uint32 badges; // Bitfield for 32 badge types
+        uint128 usdcDonated; // USDC donated (future use)
     }
 
     // Badge constants (bitfield positions)
-    uint32 public constant BADGE_REGISTERED = 1 << 0;  // 0. Maze is officially registered
-    uint32 public constant BADGE_ROBOT = 1 << 1;     // 1. Robot/Perfect (optimal moves)
-    uint32 public constant BADGE_GOLD = 1 << 2;      // 2. Gold (<1.05x optimal)
-    uint32 public constant BADGE_SILVER = 1 << 3;    // 3. Silver (<1.15x optimal)
-    uint32 public constant BADGE_COPPER = 1 << 4;    // 4. Copper (<1.25x optimal)
-    uint32 public constant BADGE_STONE = 1 << 5;     // 5. Stone (max possible moves)
+    uint32 public constant BADGE_REGISTERED = 1 << 0; // 0. Maze is officially registered
+    uint32 public constant BADGE_ROBOT = 1 << 1; // 1. Robot/Perfect (optimal moves)
+    uint32 public constant BADGE_GOLD = 1 << 2; // 2. Gold (<1.05x optimal)
+    uint32 public constant BADGE_SILVER = 1 << 3; // 3. Silver (<1.15x optimal)
+    uint32 public constant BADGE_COPPER = 1 << 4; // 4. Copper (<1.25x optimal)
+    uint32 public constant BADGE_STONE = 1 << 5; // 5. Stone (max possible moves)
     // Badges 6-31 reserved for future use (placement, special achievements, etc.)
 
     error WithdrawalFailed();
@@ -49,10 +60,15 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
 
     event Withdrawal(address indexed to, uint256 amount);
     event VerifierUpdated(address indexed oldVerifier, address indexed newVerifier);
+    event BadgeAwarderUpdated(address indexed oldAwarder, address indexed newAwarder);
     event MazeRegistered(bytes32 indexed seedHash, string seed, uint256 indexed tokenId);
+    event OptimalMovesSet(uint256 indexed tokenId, uint32 optimalMoves);
+    event RegisteredSet(uint256 indexed tokenId, bool value);
+    event RegistrarApprovedSet(uint256 indexed tokenId, bool value);
     event ProofVerified(address indexed solver, uint256 indexed tokenId, uint16 moveCount);
     event FirstSolve(address indexed solver, uint256 indexed tokenId, uint16 moveCount);
     event NewBestScore(address indexed solver, uint256 indexed tokenId, uint16 newBest);
+    event BadgesAwarded(address indexed solver, uint256 indexed tokenId, uint32 newBadges);
 
     constructor(
         string memory _name,
@@ -81,11 +97,9 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
     /// @param proof The ZK proof bytes
     /// @param publicInputs Array of PUBLIC_INPUTS_LENGTH public inputs (8 params + packed_cells + moveCount)
     /// @param moveCount Number of moves taken
-    function mintWithProof(
-        bytes calldata proof,
-        bytes32[] calldata publicInputs,
-        uint16 moveCount
-    ) external {
+    function mintWithProof(bytes calldata proof, bytes32[] calldata publicInputs, uint16 moveCount)
+        external
+    {
         require(verifierContract != address(0), "Verifier not set");
         require(publicInputs.length == MazeConstants.PUBLIC_INPUTS_LENGTH, "Invalid input length");
 
@@ -119,7 +133,6 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
         if (isFirstMint) {
             userStats.minMoves = moveCount;
             userStats.timesSolved = 1;
-            userStats.badges = BADGE_REGISTERED;
             emit FirstSolve(msg.sender, tokenId, moveCount);
         } else {
             if (moveCount < userStats.minMoves) {
@@ -129,7 +142,50 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
             userStats.timesSolved++;
         }
 
+        // 6. Delegate badge awards to the configured strategy
+        if (badgeAwarder != address(0)) {
+            uint32 newBadges =
+                IBadgeAwarder(badgeAwarder).awardBadges(msg.sender, tokenId, uint32(moveCount));
+            if (newBadges != 0) {
+                userStats.badges |= newBadges;
+                emit BadgesAwarded(msg.sender, tokenId, newBadges);
+            }
+        }
+
         emit ProofVerified(msg.sender, tokenId, moveCount);
+    }
+
+    /// @notice Update the pluggable badge-awarding strategy
+    /// @param _awarder New awarder contract address (address(0) disables awards)
+    function setBadgeAwarder(address _awarder) external onlyRole(OWNER_ROLE) {
+        address oldAwarder = badgeAwarder;
+        badgeAwarder = _awarder;
+        emit BadgeAwarderUpdated(oldAwarder, _awarder);
+    }
+
+    /// @notice Record the optimal (minimum) move count for a maze
+    /// @param tokenId The maze tokenId
+    /// @param moves Optimal move count (0 = unknown)
+    function setOptimalMoves(uint256 tokenId, uint32 moves) external onlyRole(REGISTRAR_ROLE) {
+        optimalMoves[tokenId] = moves;
+        emit OptimalMovesSet(tokenId, moves);
+    }
+
+    /// @notice Mark a maze as registered (officially recognized)
+    /// @param tokenId The maze tokenId
+    /// @param value Registered flag
+    function setRegistered(uint256 tokenId, bool value) external onlyRole(REGISTRAR_ROLE) {
+        registered[tokenId] = value;
+        emit RegisteredSet(tokenId, value);
+    }
+
+    /// @notice Mark a maze as approved by the registrar for award eligibility
+    /// @dev The default badge awarder grants BADGE_REGISTERED based on this flag
+    /// @param tokenId The maze tokenId
+    /// @param value Approval flag
+    function setRegistrarApproved(uint256 tokenId, bool value) external onlyRole(REGISTRAR_ROLE) {
+        registrarApproved[tokenId] = value;
+        emit RegistrarApprovedSet(tokenId, value);
     }
 
     /// @notice Update the verifier contract address
@@ -143,10 +199,7 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
     /// @notice Register an official maze seed to its token ID
     /// @param seed The maze seed string
     /// @param tokenId The token ID for this maze
-    function registerMaze(string calldata seed, uint256 tokenId)
-        external
-        onlyRole(REGISTRAR_ROLE)
-    {
+    function registerMaze(string calldata seed, uint256 tokenId) external onlyRole(REGISTRAR_ROLE) {
         // solhint-disable-next-line asm-keccak256
         bytes32 seedHash = keccak256(bytes(seed));
         require(officialMazes[seedHash] == 0, "Already registered");
@@ -171,12 +224,10 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
 
     // Required overrides for multiple inheritance
 
-    function _update(
-        address from,
-        address to,
-        uint256[] memory ids,
-        uint256[] memory values
-    ) internal override(ERC1155, ERC1155Supply) {
+    function _update(address from, address to, uint256[] memory ids, uint256[] memory values)
+        internal
+        override(ERC1155, ERC1155Supply)
+    {
         super._update(from, to, ids, values);
     }
 
