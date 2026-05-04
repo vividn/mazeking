@@ -6,6 +6,7 @@ import {
   type ColorScheme,
 } from '../types';
 import { drawArrow, drawCornerWarp, getArrowColor } from '../glyphs';
+import { useGlyphImages } from '../glyphs/glyphImages';
 import {
   drawPerson,
   drawRegalia,
@@ -168,6 +169,10 @@ export const Maze: React.FC<MazeProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Bitmap glyphs (peasant/regalia/king + pickup). Null until loaded — the
+  // sprite helpers fall back to the procedural patterns until then.
+  const glyphImages = useGlyphImages();
 
   // Per-user transform applied on top of the base centering / zoom prop.
   const [userZoom, setUserZoom] = useState(1);
@@ -625,7 +630,8 @@ export const Maze: React.FC<MazeProps> = ({
           keyPos.x * cellSize + cellSize / 2,
           keyPos.y * cellSize + cellSize / 2,
           cellSize * 0.85,
-          colors.keyColor
+          colors.keyColor,
+          glyphImages ?? undefined
         );
       }
 
@@ -641,7 +647,8 @@ export const Maze: React.FC<MazeProps> = ({
         colors.keyColor,
         playerWearsCrown,
         colors.keyColor,
-        crownTier
+        crownTier,
+        glyphImages ?? undefined
       );
 
       // Anti-shortcut hint: speech bubble above the player when they reach
@@ -674,6 +681,7 @@ export const Maze: React.FC<MazeProps> = ({
     playerWearsCrown,
     crownTier,
     showKinglyHint,
+    glyphImages,
   ]);
 
   // Handle window resize - force re-render by changing a counter

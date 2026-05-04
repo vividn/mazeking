@@ -11,6 +11,14 @@
 //   - Reaches the CROWN (goal) wearing regalia → wins, becomes king.
 //   - Win modal shows the person actually wearing the crown — that sprite is
 //     reserved for the win moment (and tier-variant treatments later).
+//
+// PNG glyph path (ma-ggz): when callers pass a loaded `GlyphImages` record,
+// the player/regalia draws use the artist-rendered bitmaps instead of the
+// procedural patterns above. Crown overlays + the goal-cell crown stay
+// procedural. The procedural patterns remain the no-images fallback while
+// PNGs load on first paint.
+
+import type { GlyphImages } from '../glyphs/glyphImages';
 
 type SpritePattern = boolean[][];
 
@@ -250,6 +258,26 @@ export function drawSprite(
 }
 
 /**
+ * Draws a pre-rendered PNG glyph centered at (x, y) within a `size`x`size` box,
+ * with a soft drop shadow that matches the procedural sprite path. PNGs are
+ * art, not silhouettes — no outline pass and no tinting.
+ */
+function drawImageGlyph(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  x: number,
+  y: number,
+  size: number
+): void {
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+  ctx.shadowBlur = Math.max(1, size * 0.06);
+  ctx.shadowOffsetY = Math.max(1, size * 0.04);
+  ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
+  ctx.restore();
+}
+
+/**
  * Draw the player figure.
  *
  * - `wearingCrown` — render the player wearing a crown. Used for the
@@ -259,6 +287,11 @@ export function drawSprite(
  * - Otherwise — plain PERSON_NO_REGALIA.
  *
  * The crown takes precedence over regalia: if both are true, the crown wins.
+ *
+ * When `images` is supplied, the bitmap glyphs replace the procedural sprites:
+ * peasant / peasantRegalia / king. `color`, `regaliaColor`, `crownColor`, and
+ * `crownTier` go unused on the bitmap path — PNGs are pre-rendered art and
+ * there's only one king bitmap for now (TODO: tier-specific king variants).
  */
 export function drawPerson(
   ctx: CanvasRenderingContext2D,
@@ -270,8 +303,23 @@ export function drawPerson(
   regaliaColor?: string,
   wearingCrown: boolean = false,
   crownColor?: string,
-  crownTier: CrownTier = CrownTier.Plain
+  crownTier: CrownTier = CrownTier.Plain,
+  images?: GlyphImages
 ): void {
+  if (images) {
+    if (wearingCrown) {
+      // TODO: plug tier-specific king variants in here once art ships.
+      drawImageGlyph(ctx, images.king, x, y, size);
+      return;
+    }
+    if (wearingRegalia) {
+      drawImageGlyph(ctx, images.peasantRegalia, x, y, size);
+      return;
+    }
+    drawImageGlyph(ctx, images.peasant, x, y, size);
+    return;
+  }
+
   if (wearingCrown) {
     const overlay = getCrownSprite(crownTier);
     // Always two-pass: body in player color, then crown overlay.
@@ -298,14 +346,23 @@ export function drawPerson(
   drawSprite(ctx, x, y, size, PERSON_NO_REGALIA, color);
 }
 
-/** Draw the collectible regalia (robe + scepter) at the pickup position. */
+/**
+ * Draw the collectible regalia (robe + scepter) at the pickup position.
+ * When `images` is supplied, renders `robe_scepter.png` instead of the
+ * procedural REGALIA pattern (color is unused on the bitmap path).
+ */
 export function drawRegalia(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   size: number,
-  color: string
+  color: string,
+  images?: GlyphImages
 ): void {
+  if (images) {
+    drawImageGlyph(ctx, images.robeScepter, x, y, size);
+    return;
+  }
   drawSprite(ctx, x, y, size, REGALIA, color);
 }
 
