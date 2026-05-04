@@ -630,7 +630,10 @@ function debugRemoveInternalWalls(maze: MazeData, rng: Rng): void {
   }
 }
 
-export function generateMaze(seed: string, opts: GenerateOptions = {}): GeneratedMaze {
+export function generateMaze(
+  seed: string,
+  opts: GenerateOptions = {}
+): GeneratedMaze {
   const rng = createRng(seed);
 
   const { width, height, textLayout } = calculateMazeDimensions(seed);

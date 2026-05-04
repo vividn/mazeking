@@ -344,8 +344,18 @@ describe('generateMaze', () => {
       for (let y = 0; y < maze.height; y++) {
         for (let x = 0; x < maze.width; x++) {
           if (isTextCell(maze, x, y)) continue;
-          if (x < maze.width - 1 && !isTextCell(maze, x + 1, y) && maze.cells[y][x].eastWall) count++;
-          if (y < maze.height - 1 && !isTextCell(maze, x, y + 1) && maze.cells[y][x].southWall) count++;
+          if (
+            x < maze.width - 1 &&
+            !isTextCell(maze, x + 1, y) &&
+            maze.cells[y][x].eastWall
+          )
+            count++;
+          if (
+            y < maze.height - 1 &&
+            !isTextCell(maze, x, y + 1) &&
+            maze.cells[y][x].southWall
+          )
+            count++;
         }
       }
       return count;
@@ -386,7 +396,9 @@ describe('generateMaze', () => {
 
       for (let y = 0; y < normal.maze.height; y++) {
         for (let x = 0; x < normal.maze.width; x++) {
-          expect(debug.maze.cells[y][x].cellType).toBe(normal.maze.cells[y][x].cellType);
+          expect(debug.maze.cells[y][x].cellType).toBe(
+            normal.maze.cells[y][x].cellType
+          );
         }
       }
     });
