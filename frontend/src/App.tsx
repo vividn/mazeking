@@ -28,7 +28,7 @@ function getInitialSeed(): string {
   return DEFAULT_SEED;
 }
 
-const DEFAULT_SEED = 'maze♚ ♚king';
+export const DEFAULT_SEED = 'maze♚ ♚king';
 export { MAX_MAZE_CELLS };
 
 function App() {

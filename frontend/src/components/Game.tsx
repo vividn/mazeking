@@ -24,6 +24,7 @@ import { PublicGallerySidebar } from './PublicGallerySidebar';
 import { MazeSizeWarning } from './MazeSizeWarning';
 import { Wordmark } from './Wordmark';
 import { pickTextColor } from '../lib/contrastText';
+import { DEFAULT_SEED } from '../App';
 
 interface GameProps {
   initialSeed: string;
@@ -53,6 +54,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   const [myMazesSidebarOpen, setMyMazesSidebarOpen] = useState(false);
   const [winModalDismissed, setWinModalDismissed] = useState(false);
   const [gallerySidebarOpen, setGallerySidebarOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const { isConnected } = useAccount();
   const [copied, setCopied] = useState(false);
   const [initialPositions, setInitialPositions] = useState<{
@@ -333,6 +335,10 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
     initGame(selectedSeed);
   };
 
+  const handleResetToDefault = useCallback(() => {
+    initGame(DEFAULT_SEED);
+  }, [initGame]);
+
   const handleCopyLink = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -363,21 +369,49 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
     <div
       style={{
         ...styles.statsGroup,
-        ...(isMobile ? styles.statsGroupMobile : null),
+        ...(isMobile ? styles.statsGroupMobile : styles.statsGroupDesktop),
       }}
     >
-      <span style={{ ...styles.stat, ...statMobileStyle }}>
-        Moves: <strong>{gameState.moveCount}</strong>
-      </span>
-      <span
-        style={{
-          ...styles.stat,
-          ...statMobileStyle,
-          color: gameState.hasKey ? colors.keyColor : '#888',
-        }}
-      >
-        {gameState.hasKey ? 'Regalia collected!' : 'Find the regalia'}
-      </span>
+      {isMobile ? (
+        <>
+          <span style={{ ...styles.stat, ...statMobileStyle }}>
+            Moves: <strong>{gameState.moveCount}</strong>
+          </span>
+          <span
+            style={{
+              ...styles.stat,
+              ...statMobileStyle,
+              color: gameState.hasKey ? colors.keyColor : '#888',
+            }}
+          >
+            {gameState.hasKey ? 'Regalia collected!' : 'Find the regalia'}
+          </span>
+        </>
+      ) : (
+        <>
+          <span
+            style={styles.statDesktop}
+            title={`Moves: ${gameState.moveCount}`}
+          >
+            <span aria-hidden style={styles.statIcon}>
+              🚶
+            </span>
+            <strong>{gameState.moveCount}</strong>
+          </span>
+          <span
+            style={{
+              ...styles.statDesktop,
+              color: gameState.hasKey ? colors.keyColor : '#888',
+            }}
+            title={gameState.hasKey ? 'Regalia collected' : 'Find the regalia'}
+          >
+            <span aria-hidden style={styles.statIcon}>
+              ⚜
+            </span>
+            {gameState.hasKey ? 'collected' : 'Find regalia'}
+          </span>
+        </>
+      )}
       {debugMode && (
         <span
           style={{
@@ -403,98 +437,163 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
       <div
         style={{
           ...styles.header,
-          ...(isMobile ? styles.headerMobile : null),
+          ...(isMobile ? styles.headerMobile : styles.headerDesktop),
           backgroundColor: colors.headerBackgroundColor,
         }}
       >
-        <div
-          style={{
-            ...styles.wordmarkRow,
-            ...(isMobile ? styles.wordmarkRowMobile : null),
-          }}
-        >
-          <div style={{ flexShrink: 0 }}>
-            <Wordmark
-              text={'maze♚\n♚king'}
-              pixelSize={isMobile ? 3 : 4}
-              color={colors.textBackgroundColor}
-              zkColor={colors.zkBackgroundColor}
-              crownColor={colors.crownBackgroundColor}
-              ariaLabel="MAZEKING"
-            />
-          </div>
-          {isMobile && statsGroupNode}
-        </div>
-        {!isMobile && (
-          <div style={styles.headerRow}>
-            {statsGroupNode}
-            <div style={styles.keymap}>
-              <span style={styles.keymapItem}>
-                Move: <kbd style={styles.kbd}>Arrows</kbd>{' '}
-                <kbd style={styles.kbd}>WASD</kbd>
-              </span>
-              <span style={styles.keymapItem}>
-                Restart: <kbd style={styles.kbd}>R</kbd>
-              </span>
-              <span style={styles.keymapItem}>
-                New: <kbd style={styles.kbd}>N</kbd>
-              </span>
+        {isMobile ? (
+          <div
+            style={{
+              ...styles.wordmarkRow,
+              ...styles.wordmarkRowMobile,
+            }}
+          >
+            <div style={{ flexShrink: 0 }}>
+              <Wordmark
+                text={'maze♚\n♚king'}
+                pixelSize={3}
+                color={colors.textBackgroundColor}
+                zkColor={colors.zkBackgroundColor}
+                crownColor={colors.crownBackgroundColor}
+                ariaLabel="MAZEKING"
+              />
             </div>
-            <div style={styles.headerButtons}>
+            {statsGroupNode}
+          </div>
+        ) : (
+          <div style={styles.headerRowDesktop}>
+            <button
+              type="button"
+              onClick={handleResetToDefault}
+              style={styles.wordmarkButton}
+              aria-label="Reset to initial maze"
+              title="Reset to initial maze"
+            >
+              <Wordmark
+                text={'maze♚\n♚king'}
+                pixelSize={3}
+                color={colors.textBackgroundColor}
+                zkColor={colors.zkBackgroundColor}
+                crownColor={colors.crownBackgroundColor}
+                ariaLabel="MAZEKING"
+              />
+            </button>
+            {statsGroupNode}
+            <div style={styles.headerSpacer} />
+            <div style={styles.iconButtonRow}>
               <button
                 onClick={handleCopyLink}
                 style={{
-                  ...styles.actionButton,
-                  backgroundColor: colors.textBackgroundColor,
-                  color: getContrastColor(colors.textBackgroundColor),
+                  ...styles.iconButton,
+                  borderColor: getContrastColor(colors.headerBackgroundColor),
+                  color: getContrastColor(colors.headerBackgroundColor),
                 }}
-                title="Copy link to clipboard"
+                title={copied ? 'Copied!' : 'Copy link to clipboard'}
+                aria-label="Share — copy link to clipboard"
               >
-                {copied ? 'Copied!' : 'Share'}
+                {copied ? '✓' : '🔗'}
               </button>
               <button
                 onClick={() => setHistorySidebarOpen(true)}
                 style={{
-                  ...styles.actionButton,
-                  backgroundColor: colors.wallColor,
-                  color: getContrastColor(colors.wallColor),
+                  ...styles.iconButton,
+                  borderColor: getContrastColor(colors.headerBackgroundColor),
+                  color: getContrastColor(colors.headerBackgroundColor),
                 }}
+                title="History"
+                aria-label="Open history"
               >
-                History
+                🕘
               </button>
               {isConnected && (
                 <button
                   onClick={() => setMyMazesSidebarOpen(true)}
                   style={{
-                    ...styles.actionButton,
-                    backgroundColor: colors.keyColor,
-                    color: getContrastColor(colors.keyColor),
+                    ...styles.iconButton,
+                    borderColor: getContrastColor(colors.headerBackgroundColor),
+                    color: getContrastColor(colors.headerBackgroundColor),
                   }}
+                  title="My Mazes"
+                  aria-label="Open my mazes"
                 >
-                  My Mazes
+                  👤
                 </button>
               )}
               <button
                 onClick={() => setGallerySidebarOpen(true)}
                 style={{
-                  ...styles.actionButton,
-                  backgroundColor: colors.uiAccentColor,
-                  color: buttonTextColor,
+                  ...styles.iconButton,
+                  borderColor: getContrastColor(colors.headerBackgroundColor),
+                  color: getContrastColor(colors.headerBackgroundColor),
                 }}
+                title="Gallery"
+                aria-label="Open public gallery"
               >
-                Gallery
+                🖼
               </button>
-              <button
-                onClick={() => setSeedBarOpen(true)}
-                style={{
-                  ...styles.actionButton,
-                  backgroundColor: colors.uiAccentColor,
-                  color: buttonTextColor,
-                }}
+              <div
+                style={styles.helpWrapper}
+                onMouseEnter={() => setHelpOpen(true)}
+                onMouseLeave={() => setHelpOpen(false)}
               >
-                New Game
-              </button>
+                <button
+                  onClick={() => setHelpOpen((v) => !v)}
+                  onFocus={() => setHelpOpen(true)}
+                  onBlur={() => setHelpOpen(false)}
+                  style={{
+                    ...styles.iconButton,
+                    borderColor: getContrastColor(colors.headerBackgroundColor),
+                    color: getContrastColor(colors.headerBackgroundColor),
+                  }}
+                  title="Keyboard shortcuts"
+                  aria-label="Show keyboard shortcuts"
+                  aria-expanded={helpOpen}
+                >
+                  ?
+                </button>
+                {helpOpen && (
+                  <div
+                    role="tooltip"
+                    style={{
+                      ...styles.helpPopover,
+                      backgroundColor: colors.wallColor,
+                      color: getContrastColor(colors.wallColor),
+                      borderColor: getContrastColor(colors.wallColor),
+                    }}
+                  >
+                    <div style={styles.helpRow}>
+                      <kbd style={styles.kbd}>Arrows</kbd>
+                      <kbd style={styles.kbd}>WASD</kbd>
+                      <span>move</span>
+                    </div>
+                    <div style={styles.helpRow}>
+                      <kbd style={styles.kbd}>R</kbd>
+                      <span>restart</span>
+                    </div>
+                    <div style={styles.helpRow}>
+                      <kbd style={styles.kbd}>N</kbd>
+                      <span>new</span>
+                    </div>
+                    <div style={styles.helpRow}>
+                      <kbd style={styles.kbd}>0</kbd>
+                      <span>reset zoom</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
+            <button
+              onClick={() => setSeedBarOpen(true)}
+              style={{
+                ...styles.primaryCta,
+                backgroundColor: colors.uiAccentColor,
+                color: buttonTextColor,
+              }}
+              title="Start a new game with a custom seed"
+              aria-label="New game"
+            >
+              + New Game
+            </button>
           </div>
         )}
       </div>
@@ -606,17 +705,21 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     flexShrink: 0,
   },
+  headerDesktop: {
+    padding: '6px 16px',
+    gap: 0,
+    minHeight: '52px',
+  },
   headerMobile: {
     padding: '6px 12px',
     gap: '4px',
     backgroundColor: 'rgba(0, 0, 0, 0.55)',
   },
-  headerRow: {
+  headerRowDesktop: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: '16px',
-    flexWrap: 'wrap',
+    minHeight: '40px',
   },
   wordmarkRow: {
     display: 'flex',
@@ -627,10 +730,25 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between',
     gap: '12px',
   },
+  wordmarkButton: {
+    flexShrink: 0,
+    background: 'transparent',
+    border: 'none',
+    padding: 0,
+    margin: 0,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'opacity 0.15s ease',
+  },
   statsGroup: {
     display: 'flex',
     alignItems: 'center',
     gap: '20px',
+  },
+  statsGroupDesktop: {
+    gap: '14px',
+    whiteSpace: 'nowrap',
   },
   statsGroupMobile: {
     flexDirection: 'column',
@@ -643,23 +761,24 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '15px',
     color: '#ddd',
   },
+  statDesktop: {
+    fontSize: '14px',
+    color: '#ddd',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  statIcon: {
+    fontSize: '14px',
+    lineHeight: 1,
+  },
   statMobile: {
     fontSize: '12px',
     lineHeight: 1.2,
     whiteSpace: 'nowrap',
   },
-  keymap: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-    flexWrap: 'wrap',
-  },
-  keymapItem: {
-    fontSize: '13px',
-    color: 'rgba(255, 255, 255, 0.6)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
+  headerSpacer: {
+    flex: 1,
   },
   kbd: {
     display: 'inline-block',
@@ -671,20 +790,60 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid rgba(255, 255, 255, 0.2)',
     color: 'rgba(255, 255, 255, 0.8)',
   },
-  headerButtons: {
+  iconButtonRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
+    gap: '6px',
   },
-  actionButton: {
-    padding: '10px 18px',
+  iconButton: {
+    width: '36px',
+    height: '36px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0,
+    background: 'transparent',
+    border: '1px solid rgba(255, 255, 255, 0.35)',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '16px',
+    lineHeight: 1,
+    transition: 'background-color 0.15s ease, transform 0.1s ease',
+  },
+  helpWrapper: {
+    position: 'relative',
+    display: 'inline-flex',
+  },
+  helpPopover: {
+    position: 'absolute',
+    top: 'calc(100% + 6px)',
+    right: 0,
+    minWidth: '180px',
+    padding: '8px 10px',
+    border: '1px solid',
+    borderRadius: '6px',
+    fontSize: '12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)',
+    zIndex: 10,
+    whiteSpace: 'nowrap',
+  },
+  helpRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  primaryCta: {
+    padding: '8px 16px',
     border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '14px',
-    fontWeight: 600,
-    transition: 'filter 0.15s ease, transform 0.1s ease',
+    fontWeight: 700,
     whiteSpace: 'nowrap',
+    transition: 'filter 0.15s ease, transform 0.1s ease',
   },
   mazeContainer: {
     flex: 1,
