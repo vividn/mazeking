@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import { Test } from "forge-std/Test.sol";
+import { Test, Vm } from "forge-std/Test.sol";
 import { MazeKingNFT } from "../src/MazeKingNFT.sol";
 import { MazeConstants } from "../src/MazeConstants.sol";
 import { IBadgeAwarder } from "../src/IBadgeAwarder.sol";
@@ -477,5 +477,118 @@ contract MazeKingNFTTest is Test {
 
         (,, uint32 badges,) = nft.stats(tokenId, user);
         assertEq(badges, 0);
+    }
+
+    // ==================================================
+    // On-chain tokenURI / layout storage
+    // ==================================================
+
+    /// @dev Build inputs for a small 4x3 maze with non-zero packed bytes so we
+    /// exercise the full encode → decode → SVG path.
+    function _createSmallMazePublicInputs() internal pure returns (bytes32[] memory) {
+        bytes32[] memory pi = new bytes32[](MazeConstants.PUBLIC_INPUTS_LENGTH);
+        pi[0] = bytes32(uint256(4)); // width
+        pi[1] = bytes32(uint256(3)); // height
+        pi[2] = bytes32(uint256(0)); // start_x
+        pi[3] = bytes32(uint256(0)); // start_y
+        pi[4] = bytes32(uint256(2)); // key_x
+        pi[5] = bytes32(uint256(1)); // key_y
+        pi[6] = bytes32(uint256(3)); // goal_x
+        pi[7] = bytes32(uint256(2)); // goal_y
+        // 12 cells -> 6 packed bytes. Fill a pattern: every other cell has a south wall.
+        // Each byte holds two cells (high nibble even, low nibble odd).
+        // Cell nibble: 0xC = south+east walls.
+        pi[8] = bytes32(uint256(0xC0));
+        pi[9] = bytes32(uint256(0x80));
+        pi[10] = bytes32(uint256(0x44));
+        pi[11] = bytes32(uint256(0x00));
+        pi[12] = bytes32(uint256(0xCC));
+        pi[13] = bytes32(uint256(0x88));
+        pi[MazeConstants.MAZE_DATA_LENGTH] = bytes32(uint256(7)); // move_count
+        return pi;
+    }
+
+    function test_MintStoresLayout() public {
+        bytes32[] memory pi = _createSmallMazePublicInputs();
+
+        vm.prank(user);
+        nft.mintWithProof(hex"00", pi, 7);
+
+        uint256 tokenId = _tokenIdFromInputs(pi);
+        bytes memory layout = nft.layouts(tokenId);
+        // Header (16) + ceil(4*3 / 2) = 6 cell bytes = 22 total
+        assertEq(layout.length, 22, "layout byte length");
+        assertEq(uint8(layout[0]), 0, "width hi");
+        assertEq(uint8(layout[1]), 4, "width lo");
+        assertEq(uint8(layout[3]), 3, "height lo");
+        assertEq(uint8(layout[16]), 0xC0, "first packed byte");
+    }
+
+    function test_LayoutStoredOnceEmitsSingleEvent() public {
+        bytes32[] memory pi = _createSmallMazePublicInputs();
+        uint256 tokenId = _tokenIdFromInputs(pi);
+
+        // First mint: should emit LayoutStored
+        vm.expectEmit(true, false, false, true, address(nft));
+        emit MazeKingNFT.LayoutStored(tokenId, 4, 3, 22);
+        vm.prank(user);
+        nft.mintWithProof(hex"00", pi, 7);
+
+        // Second mint by another user with the same inputs — layout already stored,
+        // so no LayoutStored event should fire. We assert by recording logs.
+        address other = address(0xBEEF);
+        vm.recordLogs();
+        vm.prank(other);
+        nft.mintWithProof(hex"00", pi, 7);
+
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        bytes32 sig = keccak256("LayoutStored(uint256,uint16,uint16,uint256)");
+        for (uint256 i = 0; i < entries.length; i++) {
+            assertTrue(entries[i].topics[0] != sig, "LayoutStored should not re-emit");
+        }
+    }
+
+    function test_TokenURIRevertsBeforeMint() public {
+        vm.expectRevert("Unknown token");
+        nft.tokenURI(123456);
+    }
+
+    function test_TokenURIReturnsDataUri() public {
+        bytes32[] memory pi = _createSmallMazePublicInputs();
+
+        vm.prank(user);
+        nft.mintWithProof(hex"00", pi, 7);
+
+        uint256 tokenId = _tokenIdFromInputs(pi);
+        string memory uriStr = nft.tokenURI(tokenId);
+
+        // Must be a data URI for application/json
+        bytes memory u = bytes(uriStr);
+        assertGt(u.length, 64, "uri non-empty");
+        // Prefix check
+        bytes memory expectedPrefix = bytes("data:application/json;base64,");
+        for (uint256 i = 0; i < expectedPrefix.length; i++) {
+            assertEq(u[i], expectedPrefix[i], "wrong data URI prefix");
+        }
+    }
+
+    function test_UriFallbackBeforeLayoutStored() public {
+        // Before any mint, ERC1155 base URI should be returned for unknown tokens.
+        string memory base = nft.uri(99999);
+        assertEq(base, "https://api.mazeking.xyz/token/");
+    }
+
+    function test_UriUsesOnChainAfterMint() public {
+        bytes32[] memory pi = _createSmallMazePublicInputs();
+        vm.prank(user);
+        nft.mintWithProof(hex"00", pi, 7);
+        uint256 tokenId = _tokenIdFromInputs(pi);
+
+        string memory uriStr = nft.uri(tokenId);
+        bytes memory u = bytes(uriStr);
+        bytes memory expectedPrefix = bytes("data:application/json;base64,");
+        for (uint256 i = 0; i < expectedPrefix.length; i++) {
+            assertEq(u[i], expectedPrefix[i]);
+        }
     }
 }

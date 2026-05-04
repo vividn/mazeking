@@ -9,6 +9,7 @@ import {
 import { ERC1155Supply } from "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import { MazeConstants } from "./MazeConstants.sol";
 import { IBadgeAwarder } from "./IBadgeAwarder.sol";
+import { MazeRenderer } from "./MazeRenderer.sol";
 
 /// @title MazeKingNFT
 /// @notice ERC-1155 NFT contract for MazeKing game achievements
@@ -29,6 +30,11 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
 
     // Maze registry: seed hash -> official maze token ID
     mapping(bytes32 => uint256) public officialMazes;
+
+    /// @notice Compact maze layout per tokenId, stored once on first mint
+    /// @dev Format: [w(2)|h(2)|kx(2)|ky(2)|kex(2)|key(2)|gx(2)|gy(2)|cells...]
+    ///      Cells are 4 bits each, packed 2 per byte (high nibble first).
+    mapping(uint256 => bytes) public layouts;
 
     // Stats tracking: tokenId => user => Stats
     mapping(uint256 => mapping(address => Stats)) public stats;
@@ -66,6 +72,7 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
     event RegisteredSet(uint256 indexed tokenId, bool value);
     event RegistrarApprovedSet(uint256 indexed tokenId, bool value);
     event ProofVerified(address indexed solver, uint256 indexed tokenId, uint16 moveCount);
+    event LayoutStored(uint256 indexed tokenId, uint16 width, uint16 height, uint256 byteSize);
     event FirstSolve(address indexed solver, uint256 indexed tokenId, uint16 moveCount);
     event NewBestScore(address indexed solver, uint256 indexed tokenId, uint16 newBest);
     event BadgesAwarded(address indexed solver, uint256 indexed tokenId, uint32 newBadges);
@@ -119,6 +126,18 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
         }
         uint256 tokenId = uint256(keccak256(mazeData));
 
+        // 2b. Store compact layout the first time this maze is seen (any user).
+        //     Skipping when bytes already exist keeps re-mints cheap and the layout immutable.
+        if (layouts[tokenId].length == 0) {
+            bytes memory packed = _packLayout(publicInputs);
+            if (packed.length > 0) {
+                layouts[tokenId] = packed;
+                uint16 w = uint16(uint256(publicInputs[0]));
+                uint16 h = uint16(uint256(publicInputs[1]));
+                emit LayoutStored(tokenId, w, h, packed.length);
+            }
+        }
+
         // 3. Check if first mint for this user
         bool isFirstMint = balanceOf(msg.sender, tokenId) == 0;
 
@@ -153,6 +172,53 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
         }
 
         emit ProofVerified(msg.sender, tokenId, moveCount);
+    }
+
+    /// @notice Per-token data URI built fully on-chain from the stored maze layout
+    /// @dev Returns a data:application/json;base64 payload with an embedded SVG image.
+    ///      Reverts if the layout hasn't been recorded yet (token never minted).
+    function tokenURI(uint256 tokenId) external view returns (string memory) {
+        bytes memory layout = layouts[tokenId];
+        require(layout.length > 0, "Unknown token");
+        return MazeRenderer.tokenURI(tokenId, layout);
+    }
+
+    /// @notice ERC-1155 metadata URI; falls back to the static base when no layout is stored
+    function uri(uint256 tokenId) public view override returns (string memory) {
+        bytes memory layout = layouts[tokenId];
+        if (layout.length == 0) {
+            return super.uri(tokenId);
+        }
+        return MazeRenderer.tokenURI(tokenId, layout);
+    }
+
+    /// @notice Pack the public-input maze description into our compact layout format
+    /// @dev Returns empty bytes if dimensions are obviously invalid.
+    function _packLayout(bytes32[] calldata publicInputs) internal pure returns (bytes memory) {
+        uint256 width = uint256(publicInputs[0]);
+        uint256 height = uint256(publicInputs[1]);
+        if (width == 0 || height == 0) return "";
+        uint256 totalCells = width * height;
+        if (totalCells > MazeConstants.MAX_MAZE_CELLS) return "";
+
+        uint256 cellBytes = (totalCells + 1) / 2;
+        bytes memory out = new bytes(16 + cellBytes);
+
+        // Header: 8 uint16s big-endian
+        for (uint256 i = 0; i < 8; i++) {
+            uint256 v = uint256(publicInputs[i]);
+            out[i * 2] = bytes1(uint8((v >> 8) & 0xff));
+            out[i * 2 + 1] = bytes1(uint8(v & 0xff));
+        }
+
+        // Cells: copy the low byte of each packed input directly.
+        // Each publicInputs[8 + i] holds one packed byte (high nibble = even cell, low = odd).
+        for (uint256 i = 0; i < cellBytes; i++) {
+            uint256 v = uint256(publicInputs[8 + i]);
+            out[16 + i] = bytes1(uint8(v & 0xff));
+        }
+
+        return out;
     }
 
     /// @notice Update the pluggable badge-awarding strategy
