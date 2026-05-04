@@ -3,13 +3,22 @@ import { sepolia } from 'wagmi/chains';
 import { injected } from 'wagmi/connectors';
 import { defineChain } from 'viem';
 
-// Anvil uses chain ID 31337 by default (not 1337 like wagmi's localhost)
+// Anvil uses chain ID 31337 by default (not 1337 like wagmi's localhost).
+// `contracts.multicall3` points at the canonical Multicall3 address; Anvil
+// 1.6/1.7 doesn't predeploy it, so `just _ensure-anvil` etches a copy via
+// anvil_setCode (see scripts/inject-multicall3.sh).
 const anvil = defineChain({
   id: 31337,
   name: 'Anvil',
   nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
   rpcUrls: {
     default: { http: ['http://127.0.0.1:8545'] },
+  },
+  contracts: {
+    multicall3: {
+      address: '0xcA11bde05977b3631167028862bE2a173976CA11',
+      blockCreated: 0,
+    },
   },
 });
 
