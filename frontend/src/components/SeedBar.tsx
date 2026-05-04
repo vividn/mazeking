@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { MazeData, ColorScheme } from '../types';
 import { generateColorScheme } from '../lib/colorGenerator';
 import { generateMaze } from '../lib/mazeGenerator';
+import { isDebugSeedActive } from '../lib/debugSeed';
 import { isValidChar, filterToValidChars } from '../lib/pixelFont';
 import { getRandomPhrase } from '../lib/seedPhrases';
 import { Maze } from './Maze';
@@ -74,7 +75,7 @@ export function SeedBar({ isOpen, onStartGame, onCancel }: SeedBarProps) {
         if (generationRef.current !== currentGeneration) return;
 
         const colors = generateColorScheme(seedForPreview);
-        const maze = generateMaze(seedForPreview).maze;
+        const maze = generateMaze(seedForPreview, { debug: isDebugSeedActive(seedForPreview) }).maze;
 
         // Double-check before updating state
         if (generationRef.current === currentGeneration) {

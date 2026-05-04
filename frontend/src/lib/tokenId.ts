@@ -10,6 +10,7 @@
  */
 import { keccak256 } from 'viem';
 import { generateMaze } from './mazeGenerator';
+import { isDebugSeedActive } from './debugSeed';
 import { serializeForZk } from './zkSerialize';
 import { MAX_PACKED_BYTES, MAZE_DATA_LENGTH } from './mazeConstants.generated';
 
@@ -67,7 +68,9 @@ export function computeTokenIdFromPublicInputs(publicInputs: string[]): bigint {
  * tokenId↔seed registry from seedHistory so we can replay owned NFTs.
  */
 export function computeTokenIdFromSeed(seed: string): bigint {
-  const { maze, kingPos, keyPos, goalPos } = generateMaze(seed);
+  const { maze, kingPos, keyPos, goalPos } = generateMaze(seed, {
+    debug: isDebugSeedActive(seed),
+  });
   const zk = serializeForZk(maze, kingPos, keyPos, goalPos);
 
   const padded = [...zk.packedCells];

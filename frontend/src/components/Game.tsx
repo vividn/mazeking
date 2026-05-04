@@ -8,6 +8,7 @@ import type {
   Position,
 } from '../types';
 import { generateMaze, canMove, getNewPosition } from '../lib/mazeGenerator';
+import { isDebugSeedActive } from '../lib/debugSeed';
 import { generateColorScheme } from '../lib/colorGenerator';
 import { addSeedToHistory } from '../lib/seedHistory';
 import { getRandomPhrase } from '../lib/seedPhrases';
@@ -79,7 +80,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   // Initialize game from seed
   const initGame = useCallback(
     (newSeed: string) => {
-      const generated = generateMaze(newSeed);
+      const generated = generateMaze(newSeed, { debug: isDebugSeedActive(newSeed) });
       const newColors = generateColorScheme(newSeed);
 
       setMaze(generated.maze);
@@ -334,6 +335,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   };
 
   const buttonTextColor = getContrastColor(colors.uiAccentColor);
+  const debugMode = isDebugSeedActive(seed);
 
   return (
     <div style={styles.container} ref={gameContainerRef}>
@@ -367,6 +369,22 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
             >
               {gameState.hasKey ? 'Regalia collected!' : 'Find the regalia'}
             </span>
+            {debugMode && (
+              <span
+                style={{
+                  ...styles.stat,
+                  padding: '2px 6px',
+                  border: `1px solid ${colors.uiAccentColor}`,
+                  borderRadius: '4px',
+                  color: colors.uiAccentColor,
+                  fontWeight: 700,
+                  letterSpacing: '0.05em',
+                }}
+                title="Debug seed active: 66% of internal walls removed (localhost only)"
+              >
+                [DEBUG]
+              </span>
+            )}
           </div>
           {!isMobile && (
             <div style={styles.keymap}>
