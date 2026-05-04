@@ -1,25 +1,28 @@
-import { useMemo, useState } from 'react';
-import type { ColorScheme } from '../types';
+import { useEffect, useMemo, useState } from 'react';
 import { useGalleryMazes, type GalleryMaze } from '../hooks/useGalleryMazes';
+import { generateColorScheme } from '../lib/colorGenerator';
 import { pickTextColor } from '../lib/contrastText';
+import { useAppOutlet } from '../App';
+import { PageHeader } from './PageHeader';
 
 type SortMode = 'solves' | 'minMoves' | 'newest';
 
-interface PublicGallerySidebarProps {
-  isOpen: boolean;
-  colors: ColorScheme;
-  onSelectSeed: (seed: string) => void;
-  onClose: () => void;
+function shortId(tokenId: bigint): string {
+  const hex = tokenId.toString(16).padStart(64, '0');
+  return `0x${hex.slice(0, 4)}…${hex.slice(-4)}`;
 }
 
-export function PublicGallerySidebar({
-  isOpen,
-  colors,
-  onSelectSeed,
-  onClose,
-}: PublicGallerySidebarProps) {
-  const { loading, error, mazes } = useGalleryMazes(isOpen);
+export function GalleryPage() {
+  const { loading, error, mazes } = useGalleryMazes(true);
   const [sort, setSort] = useState<SortMode>('solves');
+  const { seed, selectSeed } = useAppOutlet();
+  const colors = useMemo(() => generateColorScheme(seed), [seed]);
+
+  useEffect(() => {
+    document.body.style.backgroundColor = colors.pageBackgroundColor;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', colors.headerBackgroundColor);
+  }, [colors]);
 
   const sorted = useMemo(() => {
     const list = [...mazes];
@@ -32,32 +35,15 @@ export function PublicGallerySidebar({
         return am - bm;
       });
     }
-    // 'newest' preserves the registration scan order (newest blocks first
-    // are returned by the underlying scan because we walk from head down,
-    // but the Map preserves first-insert order — so 'newest' here is
-    // effectively the natural order from the contract).
     return list;
   }, [mazes, sort]);
 
-  if (!isOpen) return null;
-
-  const bgColor = colors.pathColor;
   const accentColor = colors.uiAccentColor;
   const textColor = colors.wallColor;
 
-  const shortId = (tokenId: bigint): string => {
-    const hex = tokenId.toString(16).padStart(64, '0');
-    return `0x${hex.slice(0, 4)}…${hex.slice(-4)}`;
-  };
-
   const renderTile = (maze: GalleryMaze) => {
     const replayable = !!maze.seed;
-    const onClick = replayable
-      ? () => {
-          onSelectSeed(maze.seed!);
-          onClose();
-        }
-      : undefined;
+    const onClick = replayable ? () => selectSeed(maze.seed!) : undefined;
     const label = maze.seed ?? shortId(maze.tokenId);
     return (
       <button
@@ -144,138 +130,77 @@ export function PublicGallerySidebar({
   );
 
   return (
-    <>
+    <div
+      style={{ ...styles.page, backgroundColor: colors.pageBackgroundColor }}
+    >
       <style>
         {`
-          @keyframes gallerySidebarSlideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-          }
-          @keyframes galleryOverlayFadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
           .gallery-tile {
             background: rgba(255, 255, 255, 0.08);
             border: none;
             border-radius: 8px;
-            padding: 8px;
+            padding: 10px;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 8px;
             text-align: left;
             font-family: inherit;
             cursor: pointer;
             transition: background-color 0.15s ease;
           }
-          .gallery-tile:hover {
+          .gallery-tile:not(:disabled):hover {
             background-color: rgba(255, 255, 255, 0.16);
+          }
+          .gallery-tile:disabled {
+            cursor: default;
           }
         `}
       </style>
-
-      <div
-        style={{ ...styles.overlay, backgroundColor: colors.modalOverlayColor }}
-        onClick={onClose}
-      />
-
-      <div
-        style={{
-          ...styles.sidebar,
-          backgroundColor: bgColor,
-          borderLeftColor: accentColor,
-        }}
-      >
-        <div style={styles.header}>
-          <h3 style={{ ...styles.title, color: textColor }}>Public Gallery</h3>
-          <button
-            onClick={onClose}
-            style={{ ...styles.closeButton, color: textColor }}
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
-        <div style={styles.sortRow}>
-          {sortButton('solves', 'Most solved')}
-          {sortButton('minMoves', 'Best score')}
-          {sortButton('newest', 'Newest')}
-        </div>
-        <div style={styles.body}>{body}</div>
+      <PageHeader title="Public Gallery" colors={colors} current="gallery" />
+      <div style={styles.sortRow}>
+        {sortButton('solves', 'Most solved')}
+        {sortButton('minMoves', 'Best score')}
+        {sortButton('newest', 'Newest')}
       </div>
-    </>
+      <div style={styles.body}>{body}</div>
+    </div>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    zIndex: 1000,
-    animation: 'galleryOverlayFadeIn 0.2s ease-out',
-  },
-  sidebar: {
-    position: 'fixed',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    width: '360px',
-    maxWidth: '92vw',
-    borderLeft: '3px solid',
-    zIndex: 1001,
-    animation: 'gallerySidebarSlideIn 0.2s ease-out',
+  page: {
+    width: '100%',
+    height: '100%',
     display: 'flex',
     flexDirection: 'column',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '16px 20px',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-  },
-  title: {
-    margin: 0,
-    fontSize: '18px',
-    fontWeight: 600,
-  },
-  closeButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: '28px',
-    cursor: 'pointer',
-    padding: 0,
-    lineHeight: 1,
-    opacity: 0.7,
+    overflow: 'hidden',
   },
   sortRow: {
     display: 'flex',
-    gap: '6px',
-    padding: '10px 12px',
+    gap: '8px',
+    padding: '10px 20px',
     borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    flexShrink: 0,
   },
   sortButton: {
-    flex: 1,
     border: 'none',
     borderRadius: '6px',
-    padding: '6px 8px',
-    fontSize: '12px',
+    padding: '6px 14px',
+    fontSize: '13px',
     fontFamily: 'inherit',
     cursor: 'pointer',
   },
   body: {
     flex: 1,
     overflow: 'auto',
-    padding: '12px',
+    padding: '16px 20px 40px',
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-    gap: '10px',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+    gap: '14px',
+    maxWidth: '1400px',
+    margin: '0 auto',
   },
   tile: {
     width: '100%',
@@ -319,19 +244,19 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: 'hidden',
   },
   seedLabel: {
-    fontSize: '12px',
+    fontSize: '13px',
     fontFamily: 'monospace',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
   metaLabel: {
-    fontSize: '10px',
+    fontSize: '11px',
     opacity: 0.7,
     fontFamily: 'monospace',
   },
   empty: {
-    padding: '20px',
+    padding: '40px 20px',
     textAlign: 'center',
     opacity: 0.7,
     fontSize: '14px',

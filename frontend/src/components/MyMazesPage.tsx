@@ -1,42 +1,32 @@
+import { useEffect, useMemo } from 'react';
 import { useAccount } from 'wagmi';
-import type { ColorScheme } from '../types';
 import { useOwnedMazes, type OwnedMaze } from '../hooks/useOwnedMazes';
-
-interface MyMazesSidebarProps {
-  isOpen: boolean;
-  colors: ColorScheme;
-  onSelectSeed: (seed: string) => void;
-  onClose: () => void;
-}
+import { generateColorScheme } from '../lib/colorGenerator';
+import { useAppOutlet } from '../App';
+import { PageHeader } from './PageHeader';
 
 function shortId(tokenId: bigint): string {
   const hex = tokenId.toString(16).padStart(64, '0');
   return `0x${hex.slice(0, 4)}…${hex.slice(-4)}`;
 }
 
-export function MyMazesSidebar({
-  isOpen,
-  colors,
-  onSelectSeed,
-  onClose,
-}: MyMazesSidebarProps) {
+export function MyMazesPage() {
   const { isConnected, address } = useAccount();
-  const { loading, error, mazes } = useOwnedMazes(isOpen);
+  const { loading, error, mazes } = useOwnedMazes(true);
+  const { seed, selectSeed } = useAppOutlet();
+  const colors = useMemo(() => generateColorScheme(seed), [seed]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    document.body.style.backgroundColor = colors.pageBackgroundColor;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', colors.headerBackgroundColor);
+  }, [colors]);
 
-  const bgColor = colors.pathColor;
-  const accentColor = colors.uiAccentColor;
   const textColor = colors.wallColor;
 
   const renderTile = (maze: OwnedMaze) => {
     const replayable = !!maze.seed;
-    const onClick = replayable
-      ? () => {
-          onSelectSeed(maze.seed!);
-          onClose();
-        }
-      : undefined;
+    const onClick = replayable ? () => selectSeed(maze.seed!) : undefined;
 
     return (
       <button
@@ -111,25 +101,19 @@ export function MyMazesSidebar({
   }
 
   return (
-    <>
+    <div
+      style={{ ...styles.page, backgroundColor: colors.pageBackgroundColor }}
+    >
       <style>
         {`
-          @keyframes mazesSidebarSlideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-          }
-          @keyframes mazesOverlayFadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
           .my-mazes-tile {
             background: rgba(255, 255, 255, 0.08);
             border: none;
             border-radius: 8px;
-            padding: 8px;
+            padding: 10px;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 8px;
             text-align: left;
             font-family: inherit;
             transition: background-color 0.15s ease;
@@ -142,89 +126,31 @@ export function MyMazesSidebar({
           }
         `}
       </style>
-
-      <div
-        style={{ ...styles.overlay, backgroundColor: colors.modalOverlayColor }}
-        onClick={onClose}
-      />
-
-      <div
-        style={{
-          ...styles.sidebar,
-          backgroundColor: bgColor,
-          borderLeftColor: accentColor,
-        }}
-      >
-        <div style={styles.header}>
-          <h3 style={{ ...styles.title, color: textColor }}>My Mazes</h3>
-          <button
-            onClick={onClose}
-            style={{ ...styles.closeButton, color: textColor }}
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
-        <div style={styles.body}>{body}</div>
-      </div>
-    </>
+      <PageHeader title="My Mazes" colors={colors} current="mazes" />
+      <div style={styles.body}>{body}</div>
+    </div>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    zIndex: 1000,
-    animation: 'mazesOverlayFadeIn 0.2s ease-out',
-  },
-  sidebar: {
-    position: 'fixed',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    width: '340px',
-    maxWidth: '90vw',
-    borderLeft: '3px solid',
-    zIndex: 1001,
-    animation: 'mazesSidebarSlideIn 0.2s ease-out',
+  page: {
+    width: '100%',
+    height: '100%',
     display: 'flex',
     flexDirection: 'column',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '16px 20px',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-  },
-  title: {
-    margin: 0,
-    fontSize: '18px',
-    fontWeight: 600,
-  },
-  closeButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: '28px',
-    cursor: 'pointer',
-    padding: 0,
-    lineHeight: 1,
-    opacity: 0.7,
+    overflow: 'hidden',
   },
   body: {
     flex: 1,
     overflow: 'auto',
-    padding: '12px',
+    padding: '16px 20px 40px',
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-    gap: '10px',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+    gap: '14px',
+    maxWidth: '1400px',
+    margin: '0 auto',
   },
   tile: {
     width: '100%',
@@ -255,16 +181,16 @@ const styles: Record<string, React.CSSProperties> = {
     whiteSpace: 'nowrap',
   },
   seedLabel: {
-    fontSize: '12px',
+    fontSize: '13px',
     fontFamily: 'monospace',
   },
   idLabel: {
-    fontSize: '11px',
+    fontSize: '12px',
     opacity: 0.7,
     fontFamily: 'monospace',
   },
   empty: {
-    padding: '20px',
+    padding: '40px 20px',
     textAlign: 'center',
     opacity: 0.7,
     fontSize: '14px',

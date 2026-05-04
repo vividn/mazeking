@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAccount } from 'wagmi';
 import type {
   GameState,
@@ -20,8 +21,6 @@ import { WinModal } from './WinModal';
 import { SeedBar } from './SeedBar';
 import { HeaderSeedInput } from './HeaderSeedInput';
 import { HistorySidebar } from './HistorySidebar';
-import { MyMazesSidebar } from './MyMazesSidebar';
-import { PublicGallerySidebar } from './PublicGallerySidebar';
 import { MazeSizeWarning } from './MazeSizeWarning';
 import { Wordmark } from './Wordmark';
 import { pickTextColor } from '../lib/contrastText';
@@ -30,6 +29,7 @@ import { DEFAULT_SEED } from '../App';
 interface GameProps {
   initialSeed: string;
   onSeedChange: (seed: string) => void;
+  active: boolean;
 }
 
 const DIRECTION_TO_MOVE: Record<string, Move> = {
@@ -39,7 +39,8 @@ const DIRECTION_TO_MOVE: Record<string, Move> = {
   left: 3, // Move.Left
 };
 
-export function Game({ initialSeed, onSeedChange }: GameProps) {
+export function Game({ initialSeed, onSeedChange, active }: GameProps) {
+  const navigate = useNavigate();
   const mazeRef = useRef<MazeHandle>(null);
   const [seed, setSeed] = useState(initialSeed);
   const [maze, setMaze] = useState<MazeData | null>(null);
@@ -52,9 +53,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   // without regalia. Cleared as soon as they step away.
   const [showKinglyHint, setShowKinglyHint] = useState(false);
   const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
-  const [myMazesSidebarOpen, setMyMazesSidebarOpen] = useState(false);
   const [winModalDismissed, setWinModalDismissed] = useState(false);
-  const [gallerySidebarOpen, setGallerySidebarOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const { isConnected } = useAccount();
   const [copied, setCopied] = useState(false);
@@ -77,12 +76,14 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
 
   // Sync mobile status-bar theme-color to seed's wall color, and tint the
   // page background so the chrome around the maze shares the seed's palette.
+  // We only do this while the / route is active so MyMazes/Gallery pages can
+  // own their own page background without fighting the game's seed palette.
   useEffect(() => {
-    if (!colors) return;
+    if (!active || !colors) return;
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', colors.wallColor);
     document.body.style.backgroundColor = colors.pageBackgroundColor;
-  }, [colors]);
+  }, [active, colors]);
 
   // Initialize game from seed
   const initGame = useCallback(
@@ -208,6 +209,9 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
 
   // Keyboard controls
   useEffect(() => {
+    // Game routes own keyboard handling; on /mazes or /gallery the page is
+    // responsible for any shortcuts it cares about, so we no-op here.
+    if (!active) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't handle game keys when seed bar is open (input captures keys)
       if (seedBarOpen) return;
@@ -217,24 +221,6 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         if (e.key === 'Escape') {
           e.preventDefault();
           setHistorySidebarOpen(false);
-        }
-        return;
-      }
-
-      // Same for the My Mazes sidebar — let Escape close it, swallow others.
-      if (myMazesSidebarOpen) {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          setMyMazesSidebarOpen(false);
-        }
-        return;
-      }
-
-      // And the Public Gallery sidebar.
-      if (gallerySidebarOpen) {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          setGallerySidebarOpen(false);
         }
         return;
       }
@@ -305,12 +291,11 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
+    active,
     handleMove,
     gameState?.gameWon,
     seedBarOpen,
     historySidebarOpen,
-    myMazesSidebarOpen,
-    gallerySidebarOpen,
     initGame,
     seed,
   ]);
@@ -521,7 +506,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
                   </button>
                   {isConnected && (
                     <button
-                      onClick={() => setMyMazesSidebarOpen(true)}
+                      onClick={() => navigate('/mazes')}
                       style={{
                         ...styles.iconButton,
                         borderColor: getContrastColor(
@@ -530,13 +515,13 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
                         color: getContrastColor(colors.headerBackgroundColor),
                       }}
                       title="My Mazes"
-                      aria-label="Open my mazes"
+                      aria-label="Go to my mazes"
                     >
                       👤
                     </button>
                   )}
                   <button
-                    onClick={() => setGallerySidebarOpen(true)}
+                    onClick={() => navigate('/gallery')}
                     style={{
                       ...styles.iconButton,
                       borderColor: getContrastColor(
@@ -545,7 +530,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
                       color: getContrastColor(colors.headerBackgroundColor),
                     }}
                     title="Gallery"
-                    aria-label="Open public gallery"
+                    aria-label="Go to public gallery"
                   >
                     🖼
                   </button>
@@ -676,7 +661,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         visited={visited}
         onViewCollection={() => {
           setWinModalDismissed(true);
-          setMyMazesSidebarOpen(true);
+          navigate('/mazes');
         }}
       />
 
@@ -694,20 +679,6 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         colors={colors}
         onSelectSeed={handleHistorySelect}
         onClose={() => setHistorySidebarOpen(false)}
-      />
-
-      <MyMazesSidebar
-        isOpen={myMazesSidebarOpen}
-        colors={colors}
-        onSelectSeed={handleHistorySelect}
-        onClose={() => setMyMazesSidebarOpen(false)}
-      />
-
-      <PublicGallerySidebar
-        isOpen={gallerySidebarOpen}
-        colors={colors}
-        onSelectSeed={handleHistorySelect}
-        onClose={() => setGallerySidebarOpen(false)}
       />
     </div>
   );
