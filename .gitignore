@@ -20,3 +20,5 @@ contracts/deployments/
 # Local anvil (chainId 31337) contract addresses for the frontend.
 # Written by `just deploy-local`; never committed.
 frontend/src/lib/contracts.local.ts
+.runtime/
+CLAUDE.local.md
