@@ -3,12 +3,14 @@ import peasantUrl from './peasant.png?url';
 import peasantRegaliaUrl from './peasant_regalia.png?url';
 import robeScepterUrl from './robe_scepter.png?url';
 import kingUrl from './king.png?url';
+import crownUrl from './crown.png?url';
 
 export interface GlyphImages {
   peasant: HTMLImageElement;
   peasantRegalia: HTMLImageElement;
   robeScepter: HTMLImageElement;
   king: HTMLImageElement;
+  crown: HTMLImageElement;
 }
 
 const URLS = {
@@ -16,6 +18,7 @@ const URLS = {
   peasantRegalia: peasantRegaliaUrl,
   robeScepter: robeScepterUrl,
   king: kingUrl,
+  crown: crownUrl,
 };
 
 let cached: GlyphImages | null = null;
@@ -39,8 +42,9 @@ function loadGlyphImages(): Promise<GlyphImages> {
     loadOne(URLS.peasantRegalia),
     loadOne(URLS.robeScepter),
     loadOne(URLS.king),
-  ]).then(([peasant, peasantRegalia, robeScepter, king]) => {
-    cached = { peasant, peasantRegalia, robeScepter, king };
+    loadOne(URLS.crown),
+  ]).then(([peasant, peasantRegalia, robeScepter, king, crown]) => {
+    cached = { peasant, peasantRegalia, robeScepter, king, crown };
     return cached;
   });
 
