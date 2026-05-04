@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { pickTextColor } from '../lib/contrastText';
 
 interface ControlsProps {
   onMove: (direction: 'up' | 'down' | 'left' | 'right') => void;
@@ -78,6 +79,11 @@ export const Controls: React.FC<ControlsProps> = ({
 
   const arrowBg = disabled ? 'rgba(128,128,128,0.25)' : `${accentColor}cc`;
   const arrowBgFaint = disabled ? 'rgba(128,128,128,0.15)' : `${accentColor}88`;
+  // Pick contrast based on the underlying hue (alpha is stripped).
+  const arrowFg = pickTextColor(accentColor);
+  const accentFg = pickTextColor(accentColor);
+  const wallFg = pickTextColor(wallColor);
+  const textBgFg = pickTextColor(textBackgroundColor);
 
   return (
     <div data-controls-root style={styles.root}>
@@ -99,6 +105,7 @@ export const Controls: React.FC<ControlsProps> = ({
               onPress={handleMove}
               disabled={disabled}
               bg={arrowBg}
+              fg={arrowFg}
             />
             <div />
             <ArrowButton
@@ -107,6 +114,7 @@ export const Controls: React.FC<ControlsProps> = ({
               onPress={handleMove}
               disabled={disabled}
               bg={arrowBg}
+              fg={arrowFg}
             />
             <div style={styles.dpadCenter} />
             <ArrowButton
@@ -115,6 +123,7 @@ export const Controls: React.FC<ControlsProps> = ({
               onPress={handleMove}
               disabled={disabled}
               bg={arrowBg}
+              fg={arrowFg}
             />
             <div />
             <ArrowButton
@@ -123,6 +132,7 @@ export const Controls: React.FC<ControlsProps> = ({
               onPress={handleMove}
               disabled={disabled}
               bg={arrowBg}
+              fg={arrowFg}
             />
             <div />
           </div>
@@ -134,6 +144,7 @@ export const Controls: React.FC<ControlsProps> = ({
                 onNewGame();
               }}
               bg={accentColor}
+              fg={accentFg}
             />
             <ActionButton
               label="Restart"
@@ -142,6 +153,7 @@ export const Controls: React.FC<ControlsProps> = ({
                 onRestart();
               }}
               bg={wallColor}
+              fg={wallFg}
             />
             <ActionButton
               label="History"
@@ -150,6 +162,7 @@ export const Controls: React.FC<ControlsProps> = ({
                 onHistory();
               }}
               bg={wallColor}
+              fg={wallFg}
             />
             <ActionButton
               label={copied ? 'Copied!' : 'Share'}
@@ -157,6 +170,7 @@ export const Controls: React.FC<ControlsProps> = ({
                 onShare();
               }}
               bg={textBackgroundColor}
+              fg={textBgFg}
             />
           </div>
         </div>
@@ -178,36 +192,36 @@ export const Controls: React.FC<ControlsProps> = ({
         </div>
         <div style={styles.compactRow}>
           <CompactButton
-            label="H"
-            sub="◀"
+            arrow="◀"
             dir="left"
             onPress={handleMove}
             disabled={disabled}
             bg={arrowBgFaint}
+            fg={arrowFg}
           />
           <CompactButton
-            label="J"
-            sub="▼"
+            arrow="▼"
             dir="down"
             onPress={handleMove}
             disabled={disabled}
             bg={arrowBgFaint}
+            fg={arrowFg}
           />
           <CompactButton
-            label="K"
-            sub="▲"
+            arrow="▲"
             dir="up"
             onPress={handleMove}
             disabled={disabled}
             bg={arrowBgFaint}
+            fg={arrowFg}
           />
           <CompactButton
-            label="L"
-            sub="▶"
+            arrow="▶"
             dir="right"
             onPress={handleMove}
             disabled={disabled}
             bg={arrowBgFaint}
+            fg={arrowFg}
           />
         </div>
       </div>
@@ -221,6 +235,7 @@ interface ArrowButtonProps {
   onPress: (dir: Direction) => void;
   disabled: boolean;
   bg: string;
+  fg: string;
 }
 
 const ArrowButton: React.FC<ArrowButtonProps> = ({
@@ -229,6 +244,7 @@ const ArrowButton: React.FC<ArrowButtonProps> = ({
   onPress,
   disabled,
   bg,
+  fg,
 }) => (
   <button
     type="button"
@@ -238,6 +254,7 @@ const ArrowButton: React.FC<ArrowButtonProps> = ({
     style={{
       ...styles.arrowButton,
       backgroundColor: bg,
+      color: fg,
       opacity: disabled ? 0.5 : 1,
     }}
   >
@@ -246,21 +263,21 @@ const ArrowButton: React.FC<ArrowButtonProps> = ({
 );
 
 interface CompactButtonProps {
-  label: string;
-  sub: string;
+  arrow: string;
   dir: Direction;
   onPress: (dir: Direction) => void;
   disabled: boolean;
   bg: string;
+  fg: string;
 }
 
 const CompactButton: React.FC<CompactButtonProps> = ({
-  label,
-  sub,
+  arrow,
   dir,
   onPress,
   disabled,
   bg,
+  fg,
 }) => (
   <button
     type="button"
@@ -270,11 +287,11 @@ const CompactButton: React.FC<CompactButtonProps> = ({
     style={{
       ...styles.compactButton,
       backgroundColor: bg,
+      color: fg,
       opacity: disabled ? 0.5 : 1,
     }}
   >
-    <span style={styles.compactArrow}>{sub}</span>
-    <span style={styles.compactLetter}>{label}</span>
+    <span style={styles.compactArrow}>{arrow}</span>
   </button>
 );
 
@@ -282,13 +299,25 @@ interface ActionButtonProps {
   label: string;
   onPress: () => void;
   bg: string;
+  fg: string;
 }
 
-const ActionButton: React.FC<ActionButtonProps> = ({ label, onPress, bg }) => (
+const ActionButton: React.FC<ActionButtonProps> = ({
+  label,
+  onPress,
+  bg,
+  fg,
+}) => (
   <button
     type="button"
     onClick={onPress}
-    style={{ ...styles.actionButton, backgroundColor: bg }}
+    style={{
+      ...styles.actionButton,
+      backgroundColor: bg,
+      color: fg,
+      // Dark text shadow muddies black text on light bg; only keep when text is white.
+      textShadow: fg === '#fff' ? '0 1px 2px rgba(0,0,0,0.4)' : 'none',
+    }}
   >
     {label}
   </button>
@@ -336,7 +365,6 @@ const styles: Record<string, React.CSSProperties> = {
     height: '56px',
     border: 'none',
     borderRadius: '12px',
-    color: 'white',
     fontSize: '22px',
     fontWeight: 600,
     cursor: 'pointer',
@@ -362,7 +390,6 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '10px 14px',
     fontSize: '14px',
     fontWeight: 600,
-    color: 'white',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
@@ -370,7 +397,6 @@ const styles: Record<string, React.CSSProperties> = {
     WebkitTapHighlightColor: 'transparent',
     touchAction: 'manipulation',
     boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
-    textShadow: '0 1px 2px rgba(0,0,0,0.4)',
   },
   compactBar: {
     pointerEvents: 'auto',
@@ -403,7 +429,6 @@ const styles: Record<string, React.CSSProperties> = {
     height: '40px',
     border: 'none',
     borderRadius: '8px',
-    color: 'white',
     cursor: 'pointer',
     userSelect: 'none',
     WebkitUserSelect: 'none',
@@ -412,16 +437,10 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '6px',
     fontWeight: 600,
   },
   compactArrow: {
-    fontSize: '14px',
-    opacity: 0.8,
-  },
-  compactLetter: {
-    fontSize: '14px',
-    fontFamily: 'monospace',
-    letterSpacing: '0.5px',
+    fontSize: '22px',
+    lineHeight: 1,
   },
 };

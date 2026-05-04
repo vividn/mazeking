@@ -7,6 +7,7 @@ import { isValidChar, filterToValidChars } from '../lib/pixelFont';
 import { getRandomPhrase } from '../lib/seedPhrases';
 import { Maze } from './Maze';
 import { MazeSizeWarning } from './MazeSizeWarning';
+import { pickTextColor } from '../lib/contrastText';
 
 interface SeedBarProps {
   isOpen: boolean;
@@ -77,7 +78,9 @@ export function SeedBar({ isOpen, onStartGame, onCancel }: SeedBarProps) {
         if (generationRef.current !== currentGeneration) return;
 
         const colors = generateColorScheme(seedForPreview);
-        const maze = generateMaze(seedForPreview, { debug: isDebugSeedActive(seedForPreview) }).maze;
+        const maze = generateMaze(seedForPreview, {
+          debug: isDebugSeedActive(seedForPreview),
+        }).maze;
 
         // Double-check before updating state
         if (generationRef.current === currentGeneration) {
@@ -229,7 +232,7 @@ export function SeedBar({ isOpen, onStartGame, onCancel }: SeedBarProps) {
               style={{
                 ...styles.randomButton,
                 backgroundColor: accentColor,
-                color: barBgColor,
+                color: pickTextColor(accentColor),
               }}
               title="Surprise me with a random phrase (Shift+N)"
             >

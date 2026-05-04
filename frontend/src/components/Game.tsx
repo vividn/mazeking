@@ -21,6 +21,7 @@ import { MyMazesSidebar } from './MyMazesSidebar';
 import { PublicGallerySidebar } from './PublicGallerySidebar';
 import { MazeSizeWarning } from './MazeSizeWarning';
 import { Wordmark } from './Wordmark';
+import { pickTextColor } from '../lib/contrastText';
 
 interface GameProps {
   initialSeed: string;
@@ -80,7 +81,9 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   // Initialize game from seed
   const initGame = useCallback(
     (newSeed: string) => {
-      const generated = generateMaze(newSeed, { debug: isDebugSeedActive(newSeed) });
+      const generated = generateMaze(newSeed, {
+        debug: isDebugSeedActive(newSeed),
+      });
       const newColors = generateColorScheme(newSeed);
 
       setMaze(generated.maze);
@@ -322,18 +325,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
     return <div style={styles.loading}>Loading maze...</div>;
   }
 
-  // Calculate contrasting text color for buttons
-  const getContrastColor = (bgColor: string): string => {
-    // Parse hex color
-    const hex = bgColor.replace('#', '');
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
-    // Calculate luminance
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminance > 0.5 ? '#000000' : '#ffffff';
-  };
-
+  const getContrastColor = pickTextColor;
   const buttonTextColor = getContrastColor(colors.uiAccentColor);
   const debugMode = isDebugSeedActive(seed);
 

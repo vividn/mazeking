@@ -1,4 +1,5 @@
 import React, { useState, FormEvent, KeyboardEvent, useRef } from 'react';
+import { pickTextColor } from '../lib/contrastText';
 
 interface SeedInputProps {
   currentSeed: string;
@@ -60,6 +61,7 @@ export const SeedInput: React.FC<SeedInputProps> = ({
         style={{
           ...styles.button,
           backgroundColor: accentColor,
+          color: pickTextColor(accentColor),
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.opacity = '0.85';
@@ -114,7 +116,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '6px 14px',
     fontSize: '14px',
     fontWeight: 500,
-    color: '#ffffff',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',

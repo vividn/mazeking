@@ -11,6 +11,7 @@ import { sepolia } from 'wagmi/chains';
 import { computeTokenIdFromMazeHash } from '../lib/tokenId';
 import { rememberMint } from '../lib/mintRegistry';
 import { computeOptimalMoves, tierFromMoveCount } from '../lib/mazeSolver';
+import { pickTextColor } from '../lib/contrastText';
 
 interface WinModalProps {
   isOpen: boolean;
@@ -403,13 +404,13 @@ export function WinModal({
   const primaryButtonStyle: React.CSSProperties = {
     ...baseButtonStyle,
     backgroundColor: colors.uiAccentColor,
-    color: colors.pathColor,
+    color: pickTextColor(colors.uiAccentColor),
   };
 
   const secondaryButtonStyle: React.CSSProperties = {
     ...baseButtonStyle,
     backgroundColor: colors.wallColor,
-    color: colors.pathColor,
+    color: pickTextColor(colors.wallColor),
   };
 
   const shareButtonStyle: React.CSSProperties = {
@@ -423,7 +424,7 @@ export function WinModal({
   const zkButtonStyle: React.CSSProperties = {
     ...baseButtonStyle,
     backgroundColor: colors.keyColor,
-    color: '#000',
+    color: pickTextColor(colors.keyColor),
   };
 
   const errorStyle: React.CSSProperties = {

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { ColorScheme } from '../types';
 import { useGalleryMazes, type GalleryMaze } from '../hooks/useGalleryMazes';
+import { pickTextColor } from '../lib/contrastText';
 
 type SortMode = 'solves' | 'minMoves' | 'newest';
 
@@ -74,7 +75,7 @@ export function PublicGallerySidebar({
             style={{
               ...styles.solveBadge,
               backgroundColor: accentColor,
-              color: textColor,
+              color: pickTextColor(accentColor),
             }}
             aria-label={`${maze.timesSolved} solves`}
           >
@@ -115,7 +116,7 @@ export function PublicGallerySidebar({
       onClick={() => setSort(mode)}
       style={{
         ...styles.sortButton,
-        color: textColor,
+        color: sort === mode ? pickTextColor(accentColor) : textColor,
         backgroundColor:
           sort === mode ? accentColor : 'rgba(255, 255, 255, 0.08)',
         fontWeight: sort === mode ? 600 : 400,
