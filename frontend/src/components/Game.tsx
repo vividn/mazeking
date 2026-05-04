@@ -17,6 +17,7 @@ import { WinModal } from './WinModal';
 import { SeedBar } from './SeedBar';
 import { HistorySidebar } from './HistorySidebar';
 import { MyMazesSidebar } from './MyMazesSidebar';
+import { PublicGallerySidebar } from './PublicGallerySidebar';
 import { MazeSizeWarning } from './MazeSizeWarning';
 import { Wordmark } from './Wordmark';
 
@@ -46,6 +47,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   const [showKinglyHint, setShowKinglyHint] = useState(false);
   const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
   const [myMazesSidebarOpen, setMyMazesSidebarOpen] = useState(false);
+  const [gallerySidebarOpen, setGallerySidebarOpen] = useState(false);
   const { isConnected } = useAccount();
   const [copied, setCopied] = useState(false);
   const [initialPositions, setInitialPositions] = useState<{
@@ -194,6 +196,15 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         return;
       }
 
+      // And the Public Gallery sidebar.
+      if (gallerySidebarOpen) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setGallerySidebarOpen(false);
+        }
+        return;
+      }
+
       // R key restarts the game (works even when won)
       if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
@@ -258,6 +269,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
     seedBarOpen,
     historySidebarOpen,
     myMazesSidebarOpen,
+    gallerySidebarOpen,
     initGame,
     seed,
   ]);
@@ -414,6 +426,16 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
                 </button>
               )}
               <button
+                onClick={() => setGallerySidebarOpen(true)}
+                style={{
+                  ...styles.actionButton,
+                  backgroundColor: colors.uiAccentColor,
+                  color: buttonTextColor,
+                }}
+              >
+                Gallery
+              </button>
+              <button
                 onClick={() => setSeedBarOpen(true)}
                 style={{
                   ...styles.actionButton,
@@ -501,6 +523,13 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         colors={colors}
         onSelectSeed={handleHistorySelect}
         onClose={() => setMyMazesSidebarOpen(false)}
+      />
+
+      <PublicGallerySidebar
+        isOpen={gallerySidebarOpen}
+        colors={colors}
+        onSelectSeed={handleHistorySelect}
+        onClose={() => setGallerySidebarOpen(false)}
       />
     </div>
   );
