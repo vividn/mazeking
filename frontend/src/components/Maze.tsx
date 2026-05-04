@@ -617,7 +617,8 @@ export const Maze: React.FC<MazeProps> = ({
           cellSize * 0.9,
           colors.goalColor,
           hasKey,
-          colors.goalGlowColor
+          colors.goalGlowColor,
+          glyphImages ?? undefined
         );
       }
 

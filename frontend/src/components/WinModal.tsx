@@ -12,6 +12,7 @@ import { computeTokenIdFromMazeHash } from '../lib/tokenId';
 import { rememberMint } from '../lib/mintRegistry';
 import { computeOptimalMoves, tierFromMoveCount } from '../lib/mazeSolver';
 import { pickTextColor } from '../lib/contrastText';
+import kingUrl from '../glyphs/king.png?url';
 
 interface WinModalProps {
   isOpen: boolean;
@@ -290,12 +291,14 @@ export function WinModal({
     animation: 'slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
   };
 
-  const crownStyle: React.CSSProperties = {
-    fontSize: '72px',
-    textAlign: 'center',
-    marginBottom: '16px',
-    animation: 'bounce 0.6s ease-in-out',
-    filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))',
+  const kingHeroStyle: React.CSSProperties = {
+    display: 'block',
+    margin: '8px auto 20px',
+    width: 'auto',
+    height: 'auto',
+    maxWidth: '200px',
+    maxHeight: '180px',
+    filter: 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35))',
   };
 
   const titleStyle: React.CSSProperties = {
@@ -462,19 +465,20 @@ export function WinModal({
             }
           }
 
-          @keyframes bounce {
-            0%, 100% {
-              transform: translateY(0) scale(1);
+          @keyframes kingEntrance {
+            from {
+              opacity: 0;
+              transform: scale(0.85);
             }
-            25% {
-              transform: translateY(-20px) scale(1.1);
+            to {
+              opacity: 1;
+              transform: scale(1);
             }
-            50% {
-              transform: translateY(-10px) scale(1.05);
-            }
-            75% {
-              transform: translateY(-5px) scale(1.02);
-            }
+          }
+
+          .win-king-hero {
+            animation: kingEntrance 250ms ease-out both;
+            transform-origin: center bottom;
           }
 
           @keyframes stampIn {
@@ -505,7 +509,7 @@ export function WinModal({
 
           @media (prefers-reduced-motion: reduce) {
             .win-modal,
-            .win-crown,
+            .win-king-hero,
             .win-stamp {
               animation: none !important;
             }
@@ -521,15 +525,19 @@ export function WinModal({
           aria-labelledby="win-title"
           aria-modal="true"
         >
-          <div className="win-crown" style={crownStyle} aria-hidden="true">
-            👑
-          </div>
-
           <h2 id="win-title" style={titleStyle}>
             Victory!
           </h2>
 
           <p style={subtitleStyle}>{subtitle}</p>
+
+          <img
+            className="win-king-hero"
+            src={kingUrl}
+            alt=""
+            aria-hidden="true"
+            style={kingHeroStyle}
+          />
 
           <div style={certificateFrameStyle}>
             <div style={thumbnailStyle}>

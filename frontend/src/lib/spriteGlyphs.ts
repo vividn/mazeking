@@ -377,7 +377,8 @@ export function drawCrownGoal(
   size: number,
   color: string,
   playerHasRegalia: boolean,
-  glowColor?: string
+  glowColor?: string,
+  images?: GlyphImages
 ): void {
   if (playerHasRegalia && glowColor) {
     // Soft halo behind the crown so it pops once the player can win.
@@ -392,6 +393,11 @@ export function drawCrownGoal(
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+  }
+
+  if (images) {
+    drawImageGlyph(ctx, images.crown, x, y, size);
+    return;
   }
 
   drawSprite(ctx, x, y, size, CROWN, color);
