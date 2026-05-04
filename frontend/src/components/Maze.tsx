@@ -46,8 +46,8 @@ interface MazeProps {
    */
   crownTier?: CrownTier;
   /**
-   * When true, render a small "you don't look like the king" speech bubble
-   * above the player. Shown when the player reaches the goal without regalia.
+   * When true, render the regalia hint speech bubble above the player. Shown
+   * when the player reaches the goal without regalia.
    */
   showKinglyHint?: boolean;
 }
@@ -70,35 +70,65 @@ export interface MazeHandle {
   resetView: () => void;
 }
 
-const KINGLY_HINT_TEXT = "you don't look like the king";
+const KINGLY_HINT_TEXT =
+  'Coronation is only for kings in full regalia. Find your robe and scepter first';
+
+// Greedy word-wrap to a max pixel width using the currently set ctx.font.
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number
+): string[] {
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (current && ctx.measureText(candidate).width > maxWidth) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
 
 /**
  * Draw a speech bubble carrying the anti-shortcut hint near the player.
  * `anchorY` is the cell edge the bubble's tail points toward — top edge by
  * default, bottom edge when `below` is true (used when the player is in the
  * top row and there's no room above).
+ *
+ * `maxWidth` caps bubble width (in canvas px). The text wraps to multiple
+ * lines if a single line would exceed it.
  */
 function drawKinglyHint(
   ctx: CanvasRenderingContext2D,
   centerX: number,
   anchorY: number,
   cellSize: number,
-  below: boolean = false
+  below: boolean = false,
+  maxWidth: number = Infinity
 ): void {
   // Font size scales with cell size, with a comfortable readable floor.
   const fontPx = Math.max(11, Math.min(16, cellSize * 0.42));
   const padX = fontPx * 0.7;
   const padY = fontPx * 0.4;
+  const lineGap = fontPx * 0.25;
 
   ctx.save();
   ctx.font = `600 ${fontPx}px ui-sans-serif, system-ui, -apple-system, sans-serif`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
 
-  const metrics = ctx.measureText(KINGLY_HINT_TEXT);
-  const textW = metrics.width;
+  const innerMax = Math.max(fontPx * 6, maxWidth - padX * 2);
+  const lines = wrapText(ctx, KINGLY_HINT_TEXT, innerMax);
+  const textW = Math.max(...lines.map((l) => ctx.measureText(l).width));
   const bubbleW = textW + padX * 2;
-  const bubbleH = fontPx + padY * 2;
+  const bubbleH =
+    fontPx * lines.length + lineGap * (lines.length - 1) + padY * 2;
   const tailH = fontPx * 0.4;
   const gap = Math.max(2, cellSize * 0.08);
 
@@ -164,7 +194,11 @@ function drawKinglyHint(
   ctx.stroke();
 
   ctx.fillStyle = '#1a1a1a';
-  ctx.fillText(KINGLY_HINT_TEXT, centerX, bubbleTop + bubbleH / 2);
+  const lineH = fontPx + lineGap;
+  const firstLineY = bubbleTop + padY + fontPx / 2;
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], centerX, firstLineY + i * lineH);
+  }
 
   ctx.restore();
 }
@@ -691,7 +725,20 @@ export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
         const anchorY = flipBelow
           ? (playerPos.y + 1) * cellSize
           : playerPos.y * cellSize;
-        drawKinglyHint(ctx, playerCenterX, anchorY, cellSize, flipBelow);
+        // Cap bubble width so the long hint doesn't run offscreen on small
+        // viewports — wrap to multiple lines instead.
+        const maxBubbleW = Math.min(
+          maze.width * cellSize * 0.9,
+          cellSize * 14
+        );
+        drawKinglyHint(
+          ctx,
+          playerCenterX,
+          anchorY,
+          cellSize,
+          flipBelow,
+          maxBubbleW
+        );
       }
     }
 

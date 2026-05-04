@@ -46,8 +46,8 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   const [visited, setVisited] = useState<Set<string>>(new Set());
   const [isMobile, setIsMobile] = useState(false);
   const [seedBarOpen, setSeedBarOpen] = useState(false);
-  // 'you don't look like the king' hint — true while the player is standing
-  // on the goal cell without regalia. Cleared as soon as they step away.
+  // Regalia hint bubble — true while the player is standing on the goal cell
+  // without regalia. Cleared as soon as they step away.
   const [showKinglyHint, setShowKinglyHint] = useState(false);
   const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
   const [myMazesSidebarOpen, setMyMazesSidebarOpen] = useState(false);
