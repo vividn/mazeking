@@ -21,7 +21,7 @@ export function MyMazesSidebar({
   onClose,
 }: MyMazesSidebarProps) {
   const { isConnected, address } = useAccount();
-  const { loading, error, mazes } = useOwnedMazes();
+  const { loading, error, mazes } = useOwnedMazes(isOpen);
 
   if (!isOpen) return null;
 

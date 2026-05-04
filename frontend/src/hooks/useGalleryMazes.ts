@@ -4,7 +4,7 @@ import type { Address, PublicClient } from 'viem';
 import { parseAbiItem } from 'viem';
 import MazeKingNFTAbi from '../lib/abi/MazeKingNFT.json';
 import { getContractAddress } from '../lib/contracts';
-import { rememberMany } from '../lib/mintRegistry';
+import { rememberMany, lookupSeed } from '../lib/mintRegistry';
 
 /**
  * How far back from the current block to scan event logs. Mirrors
@@ -20,10 +20,16 @@ const MAZE_REGISTERED = parseAbiItem(
 const PROOF_VERIFIED = parseAbiItem(
   'event ProofVerified(address indexed solver, uint256 indexed tokenId, uint16 moveCount)'
 );
+const TRANSFER_SINGLE = parseAbiItem(
+  'event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value)'
+);
+
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
 
 export interface GalleryMaze {
   tokenId: bigint;
-  seed: string;
+  /** null when only the mint event is known (registrar didn't publish a seed). */
+  seed: string | null;
   imageUrl: string | null;
   timesSolved: number;
   minMoves: number | null;
@@ -70,6 +76,40 @@ async function scanRegisteredMazes(
   }
 
   return Array.from(seen.values());
+}
+
+// TODO(post-registrar): once the registrar UI ships and creators publish seeds
+// via MazeRegistered, this mint-fallback can be dropped (or kept behind a
+// "show all mints" toggle). Until then, Gallery would otherwise be empty —
+// MazeRegistered is registrar-only and emits zero events for ordinary mints.
+async function scanMintedTokenIds(
+  client: PublicClient,
+  contract: Address
+): Promise<bigint[]> {
+  const head = await client.getBlockNumber();
+  const oldest = head > LOOKBACK_BLOCKS ? head - LOOKBACK_BLOCKS : 0n;
+  const ids = new Set<string>();
+
+  let to = head;
+  while (to >= oldest) {
+    const from =
+      to >= CHUNK_SIZE && to - CHUNK_SIZE > oldest ? to - CHUNK_SIZE : oldest;
+    const logs = await client.getLogs({
+      address: contract,
+      event: TRANSFER_SINGLE,
+      args: { from: ZERO_ADDRESS },
+      fromBlock: from,
+      toBlock: to,
+    });
+    for (const log of logs) {
+      const id = log.args.id;
+      if (id !== undefined) ids.add(id.toString());
+    }
+    if (from === oldest) break;
+    to = from - 1n;
+  }
+
+  return Array.from(ids, (s) => BigInt(s));
 }
 
 async function scanProofStats(
@@ -160,22 +200,38 @@ export function useGalleryMazes(
       setState((s) => ({ ...s, loading: true, error: null }));
 
       try {
-        const [registered, proofStats] = await Promise.all([
+        const [registered, mintedIds, proofStats] = await Promise.all([
           scanRegisteredMazes(publicClient, contractAddress),
+          scanMintedTokenIds(publicClient, contractAddress),
           scanProofStats(publicClient, contractAddress),
         ]);
         if (cancelled) return;
 
-        if (registered.length === 0) {
+        // Hydrate the local seed registry so other views (My Mazes) can
+        // recover replay seeds for tokens minted on a different device.
+        // Only registered events carry the seed string.
+        rememberMany(registered);
+
+        // Merge: registered tokens win (they have a seed string); fall back
+        // to minted token ids for the rest. Same tokenId in both lists is
+        // deduped via the registered map.
+        const registeredById = new Map(
+          registered.map((r) => [r.tokenId.toString(), r.seed])
+        );
+        const seedFor = (id: bigint): string | null =>
+          registeredById.get(id.toString()) ?? lookupSeed(id) ?? null;
+
+        const mergedIds: bigint[] = [
+          ...registered.map((r) => r.tokenId),
+          ...mintedIds.filter((id) => !registeredById.has(id.toString())),
+        ];
+
+        if (mergedIds.length === 0) {
           setState({ loading: false, error: null, mazes: [] });
           return;
         }
 
-        // Hydrate the local seed registry so other views (My Mazes) can
-        // recover replay seeds for tokens minted on a different device.
-        rememberMany(registered);
-
-        const tokenIds = registered.map((r) => r.tokenId);
+        const tokenIds = mergedIds;
 
         const [disqResults, uriResults] = await Promise.all([
           publicClient.multicall({
@@ -200,7 +256,7 @@ export function useGalleryMazes(
         if (cancelled) return;
 
         const mazes: GalleryMaze[] = [];
-        for (let i = 0; i < registered.length; i++) {
+        for (let i = 0; i < tokenIds.length; i++) {
           const dq = disqResults[i];
           if (dq && dq.status === 'success' && dq.result === true) continue;
 
@@ -210,7 +266,7 @@ export function useGalleryMazes(
           const agg = proofStats.get(tokenIds[i].toString());
           mazes.push({
             tokenId: tokenIds[i],
-            seed: registered[i].seed,
+            seed: seedFor(tokenIds[i]),
             imageUrl: decodeImageFromTokenUri(tokenUri),
             timesSolved: agg?.timesSolved ?? 0,
             minMoves: agg?.minMoves ?? null,
