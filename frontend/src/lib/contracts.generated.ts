@@ -1,25 +1,20 @@
 /**
- * Public-network contract addresses (Sepolia, mainnet, etc.).
+ * Public-network contract addresses.
  *
- * This file is intentionally tracked in git so that statichost.eu's build
- * picks up the live addresses. `just deploy-sepolia` overwrites it via
- * `scripts/generate-contracts-config.js`; commit the diff after redeploying.
+ * Written by `just deploy-sepolia` (and other non-local deploys) via
+ * `scripts/generate-contracts-config.js`. Tracked in git so statichost.eu's
+ * build picks up the live addresses; commit the diff after redeploying.
  *
- * Local anvil (chainId 31337) addresses live in the gitignored sibling file
- * `contracts.local.ts`, written by `just deploy-local`. The loader in
- * `contracts.ts` merges both so consumers see a single map.
- *
- * ABIs are NOT inlined here — they live in `frontend/src/lib/abi/*.json` and
- * are imported directly by the consumers that need them.
+ * Local anvil (31337) addresses live in the gitignored sibling
+ * `contracts.local.ts`.
  */
 
 export const CONTRACT_ADDRESSES: Record<
   number,
   { nft: `0x${string}`; verifier: `0x${string}` }
 > = {
-  // Sepolia
   11155111: {
-    nft: '0xe60b6d8a04a45a34210835830c4cd2dbd6500824',
-    verifier: '0xa09528e41b638dfdbd9daa1d1bfe5f34712d39b6',
+    nft: '0xa9B0C038ff03d996F57c65dC562F7A30F15ECcDc',
+    verifier: '0x520F7Ad9D989cdFA113186d4A40Ab89D135307F4',
   },
 };
