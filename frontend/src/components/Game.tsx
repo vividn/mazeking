@@ -362,6 +362,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
         startPos={initialPositions.startPos}
         keyPos={initialPositions.keyPos}
         goalPos={initialPositions.goalPos}
+        visited={visited}
       />
 
       <SeedBar
