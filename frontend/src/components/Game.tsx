@@ -10,6 +10,9 @@ import type {
 import { generateMaze, canMove, getNewPosition } from '../lib/mazeGenerator';
 import { isDebugSeedActive } from '../lib/debugSeed';
 import { generateColorScheme } from '../lib/colorGenerator';
+import { computeMazeHash, deriveColors } from '../lib/mazeIdentity';
+import { serializeLayoutBytes } from '../lib/tokenId';
+import { serializeForZk } from '../lib/zkSerialize';
 import { addSeedToHistory } from '../lib/seedHistory';
 import { getRandomPhrase } from '../lib/seedPhrases';
 import { Maze } from './Maze';
@@ -77,14 +80,20 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
     document.body.style.backgroundColor = colors.pageBackgroundColor;
   }, [colors]);
 
-  // Initialize game from seed
+  // Initialize game from seed.
+  //
+  // Color flow: render synchronously with the seed-derived palette so the
+  // canvas paints immediately, then upgrade to the canonical mazeHash-derived
+  // palette once Pedersen completes (a one-time WASM init, sub-ms thereafter).
+  // The mazeHash palette is the one the on-chain SVG renders with — keeping
+  // them aligned means the live game and the minted NFT visually agree.
   const initGame = useCallback(
     (newSeed: string) => {
       const generated = generateMaze(newSeed, { debug: isDebugSeedActive(newSeed) });
-      const newColors = generateColorScheme(newSeed);
+      const previewColors = generateColorScheme(newSeed);
 
       setMaze(generated.maze);
-      setColors(newColors);
+      setColors(previewColors);
 
       // Store initial positions for ZK proof generation
       setInitialPositions({
@@ -110,6 +119,32 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
       setSeed(newSeed);
       onSeedChange(newSeed);
       addSeedToHistory(newSeed);
+
+      // Upgrade to the on-chain palette once mazeHash is available. Guarded
+      // by a closure capture of `newSeed` so a rapid seed change doesn't
+      // overwrite the in-flight palette with a stale one.
+      const targetSeed = newSeed;
+      void (async () => {
+        try {
+          const zk = serializeForZk(
+            generated.maze,
+            generated.kingPos,
+            generated.keyPos,
+            generated.goalPos
+          );
+          const layoutBytes = serializeLayoutBytes(zk);
+          const mazeHash = await computeMazeHash(layoutBytes);
+          // Only apply if the user hasn't switched seeds while we were hashing.
+          setSeed((current) => {
+            if (current === targetSeed) {
+              setColors(deriveColors(mazeHash));
+            }
+            return current;
+          });
+        } catch (err) {
+          console.warn('mazeHash palette upgrade failed; keeping seed-derived colors:', err);
+        }
+      })();
     },
     [onSeedChange]
   );

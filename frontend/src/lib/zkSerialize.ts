@@ -173,10 +173,19 @@ export const MAX_PACKED_BYTES = _MAX_PACKED_BYTES;
 export const MAX_MOVES = _MAX_MOVES;
 
 /**
- * Prover input structure matching Noir main function signature.
+ * Prover input structure matching Noir main function signature
+ * (maze_prover/src/main.nr). Field order/names mirror the ABI.
+ *
+ * Under the hash-as-public-input architecture (ma-6cr.6) public
+ * inputs are exactly `(maze_hash, move_count)`; the layout and moves
+ * are private witness values bound by `maze_hash`.
  */
 export interface ProverInput {
   // Public inputs
+  maze_hash: `0x${string}`;
+  move_count: number;
+
+  // Private inputs (committed via maze_hash)
   width: number;
   height: number;
   start_x: number;
@@ -186,9 +195,6 @@ export interface ProverInput {
   goal_x: number;
   goal_y: number;
   packed_cells: number[]; // Padded to MAX_PACKED_BYTES
-  move_count: number;
-
-  // Private inputs
   moves: number[]; // Padded to MAX_MOVES
 }
 
@@ -197,11 +203,14 @@ export interface ProverInput {
  *
  * @param zkMaze - ZK-serialized maze data
  * @param solutionMoves - Array of moves representing the solution
+ * @param mazeHash - Pedersen hash of the canonical layout (computed via
+ *                   `computeMazeHash` in mazeIdentity.ts).
  * @returns ProverInput ready for Noir prover
  */
 export function generateProverInput(
   zkMaze: ZkMazeData,
-  solutionMoves: Move[]
+  solutionMoves: Move[],
+  mazeHash: `0x${string}`
 ): ProverInput {
   // Validate dimensions
   const totalCells = zkMaze.width * zkMaze.height;
@@ -231,6 +240,8 @@ export function generateProverInput(
   }
 
   return {
+    maze_hash: mazeHash,
+    move_count: solutionMoves.length,
     width: zkMaze.width,
     height: zkMaze.height,
     start_x: zkMaze.startX,
@@ -240,7 +251,6 @@ export function generateProverInput(
     goal_x: zkMaze.goalX,
     goal_y: zkMaze.goalY,
     packed_cells: paddedPackedCells,
-    move_count: solutionMoves.length,
     moves: paddedMoves,
   };
 }
@@ -255,6 +265,10 @@ export function generateProverToml(input: ProverInput): string {
   const lines: string[] = [];
 
   // Public inputs
+  lines.push(`maze_hash = "${input.maze_hash}"`);
+  lines.push(`move_count = ${input.move_count}`);
+
+  // Private witness values
   lines.push(`width = ${input.width}`);
   lines.push(`height = ${input.height}`);
   lines.push(`start_x = ${input.start_x}`);
@@ -263,12 +277,11 @@ export function generateProverToml(input: ProverInput): string {
   lines.push(`key_y = ${input.key_y}`);
   lines.push(`goal_x = ${input.goal_x}`);
   lines.push(`goal_y = ${input.goal_y}`);
-  lines.push(`move_count = ${input.move_count}`);
 
   // Packed cells array
   lines.push(`packed_cells = [${input.packed_cells.join(', ')}]`);
 
-  // Moves array (private)
+  // Moves array
   lines.push(`moves = [${input.moves.join(', ')}]`);
 
   return lines.join('\n');

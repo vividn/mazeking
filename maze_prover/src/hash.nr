@@ -104,3 +104,27 @@ fn test_hash_changes_with_input() {
     assert(h0 != h2);
     assert(h0 != h3);
 }
+
+// Cross-layer pinned values. The TS frontend `computeMazeHash`
+// (frontend/src/lib/mazeIdentity.ts) asserts byte-for-byte equality
+// against these constants, so any change to the canonical layout
+// encoding here will surface as a frontend test failure too.
+#[test]
+fn pin_cross_layer_hashes() {
+    let zero_packed: [u8; MAX_PACKED_BYTES] = [0; MAX_PACKED_BYTES];
+    let h_zero = compute_maze_hash(0, 0, 0, 0, 0, 0, 0, 0, zero_packed);
+    assert(
+        h_zero
+            == 0x09d86f2a6cdfa27e445f9514e3763cf6a9bd25a0e21378dd48e49fd32b8b0405,
+    );
+
+    let mut packed: [u8; MAX_PACKED_BYTES] = [0; MAX_PACKED_BYTES];
+    packed[0] = 0xAB;
+    packed[1] = 0xCD;
+    packed[7] = 0x12;
+    let h_demo = compute_maze_hash(20, 20, 1, 2, 3, 4, 18, 19, packed);
+    assert(
+        h_demo
+            == 0x091e8caf209848caf2aed2456ed92f71100b37745f66411bbb1108118217ffdc,
+    );
+}

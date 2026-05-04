@@ -8,8 +8,9 @@
  * also the on-chain token identity. Because a single Pedersen call binds
  * the entire layout, there is no separate keccak-of-publicInputs step.
  *
- * The Pedersen hash itself is computed via bb.js (Barretenberg WASM); that
- * wiring is the responsibility of ma-6cr.8 (frontend Pedersen integration).
+ * The Pedersen hash itself is computed via bb.js (Barretenberg WASM) in
+ * `lib/mazeIdentity.ts:computeMazeHash`. Cross-layer agreement with the
+ * Noir circuit is pinned by `mazeIdentity.test.ts`.
  */
 import { generateMaze } from './mazeGenerator';
 import { isDebugSeedActive } from './debugSeed';
@@ -68,8 +69,9 @@ export function computeTokenIdFromMazeHash(mazeHash: string): bigint {
   return BigInt(clean);
 }
 
-/// Returns the canonical layout for a seed. The Pedersen hash of these bytes
-/// is the maze's tokenId; computing the actual hash lives in ma-6cr.8.
+/// Returns the canonical layout for a seed. The Pedersen hash of these
+/// bytes is the maze's tokenId; the actual hash is computed by
+/// `mazeIdentity.computeMazeHash`.
 export function layoutBytesForSeed(seed: string): Uint8Array {
   return serializeLayoutBytes(seed);
 }
