@@ -123,7 +123,7 @@ function ConfettiCanvas({ colors, active }: ConfettiCanvasProps) {
         top: 0,
         left: 0,
         width: '100vw',
-        height: '100vh',
+        height: '100dvh',
         pointerEvents: 'none',
         zIndex: 1001,
       }}

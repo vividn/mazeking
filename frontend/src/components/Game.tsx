@@ -51,6 +51,13 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Sync mobile status-bar theme-color to seed's wall color
+  useEffect(() => {
+    if (!colors) return;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', colors.wallColor);
+  }, [colors]);
+
   // Initialize game from seed
   const initGame = useCallback((newSeed: string) => {
     const generated = generateMaze(newSeed);
