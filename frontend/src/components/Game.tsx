@@ -23,6 +23,11 @@ import { HeaderSeedInput } from './HeaderSeedInput';
 import { HistorySidebar } from './HistorySidebar';
 import { MazeSizeWarning } from './MazeSizeWarning';
 import { Wordmark } from './Wordmark';
+import {
+  Parapets,
+  readParapetsEnabled,
+  writeParapetsEnabled,
+} from './Parapets';
 import { pickTextColor } from '../lib/contrastText';
 import { DEFAULT_SEED } from '../App';
 
@@ -55,6 +60,9 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
   const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
   const [winModalDismissed, setWinModalDismissed] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [parapetsEnabled, setParapetsEnabled] = useState<boolean>(() =>
+    readParapetsEnabled()
+  );
   const { isConnected } = useAccount();
   const [copied, setCopied] = useState(false);
   const [initialPositions, setInitialPositions] = useState<{
@@ -222,6 +230,28 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
           e.preventDefault();
           setHistorySidebarOpen(false);
         }
+        return;
+      }
+
+      // P toggles the decorative castle parapets overlay (persisted to
+      // localStorage). Suppressed when any input/textarea has focus so it
+      // can't fire while the player is typing a seed.
+      if (e.key === 'p' || e.key === 'P') {
+        const target = document.activeElement as HTMLElement | null;
+        const tag = target?.tagName;
+        if (
+          tag === 'INPUT' ||
+          tag === 'TEXTAREA' ||
+          target?.isContentEditable
+        ) {
+          return;
+        }
+        e.preventDefault();
+        setParapetsEnabled((prev) => {
+          const next = !prev;
+          writeParapetsEnabled(next);
+          return next;
+        });
         return;
       }
 
@@ -583,6 +613,10 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
                           <kbd style={styles.kbd}>0</kbd>
                           <span>reset zoom</span>
                         </div>
+                        <div style={styles.helpRow}>
+                          <kbd style={styles.kbd}>P</kbd>
+                          <span>parapets</span>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -627,6 +661,7 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
           enableMouseTransform={!isMobile}
           showKinglyHint={showKinglyHint}
         />
+        <Parapets enabled={parapetsEnabled} color={colors.wallColor} />
       </div>
 
       {isMobile && !seedBarOpen && (
