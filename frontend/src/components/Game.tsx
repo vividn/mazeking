@@ -41,7 +41,6 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   const [colors, setColors] = useState<ColorScheme | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [visited, setVisited] = useState<Set<string>>(new Set());
-  const [zoom, setZoom] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
   const [seedBarOpen, setSeedBarOpen] = useState(false);
   // 'you don't look like the king' hint — true while the player is standing
@@ -299,10 +298,6 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
     initGame(selectedSeed);
   };
 
-  const toggleZoom = () => {
-    setZoom((prev) => (prev === 1 ? 2 : 1));
-  };
-
   const handleCopyLink = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -412,16 +407,6 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
             </div>
             <div style={styles.headerButtons}>
               <button
-                onClick={toggleZoom}
-                style={{
-                  ...styles.actionButton,
-                  backgroundColor: colors.wallColor,
-                  color: getContrastColor(colors.wallColor),
-                }}
-              >
-                {zoom === 1 ? 'Zoom In' : 'Zoom Out'}
-              </button>
-              <button
                 onClick={handleCopyLink}
                 style={{
                   ...styles.actionButton,
@@ -494,9 +479,10 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
           goalPos={gameState.goalPos}
           hasKey={gameState.hasKey}
           colors={colors}
-          zoom={isMobile ? 1 : zoom}
+          zoom={1}
           visited={visited}
           enableTouchTransform={isMobile}
+          enableMouseTransform={!isMobile}
           showKinglyHint={showKinglyHint}
         />
       </div>

@@ -26,6 +26,8 @@ interface MazeProps {
   showEntities?: boolean;
   /** Enable pinch-to-zoom and 1-finger pan via touch events (mobile). */
   enableTouchTransform?: boolean;
+  /** Enable mouse-wheel zoom and click-drag pan (desktop). */
+  enableMouseTransform?: boolean;
   /**
    * Render the player wearing the crown — reserved for the win moment
    * (WinModal thumbnail). Takes precedence over the regalia silhouette.
@@ -46,6 +48,8 @@ interface MazeProps {
 const MIN_USER_ZOOM = 0.6;
 const MAX_USER_ZOOM = 6;
 const DOUBLE_TAP_MS = 300;
+const MOUSE_DRAG_THRESHOLD_PX = 5;
+const WHEEL_ZOOM_STEP = 1.15;
 const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
 
@@ -163,6 +167,7 @@ export const Maze: React.FC<MazeProps> = ({
   visited,
   showEntities = true,
   enableTouchTransform = false,
+  enableMouseTransform = false,
   playerWearsCrown = false,
   crownTier = CrownTier.Plain,
   showKinglyHint = false,
@@ -845,6 +850,85 @@ export const Maze: React.FC<MazeProps> = ({
     [enableTouchTransform]
   );
 
+  // Mouse drag pan: a small threshold prevents an accidental click from
+  // counting as a pan; once exceeded, deltas update userPan directly.
+  const mouseDragRef = useRef<{
+    startX: number;
+    startY: number;
+    startPan: { x: number; y: number };
+    isDragging: boolean;
+  } | null>(null);
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (!enableMouseTransform) return;
+      if (e.button !== 0) return;
+      mouseDragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startPan: userPan,
+        isDragging: false,
+      };
+    },
+    [enableMouseTransform, userPan]
+  );
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const drag = mouseDragRef.current;
+    if (!drag) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    if (!drag.isDragging) {
+      if (Math.hypot(dx, dy) < MOUSE_DRAG_THRESHOLD_PX) return;
+      drag.isDragging = true;
+    }
+    setUserPan({ x: drag.startPan.x + dx, y: drag.startPan.y + dy });
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    mouseDragRef.current = null;
+  }, []);
+
+  // Wheel handler is attached via addEventListener so we can opt out of the
+  // passive default and call preventDefault — keeps the page from scrolling
+  // while the user wheels-zooms over the maze.
+  useEffect(() => {
+    if (!enableMouseTransform) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = container.getBoundingClientRect();
+      const cursorX = e.clientX - rect.left;
+      const cursorY = e.clientY - rect.top;
+
+      const startTotalZoom = zoom * userZoom;
+      const neutral = computeNeutralOffset(startTotalZoom);
+      const startOffsetX = neutral.x + userPan.x;
+      const startOffsetY = neutral.y + userPan.y;
+
+      const factor = e.deltaY < 0 ? WHEEL_ZOOM_STEP : 1 / WHEEL_ZOOM_STEP;
+      const newUserZoom = clamp(
+        userZoom * factor,
+        MIN_USER_ZOOM,
+        MAX_USER_ZOOM
+      );
+      if (newUserZoom === userZoom) return;
+
+      const k = (zoom * newUserZoom) / startTotalZoom;
+      const newOffsetX = cursorX - (cursorX - startOffsetX) * k;
+      const newOffsetY = cursorY - (cursorY - startOffsetY) * k;
+      const newNeutral = computeNeutralOffset(zoom * newUserZoom);
+      setUserZoom(newUserZoom);
+      setUserPan({
+        x: newOffsetX - newNeutral.x,
+        y: newOffsetY - newNeutral.y,
+      });
+    };
+    container.addEventListener('wheel', onWheel, { passive: false });
+    return () => container.removeEventListener('wheel', onWheel);
+  }, [enableMouseTransform, zoom, userZoom, userPan, computeNeutralOffset]);
+
   return (
     <div
       ref={containerRef}
@@ -852,6 +936,10 @@ export const Maze: React.FC<MazeProps> = ({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
       style={{
         width: '100%',
         height: '100%',
@@ -862,6 +950,7 @@ export const Maze: React.FC<MazeProps> = ({
         overflow: 'hidden',
         position: 'relative',
         touchAction: enableTouchTransform ? 'none' : 'auto',
+        cursor: enableMouseTransform ? 'grab' : 'default',
       }}
     >
       <canvas
