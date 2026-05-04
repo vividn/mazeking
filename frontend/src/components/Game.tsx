@@ -10,6 +10,7 @@ import { WinModal } from './WinModal';
 import { SeedBar } from './SeedBar';
 import { HistorySidebar } from './HistorySidebar';
 import { MazeSizeWarning } from './MazeSizeWarning';
+import { Wordmark } from './Wordmark';
 
 interface GameProps {
   initialSeed: string;
@@ -276,6 +277,14 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   return (
     <div style={styles.container} ref={gameContainerRef}>
       <div style={{ ...styles.header, ...(isMobile ? styles.headerMobile : null) }}>
+        <div style={styles.wordmarkRow}>
+          <Wordmark
+            text="MAZEKING"
+            pixelSize={isMobile ? 3 : 4}
+            color={colors.textBackgroundColor}
+            ariaLabel="MAZEKING"
+          />
+        </div>
         <div style={styles.headerRow}>
           <div style={styles.statsGroup}>
             <span style={styles.stat}>
@@ -416,6 +425,11 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between',
     gap: '16px',
     flexWrap: 'wrap',
+  },
+  wordmarkRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
   },
   statsGroup: {
     display: 'flex',
