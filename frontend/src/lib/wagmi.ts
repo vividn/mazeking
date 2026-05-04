@@ -18,7 +18,7 @@ const anvil = defineChain({
  * Supports Anvil (localhost) and Sepolia testnet
  */
 export const config = createConfig({
-  chains: [anvil, sepolia],
+  chains: [sepolia, anvil],
   connectors: [injected()],
   transports: {
     [anvil.id]: http('http://127.0.0.1:8545'),

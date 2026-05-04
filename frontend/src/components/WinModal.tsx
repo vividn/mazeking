@@ -6,7 +6,7 @@ import { useMintNFT } from '../hooks/useMintNFT';
 import { ProofProgress } from './ProofProgress';
 import { ProofImage } from './ProofImage';
 import { areContractsDeployed } from '../lib/contracts';
-import { anvil } from '../lib/wagmi';
+import { sepolia } from 'wagmi/chains';
 
 interface WinModalProps {
   isOpen: boolean;
@@ -351,13 +351,13 @@ export function WinModal({
                   ) : !contractsDeployed ? (
                     <div style={errorStyle}>
                       Contracts not deployed on {chain?.name || 'this network'}.
-                      {areContractsDeployed(anvil.id) && (
+                      {areContractsDeployed(sepolia.id) && (
                         <button
                           className="win-button"
                           style={{ ...zkButtonStyle, marginTop: '12px', display: 'block', width: '100%' }}
-                          onClick={() => switchChain({ chainId: anvil.id })}
+                          onClick={() => switchChain({ chainId: sepolia.id })}
                         >
-                          Switch to Anvil
+                          Switch to Sepolia
                         </button>
                       )}
                     </div>
