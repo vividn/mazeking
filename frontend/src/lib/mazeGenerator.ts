@@ -11,7 +11,7 @@ import { CellType, type Cell, type MazeData, type Position } from '../types';
 const CHAR_HEIGHT = 8;
 const CHAR_SPACING = 1;
 const LINE_SPACING = 3;
-const MARGIN_CHARS = 1.5; // 1.5 character-widths of margin
+const MARGIN_CHARS = 0.75; // 0.75 character-widths of margin
 
 const WRAP_WIDTH_CELLS = 50;
 
