@@ -33,6 +33,9 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
   const [zoom, setZoom] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
   const [seedBarOpen, setSeedBarOpen] = useState(false);
+  // 'you don't look like the king' hint — true while the player is standing
+  // on the goal cell without regalia. Cleared as soon as they step away.
+  const [showKinglyHint, setShowKinglyHint] = useState(false);
   const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [initialPositions, setInitialPositions] = useState<{
@@ -77,6 +80,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
     // Initialize visited with starting position
     const startKey = `${generated.kingPos.x},${generated.kingPos.y}`;
     setVisited(new Set([startKey]));
+    setShowKinglyHint(false);
 
     setGameState({
       playerPos: { ...generated.kingPos },
@@ -124,9 +128,19 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
           newState.keyPos = { x: -1, y: -1 }; // Mark as collected
         }
 
-        // Check if reached goal with key
-        if (newState.hasKey && newPos.x === prev.goalPos.x && newPos.y === prev.goalPos.y) {
+        const reachedGoal =
+          newPos.x === prev.goalPos.x && newPos.y === prev.goalPos.y;
+
+        // Reaching the crown only wins when wearing regalia. Without it,
+        // surface the hint instead — the goal stays unclaimed.
+        if (reachedGoal && newState.hasKey) {
           newState.gameWon = true;
+          setShowKinglyHint(false);
+        } else if (reachedGoal && !newState.hasKey) {
+          setShowKinglyHint(true);
+        } else {
+          // Stepping off the goal cell clears the hint.
+          setShowKinglyHint(false);
         }
 
         return newState;
@@ -291,7 +305,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
               Moves: <strong>{gameState.moveCount}</strong>
             </span>
             <span style={{ ...styles.stat, color: gameState.hasKey ? colors.keyColor : '#888' }}>
-              {gameState.hasKey ? 'Key collected!' : 'Find the key'}
+              {gameState.hasKey ? 'Regalia collected!' : 'Find the regalia'}
             </span>
           </div>
           {!isMobile && (
@@ -346,6 +360,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
           zoom={isMobile ? 1 : zoom}
           visited={visited}
           enableTouchTransform={isMobile}
+          showKinglyHint={showKinglyHint}
         />
       </div>
 

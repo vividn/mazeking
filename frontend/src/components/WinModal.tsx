@@ -502,6 +502,7 @@ export function WinModal({
                   visited={visited}
                   showEntities={true}
                   enableTouchTransform={false}
+                  playerWearsCrown={true}
                 />
               )}
             </div>

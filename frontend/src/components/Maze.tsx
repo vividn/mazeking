@@ -6,7 +6,7 @@ import {
   type ColorScheme,
 } from '../types';
 import { drawArrow, drawCornerWarp, getArrowColor } from '../glyphs';
-import { drawPerson, drawCrown, drawCastle } from '../lib/spriteGlyphs';
+import { drawPerson, drawRegalia, drawCrownGoal } from '../lib/spriteGlyphs';
 
 interface MazeProps {
   maze: MazeData;
@@ -20,6 +20,16 @@ interface MazeProps {
   showEntities?: boolean;
   /** Enable pinch-to-zoom and 1-finger pan via touch events (mobile). */
   enableTouchTransform?: boolean;
+  /**
+   * Render the player wearing the crown — reserved for the win moment
+   * (WinModal thumbnail). Takes precedence over the regalia silhouette.
+   */
+  playerWearsCrown?: boolean;
+  /**
+   * When true, render a small "you don't look like the king" speech bubble
+   * above the player. Shown when the player reaches the goal without regalia.
+   */
+  showKinglyHint?: boolean;
 }
 
 const MIN_USER_ZOOM = 0.6;
@@ -27,6 +37,105 @@ const MAX_USER_ZOOM = 6;
 const DOUBLE_TAP_MS = 300;
 const clamp = (v: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, v));
+
+const KINGLY_HINT_TEXT = "you don't look like the king";
+
+/**
+ * Draw a speech bubble carrying the anti-shortcut hint near the player.
+ * `anchorY` is the cell edge the bubble's tail points toward — top edge by
+ * default, bottom edge when `below` is true (used when the player is in the
+ * top row and there's no room above).
+ */
+function drawKinglyHint(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  anchorY: number,
+  cellSize: number,
+  below: boolean = false
+): void {
+  // Font size scales with cell size, with a comfortable readable floor.
+  const fontPx = Math.max(11, Math.min(16, cellSize * 0.42));
+  const padX = fontPx * 0.7;
+  const padY = fontPx * 0.4;
+
+  ctx.save();
+  ctx.font = `600 ${fontPx}px ui-sans-serif, system-ui, -apple-system, sans-serif`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+
+  const metrics = ctx.measureText(KINGLY_HINT_TEXT);
+  const textW = metrics.width;
+  const bubbleW = textW + padX * 2;
+  const bubbleH = fontPx + padY * 2;
+  const tailH = fontPx * 0.4;
+  const gap = Math.max(2, cellSize * 0.08);
+
+  // Edge of the bubble nearest the player (i.e. the side the tail comes off).
+  const bubbleNear = below ? anchorY + gap + tailH : anchorY - gap - tailH;
+  const bubbleFar = below ? bubbleNear + bubbleH : bubbleNear - bubbleH;
+  const bubbleTop = Math.min(bubbleNear, bubbleFar);
+  const bubbleBottom = Math.max(bubbleNear, bubbleFar);
+  const bubbleLeft = centerX - bubbleW / 2;
+  const bubbleRight = centerX + bubbleW / 2;
+  const radius = Math.min(bubbleH / 2, fontPx * 0.55);
+
+  // Drop shadow under the bubble.
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+  ctx.shadowBlur = Math.max(2, fontPx * 0.3);
+  ctx.shadowOffsetY = 2;
+
+  ctx.fillStyle = '#fefcf2';
+  ctx.beginPath();
+  ctx.moveTo(bubbleLeft + radius, bubbleTop);
+  // Top edge — break for upward tail when bubble sits below the player.
+  if (below) {
+    const tailHalfW = fontPx * 0.4;
+    ctx.lineTo(centerX - tailHalfW, bubbleTop);
+    ctx.lineTo(centerX, bubbleTop - tailH);
+    ctx.lineTo(centerX + tailHalfW, bubbleTop);
+  }
+  ctx.lineTo(bubbleRight - radius, bubbleTop);
+  ctx.quadraticCurveTo(bubbleRight, bubbleTop, bubbleRight, bubbleTop + radius);
+  ctx.lineTo(bubbleRight, bubbleBottom - radius);
+  ctx.quadraticCurveTo(
+    bubbleRight,
+    bubbleBottom,
+    bubbleRight - radius,
+    bubbleBottom
+  );
+  // Bottom edge — break for downward tail when bubble sits above the player.
+  if (!below) {
+    const tailHalfW = fontPx * 0.4;
+    ctx.lineTo(centerX + tailHalfW, bubbleBottom);
+    ctx.lineTo(centerX, bubbleBottom + tailH);
+    ctx.lineTo(centerX - tailHalfW, bubbleBottom);
+  }
+  ctx.lineTo(bubbleLeft + radius, bubbleBottom);
+  ctx.quadraticCurveTo(
+    bubbleLeft,
+    bubbleBottom,
+    bubbleLeft,
+    bubbleBottom - radius
+  );
+  ctx.lineTo(bubbleLeft, bubbleTop + radius);
+  ctx.quadraticCurveTo(bubbleLeft, bubbleTop, bubbleLeft + radius, bubbleTop);
+  ctx.closePath();
+  ctx.fill();
+
+  // Disable shadow for the border + text passes.
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.stroke();
+
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillText(KINGLY_HINT_TEXT, centerX, bubbleTop + bubbleH / 2);
+
+  ctx.restore();
+}
 
 /**
  * Maze renderer component that displays the toroidal maze with player, key, and goal.
@@ -43,6 +152,8 @@ export const Maze: React.FC<MazeProps> = ({
   visited,
   showEntities = true,
   enableTouchTransform = false,
+  playerWearsCrown = false,
+  showKinglyHint = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -473,26 +584,32 @@ export const Maze: React.FC<MazeProps> = ({
     };
 
     if (showEntities) {
-      // Castle goal — green-tinted accessible halo when crowned, red while locked.
-      const castleHalo = hasKey
-        ? { r: 100, g: 200, b: 100 }
-        : { r: 200, g: 60, b: 60 };
-      drawAccessibleHighlight(goalPos, castleHalo, 2);
-      drawCastle(
-        ctx,
-        goalPos.x * cellSize + cellSize / 2,
-        goalPos.y * cellSize + cellSize / 2,
-        cellSize * 0.9,
-        colors.goalColor,
-        hasKey,
-        colors.goalGlowColor
-      );
+      // Crown goal — green-tinted accessible halo once regalia is collected,
+      // red while locked. Crown is THE win condition glyph.
+      // Skip when the player is wearing the crown (win-modal thumbnail) —
+      // the crown has been claimed; rendering it on the goal cell too would
+      // double up at the same position.
+      if (!playerWearsCrown) {
+        const goalHalo = hasKey
+          ? { r: 100, g: 200, b: 100 }
+          : { r: 200, g: 60, b: 60 };
+        drawAccessibleHighlight(goalPos, goalHalo, 2);
+        drawCrownGoal(
+          ctx,
+          goalPos.x * cellSize + cellSize / 2,
+          goalPos.y * cellSize + cellSize / 2,
+          cellSize * 0.9,
+          colors.goalColor,
+          hasKey,
+          colors.goalGlowColor
+        );
+      }
 
-      // Crown collectible at the key position — only visible until picked up.
+      // Regalia collectible — only visible until picked up.
       if (keyPos !== null) {
-        const keyHalo = { r: 255, g: 200, b: 50 };
-        drawAccessibleHighlight(keyPos, keyHalo, 2);
-        drawCrown(
+        const regaliaHalo = { r: 255, g: 200, b: 50 };
+        drawAccessibleHighlight(keyPos, regaliaHalo, 2);
+        drawRegalia(
           ctx,
           keyPos.x * cellSize + cellSize / 2,
           keyPos.y * cellSize + cellSize / 2,
@@ -501,9 +618,8 @@ export const Maze: React.FC<MazeProps> = ({
         );
       }
 
-      // Player figure: a person walking the maze; once they have the crown,
-      // they wear it (rendered in keyColor so the worn crown reads as the same
-      // item the player picked up).
+      // Player figure. Win-modal context renders person-wearing-crown; in-game
+      // the player wears regalia (robe+scepter) once collected.
       drawPerson(
         ctx,
         playerPos.x * cellSize + cellSize / 2,
@@ -511,8 +627,23 @@ export const Maze: React.FC<MazeProps> = ({
         cellSize * 0.85,
         colors.playerColor,
         hasKey,
+        colors.keyColor,
+        playerWearsCrown,
         colors.keyColor
       );
+
+      // Anti-shortcut hint: speech bubble above the player when they reach
+      // the crown without regalia. Tells first-time players why nothing
+      // happened — they need the regalia to claim the throne.
+      // Flip the bubble below the player when there's no room above (top row).
+      if (showKinglyHint) {
+        const playerCenterX = playerPos.x * cellSize + cellSize / 2;
+        const flipBelow = playerPos.y === 0;
+        const anchorY = flipBelow
+          ? (playerPos.y + 1) * cellSize
+          : playerPos.y * cellSize;
+        drawKinglyHint(ctx, playerCenterX, anchorY, cellSize, flipBelow);
+      }
     }
 
     ctx.restore();
@@ -528,6 +659,8 @@ export const Maze: React.FC<MazeProps> = ({
     showEntities,
     userZoom,
     userPan,
+    playerWearsCrown,
+    showKinglyHint,
   ]);
 
   // Handle window resize - force re-render by changing a counter
@@ -715,7 +848,7 @@ export const Maze: React.FC<MazeProps> = ({
           display: 'block',
           imageRendering: 'crisp-edges',
         }}
-        aria-label={`Maze grid ${maze.width} by ${maze.height}. Player at ${playerPos.x}, ${playerPos.y}. ${hasKey ? 'Key collected' : `Key at ${keyPos?.x}, ${keyPos?.y}`}. Goal at ${goalPos.x}, ${goalPos.y}.`}
+        aria-label={`Maze grid ${maze.width} by ${maze.height}. Player at ${playerPos.x}, ${playerPos.y}. ${hasKey ? 'Regalia collected' : `Regalia at ${keyPos?.x}, ${keyPos?.y}`}. Crown at ${goalPos.x}, ${goalPos.y}.`}
         role="img"
       />
     </div>
