@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import type { MazeData, Position, Move } from '../types';
 import { serializeForZk, generateProverInput } from '../lib/zkSerialize';
+import { computeMazeHash } from '../lib/mazeIdentity';
+import { serializeLayoutBytes } from '../lib/tokenId';
 import {
   generateProof,
   proofToBase64,
@@ -17,6 +19,10 @@ export interface ProofState {
   publicInputs?: string[];
   base64Proof?: string;
   imageDataUrl?: string;
+  /** Pedersen hash of the canonical layout — also `publicInputs[0]`. */
+  mazeHash?: `0x${string}`;
+  /** Canonical layout bytes hashed to derive `mazeHash`. */
+  layoutBytes?: Uint8Array;
 }
 
 export interface UseZkProofResult {
@@ -53,7 +59,15 @@ export function useZkProof(
       setState({ stage: 'loading-circuit', progress: 5 });
 
       const zkMaze = serializeForZk(maze, startPos, keyPos, goalPos);
-      const proverInput = generateProverInput(zkMaze, moves);
+
+      // Compute the canonical layout bytes + Pedersen hash up-front. The
+      // circuit re-derives the hash from the private witness and asserts
+      // equality, so passing the wrong hash here will simply fail proof
+      // generation rather than minting a bogus token.
+      const layoutBytes = serializeLayoutBytes(zkMaze);
+      const mazeHash = await computeMazeHash(layoutBytes);
+
+      const proverInput = generateProverInput(zkMaze, moves, mazeHash);
 
       const result = await generateProof(proverInput, handleProgress);
 
@@ -62,6 +76,7 @@ export function useZkProof(
 
       console.log('=== ZK Proof Generated ===');
       console.log('Proof size:', result.proof.length, 'bytes');
+      console.log('Maze hash:', mazeHash);
       console.log('Base64 proof:', base64Proof);
 
       setState({
@@ -71,6 +86,8 @@ export function useZkProof(
         publicInputs: result.publicInputs,
         base64Proof,
         imageDataUrl,
+        mazeHash,
+        layoutBytes,
       });
     } catch (error) {
       console.error('Proof generation failed:', error);

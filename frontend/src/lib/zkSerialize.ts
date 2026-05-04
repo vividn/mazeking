@@ -174,9 +174,21 @@ export const MAX_MOVES = _MAX_MOVES;
 
 /**
  * Prover input structure matching Noir main function signature.
+ *
+ * Hash-as-public-input architecture (ma-6cr.6):
+ *   Public:  maze_hash, move_count
+ *   Private: width/height, start/key/goal positions, packed_cells, moves
+ *
+ * Noir's InputMap is name-keyed, so field order in this object is irrelevant
+ * to the witness; what matters is that every parameter declared in the
+ * circuit's main() appears here.
  */
 export interface ProverInput {
   // Public inputs
+  maze_hash: `0x${string}`; // 32-byte BN254 field element, hex-encoded
+  move_count: number;
+
+  // Private inputs (witness-only)
   width: number;
   height: number;
   start_x: number;
@@ -186,9 +198,6 @@ export interface ProverInput {
   goal_x: number;
   goal_y: number;
   packed_cells: number[]; // Padded to MAX_PACKED_BYTES
-  move_count: number;
-
-  // Private inputs
   moves: number[]; // Padded to MAX_MOVES
 }
 
@@ -197,11 +206,16 @@ export interface ProverInput {
  *
  * @param zkMaze - ZK-serialized maze data
  * @param solutionMoves - Array of moves representing the solution
+ * @param mazeHash - Pedersen hash of the canonical layout bytes (the proof's
+ *                   first public input). Compute via `computeMazeHash()` in
+ *                   `mazeIdentity.ts`; the circuit re-derives it from the
+ *                   private witness and asserts equality.
  * @returns ProverInput ready for Noir prover
  */
 export function generateProverInput(
   zkMaze: ZkMazeData,
-  solutionMoves: Move[]
+  solutionMoves: Move[],
+  mazeHash: `0x${string}`
 ): ProverInput {
   // Validate dimensions
   const totalCells = zkMaze.width * zkMaze.height;
@@ -231,6 +245,8 @@ export function generateProverInput(
   }
 
   return {
+    maze_hash: mazeHash,
+    move_count: solutionMoves.length,
     width: zkMaze.width,
     height: zkMaze.height,
     start_x: zkMaze.startX,
@@ -240,7 +256,6 @@ export function generateProverInput(
     goal_x: zkMaze.goalX,
     goal_y: zkMaze.goalY,
     packed_cells: paddedPackedCells,
-    move_count: solutionMoves.length,
     moves: paddedMoves,
   };
 }
@@ -254,7 +269,10 @@ export function generateProverInput(
 export function generateProverToml(input: ProverInput): string {
   const lines: string[] = [];
 
-  // Public inputs
+  // Public inputs (hash-as-public-input architecture)
+  lines.push(`maze_hash = "${input.maze_hash}"`);
+
+  // Private witness inputs
   lines.push(`width = ${input.width}`);
   lines.push(`height = ${input.height}`);
   lines.push(`start_x = ${input.start_x}`);

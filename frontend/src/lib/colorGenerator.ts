@@ -26,18 +26,189 @@ export interface ColorScheme {
   modalOverlayColor: string;
 }
 
+export interface GenerateColorSchemeOptions {
+  /**
+   * Pedersen hash of the canonical maze layout (hex `0x...`). When supplied,
+   * the eight canonical palette fields (wall, mazeBg, textBg, zkBg, crownBg,
+   * player, key, goal) are derived from `mazeHash` using the SAME formulas
+   * as the on-chain SVG renderer (`contracts/src/MazeRenderer.sol`
+   * :: `_palette`). The remaining "richer" fields (visited tints, glow,
+   * chrome, ui accent) are still seed-derived so the live game keeps its
+   * visual variety; they are computed as offsets from the canonical hues so
+   * everything still reads as one palette.
+   *
+   * When omitted, the function preserves the original seed-only behavior.
+   */
+  mazeHash?: string;
+}
+
+const hsl = (h: number, s: number, l: number) => `hsl(${h}, ${s}%, ${l}%)`;
+const hsla = (h: number, s: number, l: number, a: number) =>
+  `hsla(${h}, ${s}%, ${l}%, ${a})`;
+
+interface CanonicalPalette {
+  baseHue: number; // 0..360
+  wall: { h: number; s: number; l: number };
+  mazeBg: { h: number; s: number; l: number };
+  textBg: { h: number; s: number; l: number };
+  zkBg: { h: number; s: number; l: number };
+  crownBg: { h: number; s: number; l: number };
+  player: { h: number; s: number; l: number };
+  key: { h: number; s: number; l: number };
+  goal: { h: number; s: number; l: number };
+}
+
 /**
- * Generates a deterministic color palette based on a seed string.
- * Uses HSL color space for better control over contrast and visual appeal.
+ * Mirror of MazeRenderer._palette() in contracts/src/MazeRenderer.sol.
+ * Numbers MUST stay in lockstep with that contract — drift makes the
+ * live game render disagree with the on-chain SVG for the same maze.
  */
-export function generateColorScheme(seed: string): ColorScheme {
+function canonicalPaletteFromHash(mazeHash: string): CanonicalPalette {
+  const baseHue = Number(BigInt(mazeHash) % 360n);
+  return {
+    baseHue,
+    wall: { h: baseHue, s: 25, l: 22 },
+    mazeBg: { h: (baseHue + 30) % 360, s: 22, l: 80 },
+    textBg: { h: (baseHue + 200) % 360, s: 80, l: 60 },
+    zkBg: { h: (baseHue + 200 + 120) % 360, s: 80, l: 55 },
+    crownBg: { h: 48, s: 85, l: 55 },
+    player: { h: 45, s: 90, l: 60 },
+    key: { h: 55, s: 85, l: 55 },
+    goal: { h: (baseHue + 90) % 360, s: 65, l: 50 },
+  };
+}
+
+/**
+ * Generates a deterministic color palette.
+ *
+ * Two derivation modes share this entry point:
+ *
+ *   1. Seed-only (legacy): rich rng-derived HSL palette. Used for
+ *      previews/before the maze hash is known.
+ *
+ *   2. Hash-aligned (when `options.mazeHash` is provided): the eight
+ *      canonical fields are computed from `mazeHash` to match the on-chain
+ *      SVG byte-for-byte. The remaining fields are derived from the seed
+ *      rng but anchored to the canonical hues so the palette still feels
+ *      cohesive.
+ */
+export function generateColorScheme(
+  seed: string,
+  options: GenerateColorSchemeOptions = {}
+): ColorScheme {
+  const { mazeHash } = options;
   const rng = createRng(seed);
 
-  // Helper to generate HSL color
-  const hsl = (h: number, s: number, l: number) => `hsl(${h}, ${s}%, ${l}%)`;
-  const hsla = (h: number, s: number, l: number, a: number) =>
-    `hsla(${h}, ${s}%, ${l}%, ${a})`;
+  if (mazeHash) {
+    return paletteFromHashAndSeed(mazeHash, rng);
+  }
+  return paletteFromSeedOnly(rng);
+}
 
+/**
+ * Hash-aligned palette: the eight canonical fields match Solidity exactly;
+ * the rest stay rng-derived but are anchored to the canonical hues.
+ */
+function paletteFromHashAndSeed(
+  mazeHash: string,
+  rng: { next: () => number }
+): ColorScheme {
+  const c = canonicalPaletteFromHash(mazeHash);
+
+  // Eight canonical fields — byte-for-byte aligned with MazeRenderer.sol.
+  const wallColor = hsl(c.wall.h, c.wall.s, c.wall.l);
+  const mazeBackgroundColor = hsl(c.mazeBg.h, c.mazeBg.s, c.mazeBg.l);
+  const textBackgroundColor = hsl(c.textBg.h, c.textBg.s, c.textBg.l);
+  const zkBackgroundColor = hsl(c.zkBg.h, c.zkBg.s, c.zkBg.l);
+  const crownBackgroundColor = hsl(c.crownBg.h, c.crownBg.s, c.crownBg.l);
+  const playerColor = hsl(c.player.h, c.player.s, c.player.l);
+  const keyColor = hsl(c.key.h, c.key.s, c.key.l);
+  const goalColor = hsl(c.goal.h, c.goal.s, c.goal.l);
+
+  // Remaining "live game" fields — derived from canonical hues + a sprinkle
+  // of rng so the experience stays varied without breaking on-chain alignment.
+  // Path: a touch lighter than mazeBg using the same hue.
+  const pathColor = hsl(
+    c.mazeBg.h,
+    Math.max(c.mazeBg.s - 12, 0),
+    Math.min(c.mazeBg.l + 4, 95)
+  );
+
+  // Visited (maze): a hair darker / more saturated than mazeBg.
+  const visitedColor = hsl(
+    c.mazeBg.h,
+    Math.min(c.mazeBg.s + 12, 100),
+    Math.max(c.mazeBg.l - 8, 0)
+  );
+
+  // Visited (text/zk/crown): same hue, darker version.
+  const textVisitedColor = hsl(
+    c.textBg.h,
+    Math.max(c.textBg.s - 20, 0),
+    Math.max(c.textBg.l - 18, 0)
+  );
+  const zkVisitedColor = hsl(
+    c.zkBg.h,
+    Math.max(c.zkBg.s - 20, 0),
+    Math.max(c.zkBg.l - 20, 0)
+  );
+  const crownVisitedColor = hsl(
+    c.crownBg.h,
+    Math.max(c.crownBg.s - 15, 0),
+    Math.max(c.crownBg.l - 15, 0)
+  );
+
+  // Text wall: contrasts with text bg; keep the original textWall recipe.
+  const textWallColor = hsl(
+    c.textBg.h,
+    50 + rng.next() * 25,
+    25 + rng.next() * 10
+  );
+
+  // UI accent: distinct vibrant hue, anchored to baseHue + 210.
+  const uiHue = (c.baseHue + 210 + (rng.next() * 60 - 30) + 360) % 360;
+  const uiAccentColor = hsl(uiHue, 75 + rng.next() * 20, 55 + rng.next() * 10);
+
+  // Glow colors mirror the entity hues (alpha-blended overlays in canvas).
+  const playerGlowColor = hsla(c.player.h, 100, 60, 0.6);
+  const keyGlowColor = hsla(c.key.h, 100, 55, 0.5);
+  const goalGlowColor = hsla(c.goal.h, 80, 50, 0.5);
+
+  // Chrome — share baseHue so the page chrome reads as one palette.
+  const pageBackgroundColor = hsl(c.baseHue, 22, 9);
+  const headerBackgroundColor = hsla(c.baseHue, 28, 14, 0.55);
+  const modalOverlayColor = hsla(c.baseHue, 30, 8, 0.7);
+
+  return {
+    wallColor,
+    pathColor,
+    mazeBackgroundColor,
+    visitedColor,
+    textWallColor,
+    textBackgroundColor,
+    textVisitedColor,
+    zkBackgroundColor,
+    zkVisitedColor,
+    crownBackgroundColor,
+    crownVisitedColor,
+    playerColor,
+    keyColor,
+    goalColor,
+    uiAccentColor,
+    playerGlowColor,
+    keyGlowColor,
+    goalGlowColor,
+    pageBackgroundColor,
+    headerBackgroundColor,
+    modalOverlayColor,
+  };
+}
+
+/**
+ * Legacy seed-only palette. Preserved verbatim so existing tests/previews
+ * keep their current colors when no maze hash is available yet.
+ */
+function paletteFromSeedOnly(rng: { next: () => number }): ColorScheme {
   // Generate base hue (0-360) for the color scheme
   const baseHue = rng.next() * 360;
 

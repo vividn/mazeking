@@ -214,19 +214,22 @@ export function WinModal({
   const contractsDeployed = chain ? areContractsDeployed(chain.id) : false;
 
   const handleMint = async () => {
-    if (!proofState.proof || !proofState.publicInputs) {
+    if (!proofState.proof || !proofState.mazeHash || !proofState.layoutBytes) {
       console.error('No proof available to mint');
       return;
     }
-
-    // The proof's first public input IS mazeHash; the second IS moveCount.
-    // The canonical layout bytes (which hash to mazeHash) plus the bb.js
-    // Pedersen wiring land in ma-6cr.8. Surface a clear error rather than
-    // silently submitting a bad call.
-    void mintWithProof;
-    console.error(
-      'Mint failed: layout-bytes + Pedersen wiring lands in ma-6cr.8'
-    );
+    try {
+      await mintWithProof(
+        proofState.proof,
+        proofState.mazeHash,
+        proofState.layoutBytes,
+        moveCount
+      );
+    } catch (err) {
+      // wagmi surfaces the underlying error via `mintError`; logging here
+      // keeps the dev console legible during local play.
+      console.error('mintWithProof threw:', err);
+    }
   };
 
   const handlePlayAgain = () => {

@@ -10,6 +10,8 @@ import type {
 import { generateMaze, canMove, getNewPosition } from '../lib/mazeGenerator';
 import { isDebugSeedActive } from '../lib/debugSeed';
 import { generateColorScheme } from '../lib/colorGenerator';
+import { computeMazeHash } from '../lib/mazeIdentity';
+import { layoutBytesForSeed } from '../lib/tokenId';
 import { addSeedToHistory } from '../lib/seedHistory';
 import { getRandomPhrase } from '../lib/seedPhrases';
 import { Maze } from './Maze';
@@ -83,10 +85,33 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
       const generated = generateMaze(newSeed, {
         debug: isDebugSeedActive(newSeed),
       });
+      // First paint uses the seed-only palette so colors render immediately;
+      // we then upgrade to the hash-aligned palette (matches on-chain SVG)
+      // once the bb.js Pedersen WASM has computed the maze hash. Both
+      // generators are deterministic for the same inputs, so the upgrade is
+      // a single re-paint with no flicker beyond the hue shift.
       const newColors = generateColorScheme(newSeed);
 
       setMaze(generated.maze);
       setColors(newColors);
+
+      void (async () => {
+        try {
+          const layout = layoutBytesForSeed(newSeed);
+          const hash = await computeMazeHash(layout);
+          // Guard against a stale upgrade landing on a newer seed.
+          setSeed((current) => {
+            if (current === newSeed) {
+              setColors(generateColorScheme(newSeed, { mazeHash: hash }));
+            }
+            return current;
+          });
+        } catch (err) {
+          // If WASM init or hashing fails we just keep the seed-only colors;
+          // proof/mint will surface its own error path.
+          console.warn('Failed to compute maze hash for color alignment:', err);
+        }
+      })();
 
       // Store initial positions for ZK proof generation
       setInitialPositions({
