@@ -1,0 +1,16 @@
+{
+  "name": "@mazeking/tools",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Build tools: WASM circuit compile + Solidity verifier generation (no native bb/nargo).",
+  "scripts": {
+    "build": "node generate-verifier.mjs all",
+    "compile": "node generate-verifier.mjs compile",
+    "verifier": "node generate-verifier.mjs verifier"
+  },
+  "dependencies": {
+    "@aztec/bb.js": "2.1.9",
+    "@noir-lang/noir_wasm": "1.0.0-beta.17"
+  }
+}

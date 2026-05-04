@@ -306,11 +306,12 @@ See `vite.config.ts` for build settings:
 
 If the Noir circuit changes:
 
-1. Recompile circuit: `cd ../maze_prover && nargo compile`
-2. Copy new artifact: `cp ../maze_prover/target/maze_prover.json public/circuit/`
-3. Regenerate verifier: `cd ../contracts && ./scripts/generate-verifier.sh`
-4. Redeploy contracts
-5. Update frontend contract addresses
+1. Run `just generate-verifier` from the repo root — this compiles the circuit
+   via `noir_wasm`, syncs the artifact into `public/circuit/`, and regenerates
+   `contracts/src/generated/MazeVerifier.sol` using `@aztec/bb.js`. No native
+   `nargo`/`bb` install required.
+2. Redeploy contracts
+3. Update frontend contract addresses
 
 ## 🧪 Testing
 

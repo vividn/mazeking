@@ -24,10 +24,12 @@ anvil_port := "8545"
 anvil_rpc := "http://127.0.0.1:" + anvil_port
 
 # Tool paths (use from PATH as user specified)
+# nargo is only needed for `nargo test` / `nargo fmt`; circuit *build* uses noir_wasm.
 nargo := env_var_or_default("NARGO_PATH", "nargo")
-bb := env_var_or_default("BB_PATH", "bb")
 forge := env_var_or_default("FORGE_PATH", "forge")
 pnpm := env_var_or_default("PNPM_PATH", "pnpm")
+node := env_var_or_default("NODE_PATH", "node")
+tools_dir := project_root / "tools"
 
 # Colors for output
 RED := '\033[0;31m'
@@ -48,6 +50,8 @@ setup:
     @just _check-tools
     @echo -e "{{YELLOW}}[setup]{{NC}} Installing frontend dependencies..."
     cd {{frontend_dir}} && {{pnpm}} install
+    @echo -e "{{YELLOW}}[setup]{{NC}} Installing build tool dependencies..."
+    cd {{tools_dir}} && {{pnpm}} install
     @echo -e "{{YELLOW}}[setup]{{NC}} Installing contract dependencies..."
     cd {{contracts_dir}} && {{forge}} install
     @echo -e "{{GREEN}}[setup]{{NC}} Setup complete!"
@@ -58,21 +62,21 @@ _check-tools:
     set -euo pipefail
     echo -e "{{YELLOW}}[check]{{NC}} Checking required tools..."
 
-    # Check nargo
-    if ! command -v {{nargo}} &> /dev/null; then
-        echo -e "{{RED}}[check]{{NC}} Error: nargo not found in PATH"
-        echo "Install with: curl -L https://raw.githubusercontent.com/noir-lang/noirup/refs/heads/main/install | bash && noirup"
+    # Check node (required: WASM build pipeline runs on Node)
+    if ! command -v {{node}} &> /dev/null; then
+        echo -e "{{RED}}[check]{{NC}} Error: node not found in PATH"
+        echo "Install Node.js >= 20 (https://nodejs.org)"
         exit 1
     fi
-    echo -e "{{GREEN}}[check]{{NC}} Found nargo: $({{nargo}} --version)"
+    echo -e "{{GREEN}}[check]{{NC}} Found node: $({{node}} --version)"
 
-    # Check bb
-    if ! command -v {{bb}} &> /dev/null; then
-        echo -e "{{RED}}[check]{{NC}} Error: bb not found in PATH"
-        echo "Install with: curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash && bbup -v 0.72.1"
-        exit 1
+    # Check nargo (optional: only needed for `nargo test` / `nargo fmt`)
+    if ! command -v {{nargo}} &> /dev/null; then
+        echo -e "{{YELLOW}}[check]{{NC}} nargo not found — circuit build uses noir_wasm, but `nargo test`/`nargo fmt` will be unavailable."
+        echo "Install with: curl -L https://raw.githubusercontent.com/noir-lang/noirup/refs/heads/main/install | bash && noirup"
+    else
+        echo -e "{{GREEN}}[check]{{NC}} Found nargo: $({{nargo}} --version)"
     fi
-    echo -e "{{GREEN}}[check]{{NC}} Found bb: $({{bb}} --version)"
 
     # Check forge
     if ! command -v {{forge}} &> /dev/null; then
@@ -100,52 +104,20 @@ generate-constants:
 
 # === CIRCUIT COMPILATION ===
 
-# Compile Noir circuits and sync to frontend
+# Compile Noir circuits via noir_wasm and sync to frontend (no native nargo)
 compile-circuits:
-    @echo -e "{{BLUE}}[circuits]{{NC}} Starting circuit compilation..."
-    @just _compile-circuit
-    @just _sync-circuit-to-frontend
+    @echo -e "{{BLUE}}[circuits]{{NC}} Compiling maze_prover via noir_wasm..."
+    {{node}} {{tools_dir}}/generate-verifier.mjs compile
     @echo -e "{{GREEN}}[circuits]{{NC}} Circuit compilation complete!"
 
-# Compile the Noir circuit
-_compile-circuit:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo -e "{{YELLOW}}[nargo]{{NC}} Compiling maze_prover circuit..."
-    cd {{maze_prover_dir}}
-    {{nargo}} compile
+_compile-circuit: compile-circuits
 
-    if [ ! -f "{{circuit_json}}" ]; then
-        echo -e "{{RED}}[nargo]{{NC}} Error: Circuit JSON not generated"
-        exit 1
-    fi
-
-    # Display circuit info
-    size=$(du -h "{{circuit_json}}" | cut -f1)
-    echo -e "{{GREEN}}[nargo]{{NC}} Circuit compiled successfully (${size})"
-
-# Sync compiled circuit to frontend
-_sync-circuit-to-frontend:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo -e "{{YELLOW}}[sync]{{NC}} Copying circuit to frontend..."
-    mkdir -p {{frontend_circuit_dir}}
-    cp {{circuit_json}} {{frontend_circuit_json}}
-    echo -e "{{GREEN}}[sync]{{NC}} Circuit synced to frontend"
-
-# Generate Solidity verifier from circuit (uses bb.js for version compatibility)
+# Generate Solidity verifier (compiles circuit + writes MazeVerifier.sol via bb.js)
 generate-verifier:
-    @echo -e "{{BLUE}}[verifier]{{NC}} Generating Solidity verifier..."
-    @just _compile-circuit
-    @just _sync-circuit-to-frontend
-    cd {{frontend_dir}} && node scripts/generate-verifier.mjs
-    @echo -e "{{GREEN}}[verifier]{{NC}} Verifier generated!"
-
-# Legacy: Generate verifier using system bb (may have version mismatches)
-generate-verifier-legacy:
-    @echo -e "{{BLUE}}[verifier]{{NC}} Generating Solidity verifier (legacy)..."
-    @just _compile-circuit
-    {{contracts_dir}}/scripts/generate-verifier.sh
+    @echo -e "{{BLUE}}[verifier]{{NC}} Generating verifier (noir_wasm + bb.js, no native deps)..."
+    {{node}} {{tools_dir}}/generate-verifier.mjs all
+    @echo -e "{{YELLOW}}[verifier]{{NC}} Normalizing with forge fmt..."
+    cd {{contracts_dir}} && {{forge}} fmt src/generated/MazeVerifier.sol
     @echo -e "{{GREEN}}[verifier]{{NC}} Verifier generated!"
 
 # === CONTRACT DEPLOYMENT ===
@@ -434,8 +406,8 @@ status:
 _status-tools:
     #!/usr/bin/env bash
     echo -e "{{YELLOW}}Tools:{{NC}}"
-    echo "  nargo:  $({{nargo}} --version 2>/dev/null || echo 'not found')"
-    echo "  bb:     $({{bb}} --version 2>/dev/null || echo 'not found')"
+    echo "  node:   $({{node}} --version 2>/dev/null || echo 'not found')"
+    echo "  nargo:  $({{nargo}} --version 2>/dev/null || echo 'not found (optional — only for nargo test/fmt)')"
     echo "  forge:  $({{forge}} --version 2>/dev/null | head -1 || echo 'not found')"
     echo "  pnpm:   $({{pnpm}} --version 2>/dev/null || echo 'not found')"
 

@@ -7,7 +7,7 @@ All components have been successfully implemented! Here's what was completed and
 ### Smart Contracts
 1. **MazeVerifier.sol** (Mock) - `/contracts/src/generated/MazeVerifier.sol`
    - Mock verifier for development (always returns true)
-   - To generate real verifier: Install `nargo` and `bb`, then run `./contracts/scripts/generate-verifier.sh`
+   - To generate real verifier: `cd tools && pnpm install`, then `just generate-verifier` (Node + WASM only — no native `nargo`/`bb` install required)
 
 2. **MazeKingNFT.sol** - Enhanced with:
    - ZK proof verification via `mintWithProof()` function
@@ -119,17 +119,14 @@ pnpm dev
 The current verifier is a mock that always returns true. To generate the real UltraHonk verifier:
 
 ```bash
-# Install nargo (Noir compiler)
-curl -L https://raw.githubusercontent.com/noir-lang/noirup/refs/heads/main/install | bash && noirup
+# One-time: install build-tool deps (no native nargo/bb required)
+cd tools && pnpm install && cd ..
 
-# Install bb (Barretenberg prover)
-curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash && bbup -v 0.72.1
-
-# Generate real verifier
-cd contracts
-./scripts/generate-verifier.sh
+# Generate real verifier (compiles via noir_wasm, writes verifier via bb.js)
+just generate-verifier
 
 # Redeploy contracts
+cd contracts
 forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
 ```
 

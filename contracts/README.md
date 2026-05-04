@@ -17,8 +17,6 @@ contracts/
 │   └── MazeKingNFT.t.sol       # Comprehensive test suite (21 tests)
 ├── script/
 │   └── Deploy.s.sol             # Deployment script
-├── scripts/
-│   └── generate-verifier.sh     # Verifier generation from Noir circuit
 ├── deployments/                 # Deployment addresses (git-ignored)
 ├── .env                         # Environment variables (git-ignored)
 └── foundry.toml                 # Foundry configuration
@@ -159,8 +157,8 @@ contract UltraVerifier {
 
 **Current Status:**
 - Mock verifier provided for development (always returns true)
-- Generate real verifier using `./scripts/generate-verifier.sh`
-- Requires [nargo](https://noir-lang.org/) and [bb](https://github.com/AztecProtocol/aztec-packages) CLI tools
+- Generate real verifier from the repo root: `just generate-verifier` (runs `node tools/generate-verifier.mjs all`)
+- No native dependencies required — `pnpm install` in `tools/` is enough
 
 ## 🧪 Testing
 
@@ -256,26 +254,27 @@ The ZK proof verifier is generated from the Noir circuit in `../maze_prover/`.
 ### Prerequisites
 
 ```bash
-# Install Noir compiler
-curl -L https://raw.githubusercontent.com/noir-lang/noirup/refs/heads/main/install | bash
-noirup
-
-# Install Barretenberg prover
-curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash
-bbup -v 0.72.1
+# From the repo root, install build-tool deps (one-time):
+cd tools && pnpm install
 ```
+
+No native `nargo` or `bb` install required — the build pipeline runs entirely
+on `@noir-lang/noir_wasm` + `@aztec/bb.js`. (Native `nargo` is still useful if
+you want `nargo test` / `nargo fmt` while editing the circuit, but it's optional.)
 
 ### Generate Verifier
 
 ```bash
-./scripts/generate-verifier.sh
+just generate-verifier         # from repo root
+# or, equivalently:
+node tools/generate-verifier.mjs all
 ```
 
 This:
-1. Compiles the Noir circuit (`../maze_prover/src/main.nr`)
-2. Generates verification key using Barretenberg
-3. Generates Solidity verifier contract
-4. Outputs to `src/generated/MazeVerifier.sol`
+1. Compiles the Noir circuit (`../maze_prover/src/main.nr`) via `noir_wasm`
+2. Writes circuit JSON to `maze_prover/target/maze_prover.json` and `frontend/public/circuit/`
+3. Calls `UltraHonkBackend.getSolidityVerifier()` from `@aztec/bb.js`
+4. Outputs `src/generated/MazeVerifier.sol`
 
 ### Verification Process
 

@@ -333,7 +333,7 @@ fn apply_move(pos: (Field, Field), direction: u8, width: Field, height: Field)
 
 ### With Smart Contract
 
-1. **Generate verifier**: `cd ../contracts && ./scripts/generate-verifier.sh`
+1. **Generate verifier** (from repo root): `just generate-verifier` (Node-only, no native `bb`/`nargo` needed)
 2. **Deploy verifier**: Deploy `MazeVerifier.sol`
 3. **Integrate**: NFT contract calls `verifier.verify(proof, publicInputs)`
 
