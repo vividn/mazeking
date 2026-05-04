@@ -273,7 +273,12 @@ function drawImageGlyph(
   ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
   ctx.shadowBlur = Math.max(1, size * 0.06);
   ctx.shadowOffsetY = Math.max(1, size * 0.04);
-  ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
+  const w = img.naturalWidth || img.width || size;
+  const h = img.naturalHeight || img.height || size;
+  const scale = Math.min(size / w, size / h);
+  const dw = w * scale;
+  const dh = h * scale;
+  ctx.drawImage(img, x - dw / 2, y - dh / 2, dw, dh);
   ctx.restore();
 }
 
