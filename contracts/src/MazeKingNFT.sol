@@ -27,6 +27,12 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
     // Pluggable badge-awarding strategy (updatable; address(0) disables awards)
     address public badgeAwarder;
 
+    // On-chain SVG renderer (updatable; address(0) falls back to base URI)
+    address public renderer;
+
+    // Compact maze layout per tokenId (header + packed cells, see _encodeLayout)
+    mapping(uint256 => bytes) public layouts;
+
     // Maze registry: seed hash -> official maze token ID
     mapping(bytes32 => uint256) public officialMazes;
 
@@ -61,6 +67,8 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
     event Withdrawal(address indexed to, uint256 amount);
     event VerifierUpdated(address indexed oldVerifier, address indexed newVerifier);
     event BadgeAwarderUpdated(address indexed oldAwarder, address indexed newAwarder);
+    event RendererUpdated(address indexed oldRenderer, address indexed newRenderer);
+    event LayoutStored(uint256 indexed tokenId, uint256 layoutBytes);
     event MazeRegistered(bytes32 indexed seedHash, string seed, uint256 indexed tokenId);
     event OptimalMovesSet(uint256 indexed tokenId, uint32 optimalMoves);
     event RegisteredSet(uint256 indexed tokenId, bool value);
@@ -127,6 +135,15 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
             _mint(msg.sender, tokenId, 1, "");
         }
 
+        // 4b. Store the maze layout the first time this maze is minted by anyone.
+        //     The layout is shared across all solvers of the same maze, so we only
+        //     need to write it once. Subsequent mints are O(1) for storage.
+        if (layouts[tokenId].length == 0) {
+            bytes memory layout = _encodeLayout(publicInputs);
+            layouts[tokenId] = layout;
+            emit LayoutStored(tokenId, layout.length);
+        }
+
         // 5. Update stats
         Stats storage userStats = stats[tokenId][msg.sender];
 
@@ -161,6 +178,54 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
         address oldAwarder = badgeAwarder;
         badgeAwarder = _awarder;
         emit BadgeAwarderUpdated(oldAwarder, _awarder);
+    }
+
+    /// @notice Update the on-chain SVG renderer
+    /// @param _renderer New renderer (address(0) falls back to ERC1155 base URI)
+    function setRenderer(address _renderer) external onlyRole(OWNER_ROLE) {
+        address oldRenderer = renderer;
+        renderer = _renderer;
+        emit RendererUpdated(oldRenderer, _renderer);
+    }
+
+    /// @notice ERC1155 metadata URI for `tokenId`. When a renderer is configured
+    ///         and we have a stored layout, we return a fully on-chain SVG data
+    ///         URI; otherwise we fall back to the base URI.
+    function uri(uint256 tokenId) public view override returns (string memory) {
+        bytes memory layout = layouts[tokenId];
+        address r = renderer;
+        if (r != address(0) && layout.length != 0) {
+            return IMazeRenderer(r).tokenURI(tokenId, layout);
+        }
+        return super.uri(tokenId);
+    }
+
+    /// @dev Encode the maze layout from `publicInputs` into a compact byte
+    ///      string. The format is documented on MazeRenderer; in short, it is
+    ///      8 BE-uint16 scalars followed by ceil(width*height/2) packed cell
+    ///      bytes (high nibble = even index, low nibble = odd).
+    function _encodeLayout(bytes32[] calldata publicInputs) internal pure returns (bytes memory) {
+        uint16 width = uint16(uint256(publicInputs[0]));
+        uint16 height = uint16(uint256(publicInputs[1]));
+        uint256 totalCells = uint256(width) * uint256(height);
+        uint256 packedLen = (totalCells + 1) / 2;
+
+        bytes memory out = new bytes(16 + packedLen);
+
+        // 8 BE uint16 scalars: width, height, startX, startY, keyX, keyY, goalX, goalY.
+        for (uint256 i = 0; i < 8; i++) {
+            uint16 v = uint16(uint256(publicInputs[i]));
+            out[i * 2] = bytes1(uint8(v >> 8));
+            out[i * 2 + 1] = bytes1(uint8(v));
+        }
+
+        // packed_cells: each input[i] is a bytes32 whose lowest byte is the
+        // packed-cells byte. Take the lowest byte of each.
+        for (uint256 i = 0; i < packedLen; i++) {
+            out[16 + i] = bytes1(uint8(uint256(publicInputs[8 + i])));
+        }
+
+        return out;
     }
 
     /// @notice Record the optimal (minimum) move count for a maze
@@ -252,4 +317,10 @@ interface IVerifier {
         external
         view
         returns (bool);
+}
+
+/// @title IMazeRenderer
+/// @notice Interface for the on-chain SVG renderer
+interface IMazeRenderer {
+    function tokenURI(uint256 tokenId, bytes calldata layout) external view returns (string memory);
 }

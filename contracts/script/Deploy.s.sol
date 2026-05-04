@@ -5,6 +5,7 @@ pragma solidity ^0.8.24;
 import { Script, console } from "forge-std/Script.sol";
 import { MazeKingNFT } from "../src/MazeKingNFT.sol";
 import { DefaultBadgeAwarder } from "../src/DefaultBadgeAwarder.sol";
+import { MazeRenderer } from "../src/MazeRenderer.sol";
 import { HonkVerifier } from "../src/generated/MazeVerifier.sol";
 
 /**
@@ -21,7 +22,10 @@ import { HonkVerifier } from "../src/generated/MazeVerifier.sol";
  *       --private-key $PRIVATE_KEY --broadcast --verify
  */
 contract DeployScript is Script {
-    function run() external returns (address verifier, address nft, address awarder) {
+    function run()
+        external
+        returns (address verifier, address nft, address awarder, address renderer)
+    {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
 
@@ -59,6 +63,15 @@ contract DeployScript is Script {
         console.log("Wired badge awarder on NFT");
         console.log("");
 
+        // Step 4: Deploy on-chain SVG renderer and wire it
+        console.log("Deploying MazeRenderer...");
+        MazeRenderer rendererContract = new MazeRenderer();
+        renderer = address(rendererContract);
+        console.log("MazeRenderer deployed at:", renderer);
+        nftContract.setRenderer(renderer);
+        console.log("Wired renderer on NFT");
+        console.log("");
+
         vm.stopBroadcast();
 
         // Step 4: Save deployment addresses
@@ -68,6 +81,7 @@ contract DeployScript is Script {
         console.log("Verifier:", verifier);
         console.log("NFT:", nft);
         console.log("BadgeAwarder:", awarder);
+        console.log("Renderer:", renderer);
         console.log("Owner:", deployer);
         console.log("");
 
@@ -96,6 +110,9 @@ contract DeployScript is Script {
             '",\n',
             '  "badgeAwarder": "',
             vm.toString(awarder),
+            '",\n',
+            '  "renderer": "',
+            vm.toString(renderer),
             '",\n',
             '  "deployer": "',
             vm.toString(deployer),

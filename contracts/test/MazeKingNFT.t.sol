@@ -6,6 +6,7 @@ import { MazeKingNFT } from "../src/MazeKingNFT.sol";
 import { MazeConstants } from "../src/MazeConstants.sol";
 import { IBadgeAwarder } from "../src/IBadgeAwarder.sol";
 import { DefaultBadgeAwarder } from "../src/DefaultBadgeAwarder.sol";
+import { MazeRenderer } from "../src/MazeRenderer.sol";
 
 /// @title MockVerifier
 /// @notice Mock verifier for testing
@@ -477,5 +478,185 @@ contract MazeKingNFTTest is Test {
 
         (,, uint32 badges,) = nft.stats(tokenId, user);
         assertEq(badges, 0);
+    }
+
+    // ==================================================
+    // On-chain SVG Rendering Tests (ma-6cr.7)
+    // ==================================================
+
+    /// @dev Build a deterministic small (4x4) maze layout in publicInputs
+    ///      shape. We need a real layout (not zeros) so the renderer has
+    ///      walls and cell types to draw.
+    function _smallMazeInputs() internal pure returns (bytes32[] memory) {
+        bytes32[] memory publicInputs = new bytes32[](MazeConstants.PUBLIC_INPUTS_LENGTH);
+        publicInputs[0] = bytes32(uint256(4)); // width
+        publicInputs[1] = bytes32(uint256(4)); // height
+        publicInputs[2] = bytes32(uint256(0)); // start_x
+        publicInputs[3] = bytes32(uint256(0)); // start_y
+        publicInputs[4] = bytes32(uint256(2)); // key_x
+        publicInputs[5] = bytes32(uint256(1)); // key_y
+        publicInputs[6] = bytes32(uint256(3)); // goal_x
+        publicInputs[7] = bytes32(uint256(3)); // goal_y
+
+        // 4x4 = 16 cells = 8 packed bytes. Use a mix of cell types and walls
+        // so the renderer has something interesting to walk.
+        // High nibble = even-index cell, low nibble = odd-index cell.
+        // Nibble layout: [southWall][eastWall][cellType:2 bits]
+        //   0xC = 1100 = south+east walls, type 0 (Normal)
+        //   0x9 = 1001 = south wall, type 1 (Text)
+        //   0x6 = 0110 = east wall, type 2 (ZkText)
+        //   0x3 = 0011 = no walls, type 3 (CrownText)
+        publicInputs[8] = bytes32(uint256(0xC9)); // cells 0,1
+        publicInputs[9] = bytes32(uint256(0x63)); // cells 2,3
+        publicInputs[10] = bytes32(uint256(0xC0)); // cells 4,5
+        publicInputs[11] = bytes32(uint256(0x49)); // cells 6,7
+        publicInputs[12] = bytes32(uint256(0xCC)); // cells 8,9
+        publicInputs[13] = bytes32(uint256(0x33)); // cells 10,11
+        publicInputs[14] = bytes32(uint256(0xC9)); // cells 12,13
+        publicInputs[15] = bytes32(uint256(0x66)); // cells 14,15
+
+        publicInputs[MazeConstants.MAZE_DATA_LENGTH] = bytes32(uint256(50));
+        return publicInputs;
+    }
+
+    function test_MintStoresLayout() public {
+        bytes32[] memory publicInputs = _smallMazeInputs();
+        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+
+        vm.prank(user);
+        nft.mintWithProof(hex"00", publicInputs, 50);
+
+        bytes memory stored = nft.layouts(tokenId);
+        // 16-byte header + 8 packed bytes for a 4x4 maze
+        assertEq(stored.length, 24);
+
+        // Verify width/height bytes (BE uint16)
+        assertEq(uint8(stored[0]), 0);
+        assertEq(uint8(stored[1]), 4); // width
+        assertEq(uint8(stored[2]), 0);
+        assertEq(uint8(stored[3]), 4); // height
+
+        // First packed byte should round-trip the input nibble pair
+        assertEq(uint8(stored[16]), 0xC9);
+    }
+
+    function test_MintLayoutWrittenOnce() public {
+        bytes32[] memory publicInputs = _smallMazeInputs();
+        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+
+        vm.prank(user);
+        nft.mintWithProof(hex"00", publicInputs, 50);
+        bytes memory firstLayout = nft.layouts(tokenId);
+
+        // Second mint by another user should NOT rewrite the layout: storing
+        // it again would emit a duplicate event and waste gas.
+        address user2 = address(0x2222);
+        vm.prank(user2);
+        nft.mintWithProof(hex"00", publicInputs, 60);
+        bytes memory secondLayout = nft.layouts(tokenId);
+
+        assertEq(firstLayout.length, secondLayout.length);
+        assertEq(keccak256(firstLayout), keccak256(secondLayout));
+    }
+
+    function test_UriFallsBackWithoutRenderer() public {
+        bytes32[] memory publicInputs = _smallMazeInputs();
+        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+
+        vm.prank(user);
+        nft.mintWithProof(hex"00", publicInputs, 50);
+
+        // No renderer set — should return the base URI.
+        assertEq(nft.uri(tokenId), "https://api.mazeking.xyz/token/");
+    }
+
+    function test_UriRendersOnChainSVG() public {
+        MazeRenderer rendererContract = new MazeRenderer();
+
+        vm.prank(owner);
+        nft.setRenderer(address(rendererContract));
+
+        bytes32[] memory publicInputs = _smallMazeInputs();
+        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+
+        vm.prank(user);
+        nft.mintWithProof(hex"00", publicInputs, 50);
+
+        string memory tokenUri = nft.uri(tokenId);
+        bytes memory uriBytes = bytes(tokenUri);
+
+        // Sanity: must be a JSON data URI.
+        assertGt(uriBytes.length, 100);
+        bytes memory prefix = bytes("data:application/json;base64,");
+        for (uint256 i = 0; i < prefix.length; i++) {
+            assertEq(uriBytes[i], prefix[i], "tokenURI prefix mismatch");
+        }
+    }
+
+    function test_RendererRenderSvgContainsExpectedShape() public {
+        MazeRenderer rendererContract = new MazeRenderer();
+        bytes32[] memory publicInputs = _smallMazeInputs();
+        uint256 tokenId = _tokenIdFromInputs(publicInputs);
+
+        vm.prank(user);
+        nft.mintWithProof(hex"00", publicInputs, 50);
+        bytes memory layout = nft.layouts(tokenId);
+
+        string memory svg = rendererContract.renderSvg(tokenId, layout);
+        bytes memory s = bytes(svg);
+
+        // Must start with <svg ...
+        assertTrue(s.length > 100);
+        assertEq(s[0], "<");
+        assertEq(s[1], "s");
+        assertEq(s[2], "v");
+        assertEq(s[3], "g");
+
+        // Must end with </svg>
+        bytes memory closing = bytes("</svg>");
+        for (uint256 i = 0; i < closing.length; i++) {
+            assertEq(s[s.length - closing.length + i], closing[i], "missing svg close");
+        }
+
+        // viewBox dimensions are width*16 = 64 by height*16 = 64.
+        assertTrue(_contains(svg, "viewBox=\"0 0 64 64\""));
+        // The wall group should be present.
+        assertTrue(_contains(svg, "<g stroke="));
+        // Text-cell fills should appear in the SVG (cellType 1/2/3 produce rects).
+        assertTrue(_contains(svg, "<rect x="));
+        // Player/key/goal circles.
+        assertTrue(_contains(svg, "<circle"));
+    }
+
+    function test_SetRenderer() public {
+        MazeRenderer r = new MazeRenderer();
+        vm.prank(owner);
+        nft.setRenderer(address(r));
+        assertEq(nft.renderer(), address(r));
+    }
+
+    function test_RevertSetRendererWithoutRole() public {
+        MazeRenderer r = new MazeRenderer();
+        vm.prank(user);
+        vm.expectRevert();
+        nft.setRenderer(address(r));
+    }
+
+    function _contains(string memory haystack, string memory needle) internal pure returns (bool) {
+        bytes memory h = bytes(haystack);
+        bytes memory n = bytes(needle);
+        if (n.length == 0) return true;
+        if (h.length < n.length) return false;
+        for (uint256 i = 0; i <= h.length - n.length; i++) {
+            bool ok = true;
+            for (uint256 j = 0; j < n.length; j++) {
+                if (h[i + j] != n[j]) {
+                    ok = false;
+                    break;
+                }
+            }
+            if (ok) return true;
+        }
+        return false;
     }
 }
