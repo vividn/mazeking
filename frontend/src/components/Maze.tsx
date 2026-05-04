@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { CellType, type MazeData, type Position, type ColorScheme } from '../types';
 import { drawCrown, drawKey, drawChest, drawArrow, drawCornerWarp, getArrowColor } from '../glyphs';
 
@@ -12,7 +12,14 @@ interface MazeProps {
   zoom: number;
   visited: Set<string>;
   showEntities?: boolean;
+  /** Enable pinch-to-zoom and 1-finger pan via touch events (mobile). */
+  enableTouchTransform?: boolean;
 }
+
+const MIN_USER_ZOOM = 0.6;
+const MAX_USER_ZOOM = 6;
+const DOUBLE_TAP_MS = 300;
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 /**
  * Maze renderer component that displays the toroidal maze with player, key, and goal.
@@ -27,10 +34,27 @@ export const Maze: React.FC<MazeProps> = ({
   colors,
   zoom,
   visited,
-  showEntities = true
+  showEntities = true,
+  enableTouchTransform = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Per-user transform applied on top of the base centering / zoom prop.
+  const [userZoom, setUserZoom] = useState(1);
+  const [userPan, setUserPan] = useState({ x: 0, y: 0 });
+  const lastTapRef = useRef<number>(0);
+
+  // Reset user transform when the maze identity changes
+  const mazeKey = `${maze.width}x${maze.height}`;
+  const lastMazeKeyRef = useRef(mazeKey);
+  useEffect(() => {
+    if (lastMazeKeyRef.current !== mazeKey) {
+      lastMazeKeyRef.current = mazeKey;
+      setUserZoom(1);
+      setUserPan({ x: 0, y: 0 });
+    }
+  }, [mazeKey]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -54,23 +78,29 @@ export const Maze: React.FC<MazeProps> = ({
       rect.width / maze.width,
       rect.height / maze.height
     );
-    const cellSize = baseCellSize * zoom;
+    const totalZoom = zoom * userZoom;
+    const cellSize = baseCellSize * totalZoom;
 
-    // Calculate viewport offset to center on player when zoomed
+    // Calculate viewport offset. When the user has applied any pinch/pan,
+    // we use neutral (maze-centered) framing and stack their transform on top —
+    // this keeps pinch anchoring math stable. Otherwise honor the prop zoom's
+    // player-centered behavior (the desktop 1x/2x toggle).
     let offsetX = 0;
     let offsetY = 0;
 
-    if (zoom > 1) {
-      // Center on player
+    const userActive = userZoom !== 1 || userPan.x !== 0 || userPan.y !== 0;
+
+    if (zoom > 1 && !userActive) {
       const playerScreenX = playerPos.x * cellSize;
       const playerScreenY = playerPos.y * cellSize;
       offsetX = rect.width / 2 - playerScreenX - cellSize / 2;
       offsetY = rect.height / 2 - playerScreenY - cellSize / 2;
     } else {
-      // Center maze in viewport when not zoomed
       offsetX = (rect.width - maze.width * cellSize) / 2;
       offsetY = (rect.height - maze.height * cellSize) / 2;
     }
+    offsetX += userPan.x;
+    offsetY += userPan.y;
 
     // Clear canvas with dark background
     ctx.fillStyle = '#1a1a1a';
@@ -389,7 +419,7 @@ export const Maze: React.FC<MazeProps> = ({
     }
 
     ctx.restore();
-  }, [maze, playerPos, keyPos, goalPos, hasKey, colors, zoom, visited, showEntities]);
+  }, [maze, playerPos, keyPos, goalPos, hasKey, colors, zoom, visited, showEntities, userZoom, userPan]);
 
   // Handle window resize - force re-render by changing a counter
   const [, setResizeCount] = React.useState(0);
@@ -402,9 +432,140 @@ export const Maze: React.FC<MazeProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Touch gesture handling: 1-finger pan, 2-finger pinch zoom, double-tap to reset
+  const gestureRef = useRef<{
+    mode: 'pan' | 'pinch' | null;
+    last?: { x: number; y: number };
+    startDist?: number;
+    startTotalZoom?: number;
+    startUserZoom?: number;
+    startMid?: { x: number; y: number };
+    startOffset?: { x: number; y: number };
+    startPan?: { x: number; y: number };
+    centerOffsetFn?: (z: number) => { x: number; y: number };
+  }>({ mode: null });
+
+  const computeNeutralOffset = useCallback((totalZoom: number) => {
+    const container = containerRef.current;
+    if (!container) return { x: 0, y: 0 };
+    const rect = container.getBoundingClientRect();
+    const baseCellSize = Math.min(rect.width / maze.width, rect.height / maze.height);
+    const cellSize = baseCellSize * totalZoom;
+    return {
+      x: (rect.width - maze.width * cellSize) / 2,
+      y: (rect.height - maze.height * cellSize) / 2,
+    };
+  }, [maze.width, maze.height]);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!enableTouchTransform) return;
+    if (e.touches.length === 1) {
+      const t = e.touches[0];
+      const now = Date.now();
+      // Double-tap to reset transform
+      if (now - lastTapRef.current < DOUBLE_TAP_MS) {
+        setUserZoom(1);
+        setUserPan({ x: 0, y: 0 });
+        lastTapRef.current = 0;
+        gestureRef.current = { mode: null };
+        return;
+      }
+      lastTapRef.current = now;
+      gestureRef.current = {
+        mode: 'pan',
+        last: { x: t.clientX, y: t.clientY },
+      };
+    } else if (e.touches.length === 2) {
+      const container = containerRef.current;
+      const rect = container?.getBoundingClientRect();
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dx = t2.clientX - t1.clientX;
+      const dy = t2.clientY - t1.clientY;
+      const dist = Math.hypot(dx, dy);
+      const midScreenX = (t1.clientX + t2.clientX) / 2;
+      const midScreenY = (t1.clientY + t2.clientY) / 2;
+      // Convert mid to canvas-local coords
+      const midX = rect ? midScreenX - rect.left : midScreenX;
+      const midY = rect ? midScreenY - rect.top : midScreenY;
+
+      const startTotalZoom = zoom * userZoom;
+      const neutral = computeNeutralOffset(startTotalZoom);
+      const startOffsetX = neutral.x + userPan.x;
+      const startOffsetY = neutral.y + userPan.y;
+
+      gestureRef.current = {
+        mode: 'pinch',
+        startDist: dist,
+        startTotalZoom,
+        startUserZoom: userZoom,
+        startMid: { x: midX, y: midY },
+        startOffset: { x: startOffsetX, y: startOffsetY },
+        startPan: { ...userPan },
+      };
+    }
+  }, [enableTouchTransform, zoom, userZoom, userPan, computeNeutralOffset]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!enableTouchTransform) return;
+    const g = gestureRef.current;
+    if (g.mode === 'pan' && e.touches.length === 1 && g.last) {
+      const t = e.touches[0];
+      const dx = t.clientX - g.last.x;
+      const dy = t.clientY - g.last.y;
+      g.last = { x: t.clientX, y: t.clientY };
+      setUserPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+      e.preventDefault();
+    } else if (
+      g.mode === 'pinch' &&
+      e.touches.length === 2 &&
+      g.startDist &&
+      g.startUserZoom !== undefined &&
+      g.startMid &&
+      g.startOffset &&
+      g.startTotalZoom !== undefined
+    ) {
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dx = t2.clientX - t1.clientX;
+      const dy = t2.clientY - t1.clientY;
+      const dist = Math.hypot(dx, dy);
+      const ratio = dist / g.startDist;
+      const newUserZoom = clamp(g.startUserZoom * ratio, MIN_USER_ZOOM, MAX_USER_ZOOM);
+      // Effective applied ratio after clamping
+      const k = (zoom * newUserZoom) / g.startTotalZoom;
+      // New offset that anchors midpoint
+      const newOffsetX = g.startMid.x - (g.startMid.x - g.startOffset.x) * k;
+      const newOffsetY = g.startMid.y - (g.startMid.y - g.startOffset.y) * k;
+      // Convert back to userPan: newPan = newOffset - centerOffset(newTotalZoom)
+      const neutral = computeNeutralOffset(zoom * newUserZoom);
+      setUserZoom(newUserZoom);
+      setUserPan({ x: newOffsetX - neutral.x, y: newOffsetY - neutral.y });
+      e.preventDefault();
+    }
+  }, [enableTouchTransform, zoom, computeNeutralOffset]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!enableTouchTransform) return;
+    if (e.touches.length === 0) {
+      gestureRef.current = { mode: null };
+    } else if (e.touches.length === 1 && gestureRef.current.mode === 'pinch') {
+      // Switch to pan with the remaining finger
+      const t = e.touches[0];
+      gestureRef.current = {
+        mode: 'pan',
+        last: { x: t.clientX, y: t.clientY },
+      };
+    }
+  }, [enableTouchTransform]);
+
   return (
     <div
       ref={containerRef}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
       style={{
         width: '100%',
         height: '100%',
@@ -413,7 +574,8 @@ export const Maze: React.FC<MazeProps> = ({
         justifyContent: 'center',
         backgroundColor: '#1a1a1a',
         overflow: 'hidden',
-        position: 'relative'
+        position: 'relative',
+        touchAction: enableTouchTransform ? 'none' : 'auto',
       }}
     >
       <canvas

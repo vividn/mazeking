@@ -268,7 +268,7 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
 
   return (
     <div style={styles.container} ref={gameContainerRef}>
-      <div style={styles.header}>
+      <div style={{ ...styles.header, ...(isMobile ? styles.headerMobile : null) }}>
         <div style={styles.headerRow}>
           <div style={styles.statsGroup}>
             <span style={styles.stat}>
@@ -278,44 +278,48 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
               {gameState.hasKey ? 'Key collected!' : 'Find the key'}
             </span>
           </div>
-          <div style={styles.keymap}>
-            <span style={styles.keymapItem}>Move: <kbd style={styles.kbd}>Arrows</kbd> <kbd style={styles.kbd}>WASD</kbd></span>
-            <span style={styles.keymapItem}>Restart: <kbd style={styles.kbd}>R</kbd></span>
-            <span style={styles.keymapItem}>New: <kbd style={styles.kbd}>N</kbd></span>
-          </div>
-          <div style={styles.headerButtons}>
-            <button
-              onClick={toggleZoom}
-              style={{ ...styles.actionButton, backgroundColor: colors.wallColor, color: getContrastColor(colors.wallColor) }}
-            >
-              {zoom === 1 ? 'Zoom In' : 'Zoom Out'}
-            </button>
-            <button
-              onClick={handleCopyLink}
-              style={{ ...styles.actionButton, backgroundColor: colors.textBackgroundColor, color: getContrastColor(colors.textBackgroundColor) }}
-              title="Copy link to clipboard"
-            >
-              {copied ? 'Copied!' : 'Share'}
-            </button>
-            <button
-              onClick={() => setHistorySidebarOpen(true)}
-              style={{ ...styles.actionButton, backgroundColor: colors.wallColor, color: getContrastColor(colors.wallColor) }}
-            >
-              History
-            </button>
-            <button
-              onClick={() => setSeedBarOpen(true)}
-              style={{ ...styles.actionButton, backgroundColor: colors.uiAccentColor, color: buttonTextColor }}
-            >
-              New Game
-            </button>
-          </div>
+          {!isMobile && (
+            <div style={styles.keymap}>
+              <span style={styles.keymapItem}>Move: <kbd style={styles.kbd}>Arrows</kbd> <kbd style={styles.kbd}>WASD</kbd></span>
+              <span style={styles.keymapItem}>Restart: <kbd style={styles.kbd}>R</kbd></span>
+              <span style={styles.keymapItem}>New: <kbd style={styles.kbd}>N</kbd></span>
+            </div>
+          )}
+          {!isMobile && (
+            <div style={styles.headerButtons}>
+              <button
+                onClick={toggleZoom}
+                style={{ ...styles.actionButton, backgroundColor: colors.wallColor, color: getContrastColor(colors.wallColor) }}
+              >
+                {zoom === 1 ? 'Zoom In' : 'Zoom Out'}
+              </button>
+              <button
+                onClick={handleCopyLink}
+                style={{ ...styles.actionButton, backgroundColor: colors.textBackgroundColor, color: getContrastColor(colors.textBackgroundColor) }}
+                title="Copy link to clipboard"
+              >
+                {copied ? 'Copied!' : 'Share'}
+              </button>
+              <button
+                onClick={() => setHistorySidebarOpen(true)}
+                style={{ ...styles.actionButton, backgroundColor: colors.wallColor, color: getContrastColor(colors.wallColor) }}
+              >
+                History
+              </button>
+              <button
+                onClick={() => setSeedBarOpen(true)}
+                style={{ ...styles.actionButton, backgroundColor: colors.uiAccentColor, color: buttonTextColor }}
+              >
+                New Game
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       <MazeSizeWarning width={maze.width} height={maze.height} />
 
-      <div style={styles.mazeContainer}>
+      <div style={{ ...styles.mazeContainer, ...(isMobile ? styles.mazeContainerMobile : null) }}>
         <Maze
           maze={maze}
           playerPos={gameState.playerPos}
@@ -323,16 +327,24 @@ export function Game({ initialSeed, onSeedChange }: GameProps) {
           goalPos={gameState.goalPos}
           hasKey={gameState.hasKey}
           colors={colors}
-          zoom={zoom}
+          zoom={isMobile ? 1 : zoom}
           visited={visited}
+          enableTouchTransform={isMobile}
         />
       </div>
 
-      {isMobile && (
+      {isMobile && !seedBarOpen && (
         <Controls
           onMove={handleMove}
+          onNewGame={handleNewMaze}
+          onHistory={() => setHistorySidebarOpen(true)}
+          onShare={handleCopyLink}
+          onRestart={handlePlayAgain}
           disabled={gameState.gameWon}
           accentColor={colors.uiAccentColor}
+          wallColor={colors.wallColor}
+          textBackgroundColor={colors.textBackgroundColor}
+          copied={copied}
         />
       )}
 
@@ -384,6 +396,11 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '12px 16px',
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     flexShrink: 0,
+  },
+  headerMobile: {
+    padding: '6px 12px',
+    gap: '4px',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
   },
   headerRow: {
     display: 'flex',
@@ -446,6 +463,9 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+  },
+  mazeContainerMobile: {
+    paddingBottom: 'calc(58px + env(safe-area-inset-bottom, 0px))',
   },
   loading: {
     display: 'flex',
