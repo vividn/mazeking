@@ -8,9 +8,9 @@
  * bytes — that is the cross-layer invariant the on-chain verifier relies on.
  *
  * Byte → field packing (must mirror Noir):
- *   - Layout buffer is exactly LAYOUT_TOTAL_BYTES (1516) bytes.
- *   - We pack into 49 fields × 31 bytes each, big-endian within each chunk.
- *   - 1516 = 48 * 31 + 28, so the last field's high 3 bytes are zero-padded.
+ *   - Layout buffer is exactly LAYOUT_TOTAL_BYTES (1520) bytes.
+ *   - We pack into 50 fields × 31 bytes each, big-endian within each chunk.
+ *   - 1520 = 49 * 31 + 1, so the last field's high 30 bytes are zero-padded.
  *   - Hash index is 0 (matches Noir's `std::hash::pedersen_hash(fields)`).
  */
 
@@ -78,7 +78,7 @@ function frToHex(fr: Fr): `0x${string}` {
 }
 
 /**
- * Compute the canonical Pedersen hash of a 1516-byte maze layout.
+ * Compute the canonical Pedersen hash of a 1520-byte maze layout.
  *
  * @returns 32-byte field element as a `0x`-prefixed lowercase hex string.
  *          This is the value the proof commits to as `maze_hash` and the

@@ -24,9 +24,13 @@ import {
 interface MazeProps {
   maze: MazeData;
   playerPos: Position;
-  keyPos: Position | null;
+  /** Robe pickup position. `null` once collected (or never present). */
+  robePos: Position | null;
+  /** Scepter pickup position. `null` once collected (or never present). */
+  scepterPos: Position | null;
   goalPos: Position;
-  hasKey: boolean;
+  hasRobe: boolean;
+  hasScepter: boolean;
   colors: ColorScheme;
   zoom: number;
   visited: Set<string>;
@@ -47,7 +51,7 @@ interface MazeProps {
   crownTier?: CrownTier;
   /**
    * When true, render the regalia hint speech bubble above the player. Shown
-   * when the player reaches the goal without regalia.
+   * when the player reaches the goal without full regalia.
    */
   showKinglyHint?: boolean;
 }
@@ -211,9 +215,11 @@ export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
   {
     maze,
     playerPos,
-    keyPos,
+    robePos,
+    scepterPos,
     goalPos,
-    hasKey,
+    hasRobe,
+    hasScepter,
     colors,
     zoom,
     visited,
@@ -226,6 +232,7 @@ export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
   },
   ref
 ) {
+  const fullRegalia = hasRobe && hasScepter;
   // Lower bound such that the maze never shrinks past fit-to-viewport.
   // baseCellSize = min(viewport/maze) which is the exact-fit cell size at
   // totalZoom=1. So minUserZoom = 1 / zoom keeps totalZoom >= 1.
@@ -663,13 +670,13 @@ export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
     };
 
     if (showEntities) {
-      // Crown goal — green-tinted accessible halo once regalia is collected,
-      // red while locked. Crown is THE win condition glyph.
+      // Crown goal — green-tinted accessible halo once both regalia pieces
+      // are collected, red while locked. Crown is THE win condition glyph.
       // Skip when the player is wearing the crown (win-modal thumbnail) —
       // the crown has been claimed; rendering it on the goal cell too would
       // double up at the same position.
       if (!playerWearsCrown) {
-        const goalHalo = hasKey
+        const goalHalo = fullRegalia
           ? { r: 100, g: 200, b: 100 }
           : { r: 200, g: 60, b: 60 };
         drawAccessibleHighlight(goalPos, goalHalo, 2);
@@ -679,20 +686,34 @@ export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
           goalPos.y * cellSize + cellSize / 2,
           cellSize * 0.9,
           colors.goalColor,
-          hasKey,
+          fullRegalia,
           colors.goalGlowColor,
           glyphImages ?? undefined
         );
       }
 
-      // Regalia collectible — only visible until picked up.
-      if (keyPos !== null) {
+      // Robe collectible — only visible until picked up.
+      if (robePos !== null) {
         const regaliaHalo = { r: 255, g: 200, b: 50 };
-        drawAccessibleHighlight(keyPos, regaliaHalo, 2);
+        drawAccessibleHighlight(robePos, regaliaHalo, 2);
         drawRegalia(
           ctx,
-          keyPos.x * cellSize + cellSize / 2,
-          keyPos.y * cellSize + cellSize / 2,
+          robePos.x * cellSize + cellSize / 2,
+          robePos.y * cellSize + cellSize / 2,
+          cellSize * 0.85,
+          colors.keyColor,
+          glyphImages ?? undefined
+        );
+      }
+
+      // Scepter collectible — only visible until picked up.
+      if (scepterPos !== null) {
+        const regaliaHalo = { r: 255, g: 200, b: 50 };
+        drawAccessibleHighlight(scepterPos, regaliaHalo, 2);
+        drawRegalia(
+          ctx,
+          scepterPos.x * cellSize + cellSize / 2,
+          scepterPos.y * cellSize + cellSize / 2,
           cellSize * 0.85,
           colors.keyColor,
           glyphImages ?? undefined
@@ -700,14 +721,14 @@ export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
       }
 
       // Player figure. Win-modal context renders person-wearing-crown; in-game
-      // the player wears regalia (robe+scepter) once collected.
+      // the player wears regalia (robe+scepter) once both pieces are collected.
       drawPerson(
         ctx,
         playerPos.x * cellSize + cellSize / 2,
         playerPos.y * cellSize + cellSize / 2,
         cellSize * 0.85,
         colors.playerColor,
-        hasKey,
+        fullRegalia,
         colors.keyColor,
         playerWearsCrown,
         colors.keyColor,
@@ -727,10 +748,7 @@ export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
           : playerPos.y * cellSize;
         // Cap bubble width so the long hint doesn't run offscreen on small
         // viewports — wrap to multiple lines instead.
-        const maxBubbleW = Math.min(
-          maze.width * cellSize * 0.9,
-          cellSize * 14
-        );
+        const maxBubbleW = Math.min(maze.width * cellSize * 0.9, cellSize * 14);
         drawKinglyHint(
           ctx,
           playerCenterX,
@@ -746,9 +764,12 @@ export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
   }, [
     maze,
     playerPos,
-    keyPos,
+    robePos,
+    scepterPos,
     goalPos,
-    hasKey,
+    hasRobe,
+    hasScepter,
+    fullRegalia,
     colors,
     zoom,
     visited,
@@ -1146,7 +1167,7 @@ export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
           display: 'block',
           imageRendering: 'crisp-edges',
         }}
-        aria-label={`Maze grid ${maze.width} by ${maze.height}. Player at ${playerPos.x}, ${playerPos.y}. ${hasKey ? 'Regalia collected' : `Regalia at ${keyPos?.x}, ${keyPos?.y}`}. Crown at ${goalPos.x}, ${goalPos.y}.`}
+        aria-label={`Maze grid ${maze.width} by ${maze.height}. Player at ${playerPos.x}, ${playerPos.y}. ${hasRobe ? 'Robe collected' : `Robe at ${robePos?.x}, ${robePos?.y}`}. ${hasScepter ? 'Scepter collected' : `Scepter at ${scepterPos?.x}, ${scepterPos?.y}`}. Crown at ${goalPos.x}, ${goalPos.y}.`}
         role="img"
       />
     </div>

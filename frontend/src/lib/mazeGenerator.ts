@@ -553,7 +553,12 @@ function generateNonTextMazePaths(maze: MazeData, rng: Rng): void {
 function findValidPositions(
   maze: MazeData,
   rng: Rng
-): { kingPos: Position; keyPos: Position; goalPos: Position } {
+): {
+  kingPos: Position;
+  robePos: Position;
+  scepterPos: Position;
+  goalPos: Position;
+} {
   const { width, height, cells } = maze;
 
   const candidates: Position[] = [];
@@ -566,7 +571,7 @@ function findValidPositions(
   }
 
   const pool =
-    candidates.length >= 3
+    candidates.length >= 4
       ? candidates
       : Array.from({ length: width * height }, (_, i) => ({
           x: i % width,
@@ -577,32 +582,65 @@ function findValidPositions(
 
   const kingPos = shuffled[0];
 
-  let keyPos = shuffled[1];
+  // Robe: prefer a cell at least width/3 from the king.
+  let robePos = shuffled[1];
   for (const pos of shuffled.slice(1)) {
     const dist = Math.abs(pos.x - kingPos.x) + Math.abs(pos.y - kingPos.y);
     if (dist > width / 3) {
-      keyPos = pos;
+      robePos = pos;
       break;
     }
   }
 
-  let goalPos = shuffled[2];
+  // Scepter: prefer a cell at least width/3 from both king and robe.
+  let scepterPos = shuffled[2];
   for (const pos of shuffled.slice(2)) {
+    if (
+      (pos.x === kingPos.x && pos.y === kingPos.y) ||
+      (pos.x === robePos.x && pos.y === robePos.y)
+    ) {
+      continue;
+    }
     const distKing = Math.abs(pos.x - kingPos.x) + Math.abs(pos.y - kingPos.y);
-    const distKey = Math.abs(pos.x - keyPos.x) + Math.abs(pos.y - keyPos.y);
-    if (distKing > width / 4 && distKey > width / 4) {
+    const distRobe = Math.abs(pos.x - robePos.x) + Math.abs(pos.y - robePos.y);
+    if (distKing > width / 3 && distRobe > width / 3) {
+      scepterPos = pos;
+      break;
+    }
+  }
+
+  // Goal: prefer a cell well away from king, robe, and scepter.
+  let goalPos = shuffled[3];
+  for (const pos of shuffled.slice(3)) {
+    if (
+      (pos.x === kingPos.x && pos.y === kingPos.y) ||
+      (pos.x === robePos.x && pos.y === robePos.y) ||
+      (pos.x === scepterPos.x && pos.y === scepterPos.y)
+    ) {
+      continue;
+    }
+    const distKing = Math.abs(pos.x - kingPos.x) + Math.abs(pos.y - kingPos.y);
+    const distRobe = Math.abs(pos.x - robePos.x) + Math.abs(pos.y - robePos.y);
+    const distScepter =
+      Math.abs(pos.x - scepterPos.x) + Math.abs(pos.y - scepterPos.y);
+    if (
+      distKing > width / 4 &&
+      distRobe > width / 4 &&
+      distScepter > width / 4
+    ) {
       goalPos = pos;
       break;
     }
   }
 
-  return { kingPos, keyPos, goalPos };
+  return { kingPos, robePos, scepterPos, goalPos };
 }
 
 export interface GeneratedMaze {
   maze: MazeData;
   kingPos: Position;
-  keyPos: Position;
+  robePos: Position;
+  scepterPos: Position;
   goalPos: Position;
 }
 
@@ -730,10 +768,13 @@ export function generateMaze(
     debugRemoveInternalWalls(maze, rng);
   }
 
-  // 6. Find positions for king, key, goal
-  const { kingPos, keyPos, goalPos } = findValidPositions(maze, rng);
+  // 6. Find positions for king, robe, scepter, goal
+  const { kingPos, robePos, scepterPos, goalPos } = findValidPositions(
+    maze,
+    rng
+  );
 
-  return { maze, kingPos, keyPos, goalPos };
+  return { maze, kingPos, robePos, scepterPos, goalPos };
 }
 
 export function canMove(

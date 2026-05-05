@@ -8,7 +8,7 @@
   "$derived": {
     "maxPackedBytes": "maxMazeCells / 2",
     "publicInputsLength": "2 (maze_hash + move_count)",
-    "layoutHeaderBytes": 16,
+    "layoutHeaderBytes": 20,
     "layoutTotalBytes": "layoutHeaderBytes + maxPackedBytes"
   }
 }

@@ -59,7 +59,8 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
   const [copied, setCopied] = useState(false);
   const [initialPositions, setInitialPositions] = useState<{
     startPos: Position;
-    keyPos: Position;
+    robePos: Position;
+    scepterPos: Position;
     goalPos: Position;
   } | null>(null);
   const gameContainerRef = useRef<HTMLDivElement>(null);
@@ -122,7 +123,8 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
       // Store initial positions for ZK proof generation
       setInitialPositions({
         startPos: { ...generated.kingPos },
-        keyPos: { ...generated.keyPos },
+        robePos: { ...generated.robePos },
+        scepterPos: { ...generated.scepterPos },
         goalPos: { ...generated.goalPos },
       });
 
@@ -133,9 +135,11 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
 
       setGameState({
         playerPos: { ...generated.kingPos },
-        keyPos: { ...generated.keyPos },
+        robePos: { ...generated.robePos },
+        scepterPos: { ...generated.scepterPos },
         goalPos: { ...generated.goalPos },
-        hasKey: false,
+        hasRobe: false,
+        hasScepter: false,
         moveCount: 0,
         moves: [],
         gameWon: false,
@@ -175,28 +179,38 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
             moves: [...prev.moves, DIRECTION_TO_MOVE[direction] as Move],
           };
 
-          // Check if picked up key
+          // Check robe pickup
           if (
-            prev.keyPos &&
-            newPos.x === prev.keyPos.x &&
-            newPos.y === prev.keyPos.y
+            prev.robePos &&
+            newPos.x === prev.robePos.x &&
+            newPos.y === prev.robePos.y
           ) {
-            newState.hasKey = true;
-            newState.keyPos = { x: -1, y: -1 }; // Mark as collected
+            newState.hasRobe = true;
+            newState.robePos = { x: -1, y: -1 };
+          }
+
+          // Check scepter pickup
+          if (
+            prev.scepterPos &&
+            newPos.x === prev.scepterPos.x &&
+            newPos.y === prev.scepterPos.y
+          ) {
+            newState.hasScepter = true;
+            newState.scepterPos = { x: -1, y: -1 };
           }
 
           const reachedGoal =
             newPos.x === prev.goalPos.x && newPos.y === prev.goalPos.y;
+          const fullRegalia = newState.hasRobe && newState.hasScepter;
 
-          // Reaching the crown only wins when wearing regalia. Without it,
-          // surface the hint instead — the goal stays unclaimed.
-          if (reachedGoal && newState.hasKey) {
+          // Reaching the crown only wins when wearing both regalia pieces.
+          // Without them, surface the hint instead — the goal stays unclaimed.
+          if (reachedGoal && fullRegalia) {
             newState.gameWon = true;
             setShowKinglyHint(false);
-          } else if (reachedGoal && !newState.hasKey) {
+          } else if (reachedGoal && !fullRegalia) {
             setShowKinglyHint(true);
           } else {
-            // Stepping off the goal cell clears the hint.
             setShowKinglyHint(false);
           }
 
@@ -367,10 +381,19 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
             style={{
               ...styles.stat,
               ...statMobileStyle,
-              color: gameState.hasKey ? colors.keyColor : '#888',
+              color: gameState.hasRobe ? colors.keyColor : '#888',
             }}
           >
-            {gameState.hasKey ? 'Regalia collected!' : 'Find the regalia'}
+            {gameState.hasRobe ? 'Robe ✓' : 'Find robe'}
+          </span>
+          <span
+            style={{
+              ...styles.stat,
+              ...statMobileStyle,
+              color: gameState.hasScepter ? colors.keyColor : '#888',
+            }}
+          >
+            {gameState.hasScepter ? 'Scepter ✓' : 'Find scepter'}
           </span>
         </>
       ) : (
@@ -387,14 +410,28 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
           <span
             style={{
               ...styles.statDesktop,
-              color: gameState.hasKey ? colors.keyColor : '#888',
+              color: gameState.hasRobe ? colors.keyColor : '#888',
             }}
-            title={gameState.hasKey ? 'Regalia collected' : 'Find the regalia'}
+            title={gameState.hasRobe ? 'Robe collected' : 'Find the robe'}
+          >
+            <span aria-hidden style={styles.statIcon}>
+              👘
+            </span>
+            {gameState.hasRobe ? 'robe' : 'Find robe'}
+          </span>
+          <span
+            style={{
+              ...styles.statDesktop,
+              color: gameState.hasScepter ? colors.keyColor : '#888',
+            }}
+            title={
+              gameState.hasScepter ? 'Scepter collected' : 'Find the scepter'
+            }
           >
             <span aria-hidden style={styles.statIcon}>
               ⚜
             </span>
-            {gameState.hasKey ? 'collected' : 'Find regalia'}
+            {gameState.hasScepter ? 'scepter' : 'Find scepter'}
           </span>
         </>
       )}
@@ -617,9 +654,11 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
           ref={mazeRef}
           maze={maze}
           playerPos={gameState.playerPos}
-          keyPos={gameState.keyPos.x >= 0 ? gameState.keyPos : null}
+          robePos={gameState.robePos.x >= 0 ? gameState.robePos : null}
+          scepterPos={gameState.scepterPos.x >= 0 ? gameState.scepterPos : null}
           goalPos={gameState.goalPos}
-          hasKey={gameState.hasKey}
+          hasRobe={gameState.hasRobe}
+          hasScepter={gameState.hasScepter}
           colors={colors}
           zoom={1}
           visited={visited}
@@ -656,7 +695,8 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
         maze={maze}
         moves={gameState.moves}
         startPos={initialPositions.startPos}
-        keyPos={initialPositions.keyPos}
+        robePos={initialPositions.robePos}
+        scepterPos={initialPositions.scepterPos}
         goalPos={initialPositions.goalPos}
         visited={visited}
         onViewCollection={() => {

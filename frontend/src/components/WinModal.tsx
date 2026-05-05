@@ -27,7 +27,8 @@ interface WinModalProps {
   maze: MazeData;
   moves: Move[];
   startPos: Position;
-  keyPos: Position;
+  robePos: Position;
+  scepterPos: Position;
   goalPos: Position;
   visited: Set<string>;
   onViewCollection: () => void;
@@ -151,7 +152,8 @@ export function WinModal({
   maze,
   moves,
   startPos,
-  keyPos,
+  robePos,
+  scepterPos,
   goalPos,
   visited,
   onViewCollection,
@@ -160,16 +162,22 @@ export function WinModal({
     state: proofState,
     startProofGeneration,
     reset: resetProof,
-  } = useZkProof(maze, moves, startPos, keyPos, goalPos);
+  } = useZkProof(maze, moves, startPos, robePos, scepterPos, goalPos);
 
   // Crown tier preview — computed locally from the same thresholds the
   // on-chain DefaultBadgeAwarder uses, so the player sees what they earned
   // immediately. Memoized on maze identity to avoid resolving BFS each render.
   const crownTier = useMemo(() => {
     if (!isOpen) return undefined;
-    const optimal = computeOptimalMoves(maze, startPos, keyPos, goalPos);
+    const optimal = computeOptimalMoves(
+      maze,
+      startPos,
+      robePos,
+      scepterPos,
+      goalPos
+    );
     return tierFromMoveCount(moveCount, optimal);
-  }, [isOpen, maze, startPos, keyPos, goalPos, moveCount]);
+  }, [isOpen, maze, startPos, robePos, scepterPos, goalPos, moveCount]);
 
   // Delay mounting the maze thumbnail until after the modal slide-in animation
   // settles, so canvas measurement uses final post-transform dimensions.
@@ -585,9 +593,11 @@ export function WinModal({
                 <Maze
                   maze={maze}
                   playerPos={goalPos}
-                  keyPos={null}
+                  robePos={null}
+                  scepterPos={null}
                   goalPos={goalPos}
-                  hasKey={true}
+                  hasRobe={true}
+                  hasScepter={true}
                   colors={colors}
                   zoom={1}
                   visited={visited}

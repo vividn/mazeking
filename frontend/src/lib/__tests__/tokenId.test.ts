@@ -34,13 +34,29 @@ describe('layout serialization', () => {
 
   it('encodes width/height as big-endian u16 in the first 4 bytes', () => {
     const seed = 'demo seed 42';
-    const { maze, kingPos, keyPos, goalPos } = generateMaze(seed);
-    const zk = serializeForZk(maze, kingPos, keyPos, goalPos);
+    const { maze, kingPos, robePos, scepterPos, goalPos } = generateMaze(seed);
+    const zk = serializeForZk(maze, kingPos, robePos, scepterPos, goalPos);
     const layout = serializeLayoutBytes(zk);
 
     expect(layout[0]).toBe((zk.width >> 8) & 0xff);
     expect(layout[1]).toBe(zk.width & 0xff);
     expect(layout[2]).toBe((zk.height >> 8) & 0xff);
     expect(layout[3]).toBe(zk.height & 0xff);
+  });
+
+  it('encodes robe and scepter at bytes [8..16]', () => {
+    const seed = 'regalia layout check';
+    const { maze, kingPos, robePos, scepterPos, goalPos } = generateMaze(seed);
+    const zk = serializeForZk(maze, kingPos, robePos, scepterPos, goalPos);
+    const layout = serializeLayoutBytes(zk);
+
+    expect(layout[8]).toBe((zk.robeX >> 8) & 0xff);
+    expect(layout[9]).toBe(zk.robeX & 0xff);
+    expect(layout[10]).toBe((zk.robeY >> 8) & 0xff);
+    expect(layout[11]).toBe(zk.robeY & 0xff);
+    expect(layout[12]).toBe((zk.scepterX >> 8) & 0xff);
+    expect(layout[13]).toBe(zk.scepterX & 0xff);
+    expect(layout[14]).toBe((zk.scepterY >> 8) & 0xff);
+    expect(layout[15]).toBe(zk.scepterY & 0xff);
   });
 });

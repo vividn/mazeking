@@ -58,9 +58,10 @@ function loadConfig() {
   //   private = layout (header + packed_cells) + moves
   const publicInputsLength = 2;
   // Canonical layout bytes that get Pedersen-hashed to produce maze_hash:
-  //   16 header bytes (8 BE u16: width, height, sx, sy, kx, ky, gx, gy)
+  //   20 header bytes (10 BE u16: width, height, sx, sy, robe_x, robe_y,
+  //                    scepter_x, scepter_y, gx, gy)
   //   + maxPackedBytes packed cells (zero-padded)
-  const layoutHeaderBytes = 16;
+  const layoutHeaderBytes = 20;
   const layoutTotalBytes = layoutHeaderBytes + maxPackedBytes;
 
   return {
@@ -100,7 +101,7 @@ export const MAX_MOVES = ${config.maxMoves};
  */
 export const PUBLIC_INPUTS_LENGTH = ${config.publicInputsLength};
 
-/** Header bytes for the canonical maze layout (8 big-endian u16s). */
+/** Header bytes for the canonical maze layout (10 big-endian u16s). */
 export const LAYOUT_HEADER_BYTES = ${config.layoutHeaderBytes};
 
 /** Total bytes of the canonical layout (header + zero-padded packed cells). */
@@ -137,7 +138,7 @@ library MazeConstants {
      */
     uint256 internal constant PUBLIC_INPUTS_LENGTH = ${config.publicInputsLength};
 
-    /// @notice Header bytes for the canonical layout (8 BE u16 fields)
+    /// @notice Header bytes for the canonical layout (10 BE u16 fields)
     uint256 internal constant LAYOUT_HEADER_BYTES = ${config.layoutHeaderBytes};
 
     /// @notice Total bytes of the canonical layout (header + zero-padded cells)

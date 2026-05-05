@@ -110,7 +110,7 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
     ///      - Public inputs are exactly `[mazeHash, moveCount]`.
     ///      - The Pedersen hash binding inside the circuit guarantees the
     ///        prover knew a layout whose canonical bytes hash to `mazeHash`.
-    ///      - `layout` is the canonical layout bytes (16-byte header +
+    ///      - `layout` is the canonical layout bytes (20-byte header +
     ///        zero-padded packed cells). The first minter's `layout` is
     ///        stored under `tokenId = uint256(mazeHash)` (option α: the
     ///        contract trusts the first caller to pair `mazeHash` with the

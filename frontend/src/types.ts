@@ -2,7 +2,7 @@
  * Type definitions for the toroidal maze game.
  *
  * The maze is a toroidal (wrapping) grid where the player (king) must:
- * 1. Collect the key
+ * 1. Collect the robe and the scepter (in any order)
  * 2. Reach the goal to win
  *
  * Move history is tracked for future zero-knowledge proof generation.
@@ -71,14 +71,20 @@ export interface GameState {
   /** Current position of the player (king) */
   playerPos: Position;
 
-  /** Position of the key to collect */
-  keyPos: Position;
+  /** Position of the robe collectable. {x:-1,y:-1} after pickup. */
+  robePos: Position;
+
+  /** Position of the scepter collectable. {x:-1,y:-1} after pickup. */
+  scepterPos: Position;
 
   /** Position of the goal (win condition) */
   goalPos: Position;
 
-  /** True if the player has collected the key */
-  hasKey: boolean;
+  /** True if the player has collected the robe */
+  hasRobe: boolean;
+
+  /** True if the player has collected the scepter */
+  hasScepter: boolean;
 
   /** Total number of moves made */
   moveCount: number;
@@ -86,7 +92,7 @@ export interface GameState {
   /** Array of all moves made (for ZK proof) */
   moves: Move[];
 
-  /** True if the player has won (collected key and reached goal) */
+  /** True if the player has won (collected both regalia and reached goal) */
   gameWon: boolean;
 }
 
@@ -101,8 +107,11 @@ export interface SerializedMaze {
   /** Initial player position at game start */
   startPlayerPos: Position;
 
-  /** Key position */
-  startKeyPos: Position;
+  /** Robe pickup position */
+  startRobePos: Position;
+
+  /** Scepter pickup position */
+  startScepterPos: Position;
 
   /** Goal position */
   startGoalPos: Position;
@@ -149,7 +158,7 @@ export interface ColorScheme {
   /** Color for the player (king) sprite/indicator */
   playerColor: string;
 
-  /** Color for the key sprite/indicator */
+  /** Color for the regalia (robe + scepter) sprites/indicators */
   keyColor: string;
 
   /** Color for the goal sprite/indicator */

@@ -166,9 +166,11 @@ export function HeaderSeedInput({
           <Maze
             maze={previewMaze}
             playerPos={{ x: 0, y: 0 }}
-            keyPos={null}
+            robePos={null}
+            scepterPos={null}
             goalPos={{ x: 0, y: 0 }}
-            hasKey={false}
+            hasRobe={false}
+            hasScepter={false}
             colors={previewColors}
             zoom={1}
             visited={new Set()}
