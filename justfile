@@ -234,6 +234,22 @@ _generate-frontend-config chain_id:
     node {{scripts_dir}}/generate-contracts-config.js {{chain_id}}
     @echo -e "{{GREEN}}[config]{{NC}} Frontend config generated!"
 
+# === SVG RENDERER REDEPLOY ===
+#
+# Redeploy the on-chain SVG renderer and rehook MazeKingNFT at the new
+# address. Use after changing the rendering algo (see ma-e7r). The bare
+# `redeploy-svg` recipe is a guard — pick `-local` or `-sepolia` explicitly.
+# See scripts/redeploy-svg.sh for the full flow.
+
+redeploy-svg:
+    @{{scripts_dir}}/redeploy-svg.sh
+
+redeploy-svg-local: _ensure-anvil
+    @{{scripts_dir}}/redeploy-svg.sh local
+
+redeploy-svg-sepolia:
+    @{{scripts_dir}}/redeploy-svg.sh sepolia
+
 # === DEVELOPMENT ===
 
 # Start frontend development server

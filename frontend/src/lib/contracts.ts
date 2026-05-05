@@ -14,7 +14,7 @@ import { CONTRACT_ADDRESSES as PUBLIC_ADDRESSES } from './contracts.generated';
 
 type AddressMap = Record<
   number,
-  { nft: `0x${string}`; verifier: `0x${string}` }
+  { nft: `0x${string}`; verifier: `0x${string}`; renderer?: `0x${string}` }
 >;
 
 const localModules = import.meta.glob<{ CONTRACT_ADDRESSES?: AddressMap }>(
@@ -29,7 +29,7 @@ export const CONTRACT_ADDRESSES: AddressMap = {
   ...LOCAL_ADDRESSES,
 };
 
-export type ContractType = 'nft' | 'verifier';
+export type ContractType = 'nft' | 'verifier' | 'renderer';
 
 export function getContractAddress(
   chainId: number,
