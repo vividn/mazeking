@@ -291,9 +291,17 @@ interface ColorScheme {
 Create `.env` or `.env.local`:
 
 ```bash
-# Sepolia RPC URL (optional, uses public endpoint by default)
-VITE_SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/YOUR_KEY
+# Sepolia RPC URL — required for production deploys.
+# Falls back to a public CORS-enabled RPC if unset (see src/lib/wagmi.ts),
+# but a dedicated key (Alchemy/Infura/etc) is strongly recommended for
+# rate limits and reliability. Do NOT use Alchemy's `demo` key — it
+# blocks CORS from non-Alchemy origins.
+VITE_SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
 ```
+
+**Important for static-host deploys:** the env var must be present at
+`pnpm build` time (Vite inlines `import.meta.env.VITE_*` into the bundle).
+Setting it only at runtime on the host has no effect.
 
 ### Build Configuration
 
@@ -381,7 +389,8 @@ pnpm build
 # Output directory
 dist
 
-# Environment variables
+# Environment variables (must be set at BUILD time, not runtime —
+# Vite inlines VITE_* vars into the static bundle)
 VITE_SEPOLIA_RPC_URL=your_rpc_url
 ```
 

@@ -33,15 +33,30 @@ const chainsByMode = import.meta.env.DEV
   ? ([anvil, sepolia] as const)
   : ([sepolia, anvil] as const);
 
+// Sepolia RPC selection. Alchemy's `demo` key blocks CORS from non-Alchemy
+// origins, so it can never be a fallback in a browser dApp. Default to a
+// public CORS-enabled RPC; production deploys should set VITE_SEPOLIA_RPC_URL
+// to a dedicated key (Alchemy/Infura/etc) for rate limits and reliability.
+const PUBLIC_SEPOLIA_RPC = 'https://ethereum-sepolia-rpc.publicnode.com';
+const sepoliaRpcUrl = import.meta.env.VITE_SEPOLIA_RPC_URL || PUBLIC_SEPOLIA_RPC;
+
+if (!import.meta.env.DEV && !import.meta.env.VITE_SEPOLIA_RPC_URL) {
+  // Fail-loud signal for production deploys missing the env var. We still
+  // boot (with a public RPC) so gameplay isn't dead, but operators see this.
+  // eslint-disable-next-line no-console
+  console.error(
+    '[mazeking] VITE_SEPOLIA_RPC_URL is not set; falling back to public RPC ' +
+      `(${PUBLIC_SEPOLIA_RPC}). Set a dedicated RPC key in the deploy ` +
+      'environment for production reliability.'
+  );
+}
+
 export const config = createConfig({
   chains: chainsByMode,
   connectors: [injected()],
   transports: {
     [anvil.id]: http('http://127.0.0.1:8545'),
-    [sepolia.id]: http(
-      import.meta.env.VITE_SEPOLIA_RPC_URL ||
-        'https://eth-sepolia.g.alchemy.com/v2/demo'
-    ),
+    [sepolia.id]: http(sepoliaRpcUrl),
   },
   ssr: false,
 });
