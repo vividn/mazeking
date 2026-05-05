@@ -14,9 +14,16 @@
 import { canMove, getNewPosition } from './mazeGenerator';
 import { CrownTier } from './spriteGlyphs';
 import { MAX_MOVES } from './mazeConstants.generated';
-import type { MazeData, Position } from '../types';
+import { Move, type MazeData, type Position } from '../types';
 
 const DIRS = ['up', 'right', 'down', 'left'] as const;
+
+const DIR_TO_MOVE: Record<(typeof DIRS)[number], Move> = {
+  up: Move.Up,
+  right: Move.Right,
+  down: Move.Down,
+  left: Move.Left,
+};
 
 /**
  * Returns the minimum move count to collect both regalia pieces and reach
@@ -86,6 +93,94 @@ export function computeOptimalMoves(
         hasRobe: nextHasRobe,
         hasScepter: nextHasScepter,
         dist: node.dist + 1,
+      });
+    }
+  }
+
+  return null;
+}
+
+/**
+ * BFS that returns the optimal sequence of moves (rather than just the count).
+ * Returns `null` if no winning path exists. Used by the e2e regression test
+ * harness to programmatically solve a known-solvable maze and feed the moves
+ * into the prover.
+ */
+export function findOptimalPath(
+  maze: MazeData,
+  start: Position,
+  robe: Position,
+  scepter: Position,
+  goal: Position
+): Move[] | null {
+  const W = maze.width;
+  const stateKey = (x: number, y: number, hasRobe: 0 | 1, hasScepter: 0 | 1) =>
+    ((y * W + x) << 2) | (hasRobe << 1) | hasScepter;
+
+  const startHasRobe: 0 | 1 = start.x === robe.x && start.y === robe.y ? 1 : 0;
+  const startHasScepter: 0 | 1 =
+    start.x === scepter.x && start.y === scepter.y ? 1 : 0;
+
+  type Node = {
+    x: number;
+    y: number;
+    hasRobe: 0 | 1;
+    hasScepter: 0 | 1;
+    parent: number; // index into queue, -1 for root
+    move: Move | -1;
+  };
+
+  const queue: Node[] = [
+    {
+      x: start.x,
+      y: start.y,
+      hasRobe: startHasRobe,
+      hasScepter: startHasScepter,
+      parent: -1,
+      move: -1,
+    },
+  ];
+  const visited = new Set<number>();
+  visited.add(stateKey(start.x, start.y, startHasRobe, startHasScepter));
+
+  let head = 0;
+  while (head < queue.length) {
+    const idx = head;
+    const node = queue[head++];
+    if (
+      node.hasRobe === 1 &&
+      node.hasScepter === 1 &&
+      node.x === goal.x &&
+      node.y === goal.y
+    ) {
+      const moves: Move[] = [];
+      let cur = idx;
+      while (queue[cur].parent !== -1) {
+        moves.push(queue[cur].move as Move);
+        cur = queue[cur].parent;
+      }
+      moves.reverse();
+      return moves;
+    }
+    for (const dir of DIRS) {
+      if (!canMove(maze, { x: node.x, y: node.y }, dir)) continue;
+      const next = getNewPosition(maze, { x: node.x, y: node.y }, dir);
+      const nextHasRobe: 0 | 1 =
+        node.hasRobe === 1 || (next.x === robe.x && next.y === robe.y) ? 1 : 0;
+      const nextHasScepter: 0 | 1 =
+        node.hasScepter === 1 || (next.x === scepter.x && next.y === scepter.y)
+          ? 1
+          : 0;
+      const k = stateKey(next.x, next.y, nextHasRobe, nextHasScepter);
+      if (visited.has(k)) continue;
+      visited.add(k);
+      queue.push({
+        x: next.x,
+        y: next.y,
+        hasRobe: nextHasRobe,
+        hasScepter: nextHasScepter,
+        parent: idx,
+        move: DIR_TO_MOVE[dir],
       });
     }
   }

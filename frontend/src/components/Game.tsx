@@ -416,12 +416,7 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
             }}
             title={gameState.hasRobe ? 'Robe collected' : 'Find the robe'}
           >
-            <img
-              aria-hidden
-              src={robeUrl}
-              alt=""
-              style={styles.statSprite}
-            />
+            <img aria-hidden src={robeUrl} alt="" style={styles.statSprite} />
             {gameState.hasRobe ? 'robe' : 'Find robe'}
           </span>
           <span

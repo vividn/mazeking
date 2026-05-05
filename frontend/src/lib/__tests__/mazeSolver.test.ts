@@ -1,8 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { computeOptimalMoves, tierFromMoveCount } from '../mazeSolver';
+import {
+  computeOptimalMoves,
+  findOptimalPath,
+  tierFromMoveCount,
+} from '../mazeSolver';
 import { generateMaze } from '../mazeGenerator';
+import { validatePath } from '../zkSerialize';
 import { CrownTier } from '../spriteGlyphs';
-import { CellType, type MazeData } from '../../types';
+import { CellType, Move, type MazeData } from '../../types';
 import { MAX_MOVES } from '../mazeConstants.generated';
 
 // Builds a fully-open W×H grid with no walls — useful for asserting BFS
@@ -103,6 +108,77 @@ describe('computeOptimalMoves', () => {
     );
     expect(optimal).not.toBeNull();
     expect(optimal).toBeGreaterThan(0);
+  });
+});
+
+describe('findOptimalPath', () => {
+  it('returns a path whose length matches computeOptimalMoves', () => {
+    const maze = openMaze(5, 5);
+    const start = { x: 0, y: 0 };
+    const robe = { x: 1, y: 0 };
+    const scepter = { x: 3, y: 0 };
+    const goal = { x: 4, y: 0 };
+
+    const optimalLen = computeOptimalMoves(maze, start, robe, scepter, goal);
+    const path = findOptimalPath(maze, start, robe, scepter, goal);
+    expect(path).not.toBeNull();
+    expect(path!.length).toBe(optimalLen);
+  });
+
+  it('produces a path that validatePath accepts', () => {
+    const maze = openMaze(5, 5);
+    const start = { x: 0, y: 0 };
+    const robe = { x: 0, y: 2 };
+    const scepter = { x: 0, y: 1 };
+    const goal = { x: 4, y: 0 };
+    const path = findOptimalPath(maze, start, robe, scepter, goal);
+    expect(path).not.toBeNull();
+    expect(validatePath(maze, start, robe, scepter, goal, path!)).toEqual({
+      valid: true,
+    });
+  });
+
+  it('solves a real generated maze with a valid path', () => {
+    const { maze, kingPos, robePos, scepterPos, goalPos } =
+      generateMaze('solver-path-test');
+    const path = findOptimalPath(maze, kingPos, robePos, scepterPos, goalPos);
+    expect(path).not.toBeNull();
+    expect(path!.length).toBeGreaterThan(0);
+    expect(
+      validatePath(maze, kingPos, robePos, scepterPos, goalPos, path!)
+    ).toEqual({ valid: true });
+  });
+
+  it('handles starting on a regalia piece', () => {
+    const maze = openMaze(5, 5);
+    const start = { x: 0, y: 0 };
+    const robe = { x: 0, y: 0 }; // start on robe
+    const scepter = { x: 2, y: 0 };
+    const goal = { x: 4, y: 0 };
+    const path = findOptimalPath(maze, start, robe, scepter, goal);
+    expect(path).not.toBeNull();
+    // No detour needed: just R R R R
+    expect(path).toEqual([Move.Right, Move.Right, Move.Right, Move.Right]);
+  });
+
+  it('returns null when goal is unreachable without both regalia', () => {
+    // Walled-off scepter: 2x1 maze with east wall between (0,0) and (1,0).
+    const cells = [
+      [
+        { southWall: true, eastWall: true, cellType: CellType.Normal },
+        { southWall: true, eastWall: true, cellType: CellType.Normal },
+      ],
+    ];
+    // 2x1 toroidal grid with both walls means no neighbor reachable.
+    const maze: MazeData = { width: 2, height: 1, cells };
+    const path = findOptimalPath(
+      maze,
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 0, y: 0 },
+      { x: 1, y: 0 }
+    );
+    expect(path).toBeNull();
   });
 });
 

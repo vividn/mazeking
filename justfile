@@ -265,6 +265,13 @@ test-circuits:
     @echo -e "{{YELLOW}}[test]{{NC}} Running circuit tests..."
     cd {{maze_prover_dir}} && {{nargo}} test
 
+# Run the full-tier e2e test (solve → prove → off-chain verify).
+# Slow (proof generation): intended for nightly / main-branch CI, not per-PR.
+# The fast tier (solve → witness) runs as part of `test-frontend`.
+test-e2e-full:
+    @echo -e "{{YELLOW}}[test]{{NC}} Running full e2e (solve → prove → verify)..."
+    cd {{frontend_dir}} && {{pnpm}} test:e2e-full
+
 # === FORMATTING ===
 
 # Format all code
