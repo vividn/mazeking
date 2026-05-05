@@ -294,9 +294,9 @@ export function WinModal({
   const modalStyle: React.CSSProperties = {
     backgroundColor: colors.pathColor,
     borderRadius: '16px',
-    padding: '28px 32px',
-    maxWidth: '500px',
-    width: '90%',
+    padding: '22px 28px',
+    maxWidth: '640px',
+    width: '92%',
     maxHeight: '95vh',
     overflowY: 'auto',
     boxShadow: `0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 2px ${colors.uiAccentColor}`,
@@ -349,8 +349,8 @@ export function WinModal({
     position: 'relative',
     backgroundColor: colors.textBackgroundColor,
     borderRadius: '12px',
-    padding: '10px',
-    marginBottom: '16px',
+    padding: '8px',
+    marginBottom: '14px',
     boxShadow: `inset 0 0 0 2px ${colors.uiAccentColor}, 0 8px 24px rgba(0, 0, 0, 0.25)`,
   };
 
@@ -399,13 +399,15 @@ export function WinModal({
   };
 
   const zkSectionStyle: React.CSSProperties = {
-    marginBottom: '20px',
+    marginBottom: '14px',
   };
 
   const buttonContainerStyle: React.CSSProperties = {
     display: 'flex',
     gap: '10px',
-    flexDirection: 'column',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'stretch',
   };
 
   const baseButtonStyle: React.CSSProperties = {
@@ -510,6 +512,12 @@ export function WinModal({
               flex-direction: column;
               text-align: center;
               gap: 8px;
+            }
+            .win-button-row {
+              flex-direction: column !important;
+            }
+            .win-button-row > .win-button {
+              flex: 1 1 auto !important;
             }
           }
 
@@ -773,10 +781,15 @@ export function WinModal({
             )}
           </div>
 
-          <div style={buttonContainerStyle}>
+          <div className="win-button-row" style={buttonContainerStyle}>
             <button
               className="win-button"
-              style={primaryButtonStyle}
+              style={{
+                ...primaryButtonStyle,
+                flex: '2 1 220px',
+                fontSize: '17px',
+                padding: '14px 24px',
+              }}
               onClick={handlePlayAgain}
               disabled={isProving}
               aria-label="Play the same maze again"
@@ -786,7 +799,7 @@ export function WinModal({
 
             <button
               className="win-button"
-              style={secondaryButtonStyle}
+              style={{ ...secondaryButtonStyle, flex: '1 1 140px' }}
               onClick={handleNewMaze}
               disabled={isProving}
               aria-label="Generate a new maze"
@@ -796,7 +809,7 @@ export function WinModal({
 
             <button
               className="win-button"
-              style={shareButtonStyle}
+              style={{ ...shareButtonStyle, flex: '1 1 140px' }}
               onClick={onCopyLink}
               aria-label="Share this maze"
             >
