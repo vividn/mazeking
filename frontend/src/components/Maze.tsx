@@ -803,6 +803,30 @@ export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
     [maze.width, maze.height]
   );
 
+  // Clamp pan so the maze image cannot be dragged past where its outer edge
+  // meets the viewport edge — the player should never see void around the maze.
+  // When the maze fits inside the viewport in a dimension, lock pan to 0
+  // (centered) on that axis.
+  const clampPan = useCallback(
+    (pan: { x: number; y: number }, totalZoom: number) => {
+      const container = containerRef.current;
+      if (!container) return pan;
+      const rect = container.getBoundingClientRect();
+      const baseCellSize = Math.min(
+        rect.width / maze.width,
+        rect.height / maze.height
+      );
+      const cellSize = baseCellSize * totalZoom;
+      const excessX = Math.max(0, maze.width * cellSize - rect.width);
+      const excessY = Math.max(0, maze.height * cellSize - rect.height);
+      return {
+        x: clamp(pan.x, -excessX / 2, excessX / 2),
+        y: clamp(pan.y, -excessY / 2, excessY / 2),
+      };
+    },
+    [maze.width, maze.height]
+  );
+
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
       if (!enableTouchTransform) return;
@@ -871,7 +895,10 @@ export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
         const dx = t.clientX - g.last.x;
         const dy = t.clientY - g.last.y;
         g.last = { x: t.clientX, y: t.clientY };
-        setUserPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+        const totalZoom = zoom * userZoom;
+        setUserPan((prev) =>
+          clampPan({ x: prev.x + dx, y: prev.y + dy }, totalZoom)
+        );
         e.preventDefault();
       } else if (
         g.mode === 'pinch' &&
@@ -907,12 +934,24 @@ export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
             g.startMid.y - (g.startMid.y - g.startOffset.y) * k;
           // Convert back to userPan: newPan = newOffset - centerOffset(newTotalZoom)
           const neutral = computeNeutralOffset(zoom * newUserZoom);
-          setUserPan({ x: newOffsetX - neutral.x, y: newOffsetY - neutral.y });
+          setUserPan(
+            clampPan(
+              { x: newOffsetX - neutral.x, y: newOffsetY - neutral.y },
+              zoom * newUserZoom
+            )
+          );
         }
         e.preventDefault();
       }
     },
-    [enableTouchTransform, zoom, minUserZoom, computeNeutralOffset]
+    [
+      enableTouchTransform,
+      zoom,
+      userZoom,
+      minUserZoom,
+      computeNeutralOffset,
+      clampPan,
+    ]
   );
 
   const handleTouchEnd = useCallback(
@@ -1002,17 +1041,25 @@ export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
     [enableMouseTransform, userPan, resetView]
   );
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    const drag = mouseDragRef.current;
-    if (!drag) return;
-    const dx = e.clientX - drag.startX;
-    const dy = e.clientY - drag.startY;
-    if (!drag.isDragging) {
-      if (Math.hypot(dx, dy) < MOUSE_DRAG_THRESHOLD_PX) return;
-      drag.isDragging = true;
-    }
-    setUserPan({ x: drag.startPan.x + dx, y: drag.startPan.y + dy });
-  }, []);
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      const drag = mouseDragRef.current;
+      if (!drag) return;
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      if (!drag.isDragging) {
+        if (Math.hypot(dx, dy) < MOUSE_DRAG_THRESHOLD_PX) return;
+        drag.isDragging = true;
+      }
+      setUserPan(
+        clampPan(
+          { x: drag.startPan.x + dx, y: drag.startPan.y + dy },
+          zoom * userZoom
+        )
+      );
+    },
+    [zoom, userZoom, clampPan]
+  );
 
   const handleMouseUp = useCallback(() => {
     mouseDragRef.current = null;
@@ -1050,10 +1097,12 @@ export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
       const newOffsetX = cursorX - (cursorX - startOffsetX) * k;
       const newOffsetY = cursorY - (cursorY - startOffsetY) * k;
       const newNeutral = computeNeutralOffset(zoom * newUserZoom);
-      setUserPan({
-        x: newOffsetX - newNeutral.x,
-        y: newOffsetY - newNeutral.y,
-      });
+      setUserPan(
+        clampPan(
+          { x: newOffsetX - newNeutral.x, y: newOffsetY - newNeutral.y },
+          zoom * newUserZoom
+        )
+      );
     };
     container.addEventListener('wheel', onWheel, { passive: false });
     return () => container.removeEventListener('wheel', onWheel);
@@ -1064,6 +1113,7 @@ export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
     userPan,
     minUserZoom,
     computeNeutralOffset,
+    clampPan,
   ]);
 
   return (
