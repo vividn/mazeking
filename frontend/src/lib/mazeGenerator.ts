@@ -600,6 +600,69 @@ export interface GenerateOptions {
 
 const DEBUG_WALL_REMOVAL_PROBABILITY = 0.66;
 
+const EXTRA_PATH_WALL_REMOVAL_FRACTION = 0.02;
+
+// After the spanning-tree maze is built, deterministically remove ~2% of
+// remaining internal walls between non-text cells. This introduces extra
+// passages/cycles so the maze has multiple interesting paths instead of the
+// single unique path produced by pure Kruskal/spanning-tree generation.
+//
+// Determinism: candidate walls are enumerated in canonical row-major order
+// (south before east per cell), then shuffled with the shared RNG stream.
+// Outer-perimeter walls (which wrap toroidally) and walls touching text cells
+// are excluded.
+function addExtraPathWalls(maze: MazeData, rng: Rng): void {
+  const { width, height, cells } = maze;
+
+  interface Wall {
+    x: number;
+    y: number;
+    direction: 'S' | 'E';
+  }
+
+  const candidates: Wall[] = [];
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const cell = cells[y][x];
+      if (isTextCell(cell)) continue;
+
+      if (cell.southWall && y < height - 1) {
+        const south = cells[y + 1][x];
+        if (!isTextCell(south)) {
+          candidates.push({ x, y, direction: 'S' });
+        }
+      }
+
+      if (cell.eastWall && x < width - 1) {
+        const east = cells[y][x + 1];
+        if (!isTextCell(east)) {
+          candidates.push({ x, y, direction: 'E' });
+        }
+      }
+    }
+  }
+
+  if (candidates.length === 0) return;
+
+  const targetCount = Math.max(
+    1,
+    Math.floor(candidates.length * EXTRA_PATH_WALL_REMOVAL_FRACTION)
+  );
+
+  const shuffled = rng.shuffle(candidates);
+  const toRemove = Math.min(targetCount, shuffled.length);
+
+  for (let i = 0; i < toRemove; i++) {
+    const wall = shuffled[i];
+    if (wall.direction === 'S') {
+      cells[wall.y][wall.x].southWall = false;
+    } else {
+      cells[wall.y][wall.x].eastWall = false;
+    }
+  }
+}
+
 // Remove ~66% of remaining internal walls between non-text cells.
 // Leaves wordmark/letter boundaries and outer perimeter intact so the maze
 // still renders correctly but is trivial to solve.
@@ -654,7 +717,10 @@ export function generateMaze(
   // 5. Generate maze paths for non-text areas
   generateNonTextMazePaths(maze, rng);
 
-  // 5b. Debug mode: blow out most non-text internal walls for fast testing
+  // 5b. Remove ~2% of remaining internal walls to add path variety / cycles.
+  addExtraPathWalls(maze, rng);
+
+  // 5c. Debug mode: blow out most non-text internal walls for fast testing
   if (opts.debug) {
     debugRemoveInternalWalls(maze, rng);
   }
