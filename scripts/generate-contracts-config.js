@@ -116,6 +116,14 @@ function writeIfChanged(filepath, content) {
   fs.writeFileSync(filepath, content, 'utf8');
 }
 
+// `renderer` is optional in the type because pre-existing deploys (and any
+// network where the on-chain SVG renderer hasn't been set yet) won't have it.
+// The mint flow reads tokenURI through the NFT contract, so frontend code
+// only needs the renderer address for direct off-chain calls.
+function rendererLine(deployment) {
+  return deployment.renderer ? `\n    renderer: '${deployment.renderer}',` : '';
+}
+
 function renderLocal(chainId, deployment) {
   // Single-chain local map. Loader merges this into the public map.
   return `/**
@@ -129,11 +137,11 @@ function renderLocal(chainId, deployment) {
 
 export const CONTRACT_ADDRESSES: Record<
   number,
-  { nft: \`0x\${string}\`; verifier: \`0x\${string}\` }
+  { nft: \`0x\${string}\`; verifier: \`0x\${string}\`; renderer?: \`0x\${string}\` }
 > = {
   ${chainId}: {
     nft: '${deployment.nft}',
-    verifier: '${deployment.verifier}',
+    verifier: '${deployment.verifier}',${rendererLine(deployment)}
   },
 };
 `;
@@ -157,11 +165,11 @@ function renderGenerated(chainId, deployment) {
 
 export const CONTRACT_ADDRESSES: Record<
   number,
-  { nft: \`0x\${string}\`; verifier: \`0x\${string}\` }
+  { nft: \`0x\${string}\`; verifier: \`0x\${string}\`; renderer?: \`0x\${string}\` }
 > = {
   ${chainId}: {
     nft: '${deployment.nft}',
-    verifier: '${deployment.verifier}',
+    verifier: '${deployment.verifier}',${rendererLine(deployment)}
   },
 };
 `;
