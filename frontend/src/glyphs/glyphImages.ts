@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import peasantUrl from './peasant.png?url';
 import peasantRegaliaUrl from './peasant_regalia.png?url';
-import robeScepterUrl from './robe_scepter.png?url';
+import robeUrl from './robe.png?url';
+import scepterUrl from './scepter.png?url';
 import kingUrl from './king.png?url';
 import crownUrl from './crown.png?url';
 
 export interface GlyphImages {
   peasant: HTMLImageElement;
   peasantRegalia: HTMLImageElement;
-  robeScepter: HTMLImageElement;
+  robe: HTMLImageElement;
+  scepter: HTMLImageElement;
   king: HTMLImageElement;
   crown: HTMLImageElement;
 }
@@ -16,7 +18,8 @@ export interface GlyphImages {
 const URLS = {
   peasant: peasantUrl,
   peasantRegalia: peasantRegaliaUrl,
-  robeScepter: robeScepterUrl,
+  robe: robeUrl,
+  scepter: scepterUrl,
   king: kingUrl,
   crown: crownUrl,
 };
@@ -40,11 +43,12 @@ function loadGlyphImages(): Promise<GlyphImages> {
   pending = Promise.all([
     loadOne(URLS.peasant),
     loadOne(URLS.peasantRegalia),
-    loadOne(URLS.robeScepter),
+    loadOne(URLS.robe),
+    loadOne(URLS.scepter),
     loadOne(URLS.king),
     loadOne(URLS.crown),
-  ]).then(([peasant, peasantRegalia, robeScepter, king, crown]) => {
-    cached = { peasant, peasantRegalia, robeScepter, king, crown };
+  ]).then(([peasant, peasantRegalia, robe, scepter, king, crown]) => {
+    cached = { peasant, peasantRegalia, robe, scepter, king, crown };
     return cached;
   });
 

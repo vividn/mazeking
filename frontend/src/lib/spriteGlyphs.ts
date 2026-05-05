@@ -352,11 +352,11 @@ export function drawPerson(
 }
 
 /**
- * Draw the collectible regalia (robe + scepter) at the pickup position.
- * When `images` is supplied, renders `robe_scepter.png` instead of the
- * procedural REGALIA pattern (color is unused on the bitmap path).
+ * Draw the robe collectible at its pickup position. When `images` is supplied,
+ * renders `robe.png`; otherwise falls back to the shared procedural REGALIA
+ * pattern (the brief pre-load flash; the bitmap differentiates robe vs scepter).
  */
-export function drawRegalia(
+export function drawRobe(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
@@ -365,7 +365,27 @@ export function drawRegalia(
   images?: GlyphImages
 ): void {
   if (images) {
-    drawImageGlyph(ctx, images.robeScepter, x, y, size);
+    drawImageGlyph(ctx, images.robe, x, y, size);
+    return;
+  }
+  drawSprite(ctx, x, y, size, REGALIA, color);
+}
+
+/**
+ * Draw the scepter collectible at its pickup position. When `images` is
+ * supplied, renders `scepter.png`; otherwise falls back to the shared
+ * procedural REGALIA pattern (brief pre-load flash).
+ */
+export function drawScepter(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  color: string,
+  images?: GlyphImages
+): void {
+  if (images) {
+    drawImageGlyph(ctx, images.scepter, x, y, size);
     return;
   }
   drawSprite(ctx, x, y, size, REGALIA, color);

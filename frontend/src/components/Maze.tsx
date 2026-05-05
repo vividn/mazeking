@@ -16,7 +16,8 @@ import { drawArrow, drawCornerWarp, getArrowColor } from '../glyphs';
 import { useGlyphImages } from '../glyphs/glyphImages';
 import {
   drawPerson,
-  drawRegalia,
+  drawRobe,
+  drawScepter,
   drawCrownGoal,
   CrownTier,
 } from '../lib/spriteGlyphs';
@@ -696,7 +697,7 @@ export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
       if (robePos !== null) {
         const regaliaHalo = { r: 255, g: 200, b: 50 };
         drawAccessibleHighlight(robePos, regaliaHalo, 2);
-        drawRegalia(
+        drawRobe(
           ctx,
           robePos.x * cellSize + cellSize / 2,
           robePos.y * cellSize + cellSize / 2,
@@ -710,7 +711,7 @@ export const Maze = forwardRef<MazeHandle, MazeProps>(function Maze(
       if (scepterPos !== null) {
         const regaliaHalo = { r: 255, g: 200, b: 50 };
         drawAccessibleHighlight(scepterPos, regaliaHalo, 2);
-        drawRegalia(
+        drawScepter(
           ctx,
           scepterPos.x * cellSize + cellSize / 2,
           scepterPos.y * cellSize + cellSize / 2,
