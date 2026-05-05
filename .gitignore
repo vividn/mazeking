@@ -22,3 +22,5 @@ contracts/deployments/
 frontend/src/lib/contracts.local.ts
 .runtime/
 CLAUDE.local.md
+.claude/
+CLAUDE.md
