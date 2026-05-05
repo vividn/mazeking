@@ -7,8 +7,15 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 /// @title MazeRenderer
 /// @notice On-chain SVG renderer for MazeKing NFTs.
 /// @dev Decodes a stored layout (maze + entity positions) and emits a JSON
-///      tokenURI whose image field is a fully on-chain SVG. The layout format
-///      is produced by MazeKingNFT at mint time:
+///      tokenURI whose image field is a fully on-chain SVG. The SVG is the
+///      static maze structure only — walls, cells, and embedded-text fills.
+///      Character / pickup / goal overlays are intentionally omitted (ma-e7r);
+///      the live game render (Canvas) handles mid-play state, while this
+///      shareable / archived render is meant to be a clean depiction of the
+///      maze itself. Entity coordinates remain in the header for layout
+///      validation and to keep the format stable for any future consumers.
+///
+///      The layout format is produced by MazeKingNFT at mint time:
 ///
 ///      [0:2]   width  (uint16 BE)
 ///      [2:4]   height (uint16 BE)
@@ -59,9 +66,6 @@ contract MazeRenderer {
         string textBg;
         string zkBg;
         string crownBg;
-        string player;
-        string regalia;
-        string goal;
     }
 
     /// @notice Render a base64-encoded data URI for `tokenId`.
@@ -162,9 +166,8 @@ contract MazeRenderer {
 
         bytes memory cells = _renderCellFills(h, layout, p);
         bytes memory walls = _renderWalls(h, layout, p);
-        bytes memory glyphs = _renderGlyphs(h, p);
 
-        return string(abi.encodePacked(head, cells, walls, glyphs, "</svg>"));
+        return string(abi.encodePacked(head, cells, walls, "</svg>"));
     }
 
     /// @dev Emit a colored rect for every cell whose cellType is non-Normal.
@@ -267,51 +270,6 @@ contract MazeRenderer {
         );
     }
 
-    /// @dev Player / robe / scepter / goal as filled circles. Cheap to encode,
-    ///      reads as "things in the maze" at NFT-thumbnail size where pixel
-    ///      sprites would not survive the downscale.
-    function _renderGlyphs(Header memory h, Palette memory p) internal pure returns (bytes memory) {
-        uint256 r = CELL / 2 - 2;
-        return abi.encodePacked(
-            _circle(
-                uint256(h.startX) * CELL + CELL / 2,
-                uint256(h.startY) * CELL + CELL / 2,
-                r,
-                p.player
-            ),
-            _circle(
-                uint256(h.robeX) * CELL + CELL / 2, uint256(h.robeY) * CELL + CELL / 2, r, p.regalia
-            ),
-            _circle(
-                uint256(h.scepterX) * CELL + CELL / 2,
-                uint256(h.scepterY) * CELL + CELL / 2,
-                r,
-                p.regalia
-            ),
-            _circle(
-                uint256(h.goalX) * CELL + CELL / 2, uint256(h.goalY) * CELL + CELL / 2, r, p.goal
-            )
-        );
-    }
-
-    function _circle(uint256 cx, uint256 cy, uint256 r, string memory fill)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(
-            '<circle cx="',
-            _u(cx),
-            '" cy="',
-            _u(cy),
-            '" r="',
-            _u(r),
-            '" fill="',
-            fill,
-            '" stroke="#1a1a1a" stroke-width="1"/>'
-        );
-    }
-
     // ---------------------------------------------------------------------
     // Palette (LITE: derived from tokenId; FULL would derive from Poseidon).
     // ---------------------------------------------------------------------
@@ -337,12 +295,6 @@ contract MazeRenderer {
 
         // Crown highlight: always gold, regardless of seed (matches frontend).
         p.crownBg = _hsl(48, 85, 55);
-
-        // Entities: gold/yellow for player & regalia (both pickups share a
-        // color), complementary for goal.
-        p.player = _hsl(45, 90, 60);
-        p.regalia = _hsl(55, 85, 55);
-        p.goal = _hsl((baseHue + 90) % 360, 65, 50);
     }
 
     function _hsl(uint256 h, uint256 s, uint256 l) internal pure returns (string memory) {
