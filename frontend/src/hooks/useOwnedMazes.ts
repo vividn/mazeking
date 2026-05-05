@@ -27,6 +27,8 @@ export interface OwnedMaze {
   tokenId: bigint;
   imageUrl: string | null;
   seed: string | null;
+  /** Owner's best move count for this token; null when never solved. */
+  minMoves: number | null;
 }
 
 interface State {
@@ -180,25 +182,47 @@ export function useOwnedMazes(
           return;
         }
 
-        const uris = await publicClient.multicall({
-          contracts: heldIds.map((id) => ({
-            address: contractAddress,
-            abi: MazeKingNFTAbi as never,
-            functionName: 'uri',
-            args: [id],
-          })),
-          allowFailure: true,
-        });
+        const [uris, statsResults] = await Promise.all([
+          publicClient.multicall({
+            contracts: heldIds.map((id) => ({
+              address: contractAddress,
+              abi: MazeKingNFTAbi as never,
+              functionName: 'uri',
+              args: [id],
+            })),
+            allowFailure: true,
+          }),
+          publicClient.multicall({
+            contracts: heldIds.map((id) => ({
+              address: contractAddress,
+              abi: MazeKingNFTAbi as never,
+              functionName: 'stats',
+              args: [id, address],
+            })),
+            allowFailure: true,
+          }),
+        ]);
         if (cancelled) return;
 
         const mazes: OwnedMaze[] = heldIds.map((tokenId, i) => {
           const r = uris[i];
           const tokenUri =
             r && r.status === 'success' ? (r.result as string) : '';
+          // stats() returns a tuple [minMoves, timesSolved, badges, usdcDonated].
+          // timesSolved == 0 means the user has no recorded solve, so minMoves
+          // is meaningless (defaults to 0); surface as null instead.
+          const s = statsResults[i];
+          let minMoves: number | null = null;
+          if (s && s.status === 'success') {
+            const tuple = s.result as readonly [bigint, bigint, bigint, bigint];
+            const timesSolved = Number(tuple[1] ?? 0n);
+            if (timesSolved > 0) minMoves = Number(tuple[0]);
+          }
           return {
             tokenId,
             imageUrl: decodeImageFromTokenUri(tokenUri),
             seed: lookupSeed(tokenId) ?? null,
+            minMoves,
           };
         });
 

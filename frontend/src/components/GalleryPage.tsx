@@ -5,6 +5,7 @@ import { pickTextColor } from '../lib/contrastText';
 import { useAppOutlet } from '../App';
 import { PageHeader } from './PageHeader';
 import { KaztleText } from './KaztleText';
+import { MazeLightbox } from './MazeLightbox';
 
 type SortMode = 'solves' | 'minMoves' | 'newest';
 
@@ -18,6 +19,7 @@ export function GalleryPage() {
   const [sort, setSort] = useState<SortMode>('solves');
   const { seed, selectSeed } = useAppOutlet();
   const colors = useMemo(() => generateColorScheme(seed), [seed]);
+  const [zoomed, setZoomed] = useState<GalleryMaze | null>(null);
 
   useEffect(() => {
     document.body.style.backgroundColor = colors.pageBackgroundColor;
@@ -43,32 +45,21 @@ export function GalleryPage() {
   const textColor = colors.wallColor;
 
   const renderTile = (maze: GalleryMaze) => {
-    const replayable = !!maze.seed;
-    const onClick = replayable ? () => selectSeed(maze.seed!) : undefined;
-    const label = maze.seed ?? shortId(maze.tokenId);
+    const movesLabel =
+      maze.minMoves !== null ? `${maze.minMoves} moves` : 'unsolved';
     return (
       <button
         key={maze.tokenId.toString()}
         className="gallery-tile"
-        onClick={onClick}
-        disabled={!replayable}
-        title={
-          replayable
-            ? `Play "${maze.seed}"`
-            : 'Seed not published — solve again from this device to recover.'
-        }
-        style={{
-          ...styles.tile,
-          color: textColor,
-          cursor: replayable ? 'pointer' : 'default',
-          opacity: replayable ? 1 : 0.7,
-        }}
+        onClick={() => setZoomed(maze)}
+        title={maze.seed ? `Inspect "${maze.seed}"` : 'Inspect maze'}
+        style={{ ...styles.tile, color: textColor }}
       >
         <div style={{ ...styles.thumb, backgroundColor: 'rgba(0,0,0,0.25)' }}>
           {maze.imageUrl ? (
             <img
               src={maze.imageUrl}
-              alt={`Maze ${label}`}
+              alt={maze.seed ?? `Maze ${shortId(maze.tokenId)}`}
               style={styles.thumbImg}
               draggable={false}
             />
@@ -88,11 +79,8 @@ export function GalleryPage() {
             {maze.timesSolved}×
           </div>
         </div>
-        <div style={styles.tileLabel}>
-          <span style={{ ...styles.seedLabel, color: textColor }}>{label}</span>
-          <span style={{ ...styles.metaLabel, color: textColor }}>
-            {maze.minMoves !== null ? `best ${maze.minMoves}` : 'unsolved'}
-          </span>
+        <div style={{ ...styles.movesLabel, color: textColor }}>
+          {movesLabel}
         </div>
       </button>
     );
@@ -146,14 +134,11 @@ export function GalleryPage() {
             gap: 8px;
             text-align: left;
             font-family: inherit;
-            cursor: pointer;
+            cursor: zoom-in;
             transition: background-color 0.15s ease;
           }
-          .gallery-tile:not(:disabled):hover {
+          .gallery-tile:hover {
             background-color: rgba(255, 255, 255, 0.16);
-          }
-          .gallery-tile:disabled {
-            cursor: default;
           }
         `}
       </style>
@@ -172,6 +157,18 @@ export function GalleryPage() {
         {sortButton('newest', 'Newest')}
       </div>
       <div style={styles.body}>{body}</div>
+      {zoomed && (
+        <MazeLightbox
+          imageUrl={zoomed.imageUrl}
+          seed={zoomed.seed}
+          fallbackLabel={shortId(zoomed.tokenId)}
+          colors={colors}
+          onClose={() => setZoomed(null)}
+          onPlay={
+            zoomed.seed ? () => selectSeed(zoomed.seed as string) : undefined
+          }
+        />
+      )}
     </div>
   );
 }
@@ -245,24 +242,12 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: 'monospace',
     lineHeight: 1.2,
   },
-  tileLabel: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
-    minHeight: '28px',
-    overflow: 'hidden',
-  },
-  seedLabel: {
-    fontSize: '13px',
+  movesLabel: {
+    fontSize: '12px',
     fontFamily: 'monospace',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  metaLabel: {
-    fontSize: '11px',
-    opacity: 0.7,
-    fontFamily: 'monospace',
+    opacity: 0.85,
+    textAlign: 'center',
+    minHeight: '16px',
   },
   empty: {
     padding: '40px 20px',

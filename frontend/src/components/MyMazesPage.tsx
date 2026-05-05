@@ -1,10 +1,11 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { useOwnedMazes, type OwnedMaze } from '../hooks/useOwnedMazes';
 import { generateColorScheme } from '../lib/colorGenerator';
 import { useAppOutlet } from '../App';
 import { PageHeader } from './PageHeader';
 import { KaztleText } from './KaztleText';
+import { MazeLightbox } from './MazeLightbox';
 
 function shortId(tokenId: bigint): string {
   const hex = tokenId.toString(16).padStart(64, '0');
@@ -16,6 +17,7 @@ export function MyMazesPage() {
   const { loading, error, mazes } = useOwnedMazes(true);
   const { seed, selectSeed } = useAppOutlet();
   const colors = useMemo(() => generateColorScheme(seed), [seed]);
+  const [zoomed, setZoomed] = useState<OwnedMaze | null>(null);
 
   useEffect(() => {
     document.body.style.backgroundColor = colors.pageBackgroundColor;
@@ -26,32 +28,21 @@ export function MyMazesPage() {
   const textColor = colors.wallColor;
 
   const renderTile = (maze: OwnedMaze) => {
-    const replayable = !!maze.seed;
-    const onClick = replayable ? () => selectSeed(maze.seed!) : undefined;
-
+    const movesLabel =
+      maze.minMoves !== null ? `${maze.minMoves} moves` : 'unsolved';
     return (
       <button
         key={maze.tokenId.toString()}
         className="my-mazes-tile"
-        onClick={onClick}
-        disabled={!replayable}
-        title={
-          replayable
-            ? `Replay: ${maze.seed}`
-            : 'Seed unknown on this device — solve again to recover.'
-        }
-        style={{
-          ...styles.tile,
-          color: textColor,
-          cursor: replayable ? 'pointer' : 'default',
-          opacity: replayable ? 1 : 0.65,
-        }}
+        onClick={() => setZoomed(maze)}
+        title={maze.seed ? `Inspect: ${maze.seed}` : 'Inspect maze'}
+        style={{ ...styles.tile, color: textColor }}
       >
         <div style={{ ...styles.thumb, backgroundColor: 'rgba(0,0,0,0.25)' }}>
           {maze.imageUrl ? (
             <img
               src={maze.imageUrl}
-              alt={`Maze ${shortId(maze.tokenId)}`}
+              alt={maze.seed ?? `Maze ${shortId(maze.tokenId)}`}
               style={styles.thumbImg}
               draggable={false}
             />
@@ -61,16 +52,8 @@ export function MyMazesPage() {
             </div>
           )}
         </div>
-        <div style={styles.tileLabel}>
-          {maze.seed ? (
-            <span style={{ ...styles.seedLabel, color: textColor }}>
-              {maze.seed}
-            </span>
-          ) : (
-            <span style={{ ...styles.idLabel, color: textColor }}>
-              {shortId(maze.tokenId)}
-            </span>
-          )}
+        <div style={{ ...styles.movesLabel, color: textColor }}>
+          {movesLabel}
         </div>
       </button>
     );
@@ -117,13 +100,11 @@ export function MyMazesPage() {
             gap: 8px;
             text-align: left;
             font-family: inherit;
+            cursor: zoom-in;
             transition: background-color 0.15s ease;
           }
-          .my-mazes-tile:not(:disabled):hover {
+          .my-mazes-tile:hover {
             background-color: rgba(255, 255, 255, 0.16);
-          }
-          .my-mazes-tile:disabled {
-            cursor: default;
           }
         `}
       </style>
@@ -137,6 +118,18 @@ export function MyMazesPage() {
         current="mazes"
       />
       <div style={styles.body}>{body}</div>
+      {zoomed && (
+        <MazeLightbox
+          imageUrl={zoomed.imageUrl}
+          seed={zoomed.seed}
+          fallbackLabel={shortId(zoomed.tokenId)}
+          colors={colors}
+          onClose={() => setZoomed(null)}
+          onPlay={
+            zoomed.seed ? () => selectSeed(zoomed.seed as string) : undefined
+          }
+        />
+      )}
     </div>
   );
 }
@@ -183,20 +176,12 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '12px',
     opacity: 0.6,
   },
-  tileLabel: {
-    minHeight: '18px',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  seedLabel: {
-    fontSize: '13px',
-    fontFamily: 'monospace',
-  },
-  idLabel: {
+  movesLabel: {
     fontSize: '12px',
-    opacity: 0.7,
     fontFamily: 'monospace',
+    opacity: 0.85,
+    textAlign: 'center',
+    minHeight: '16px',
   },
   empty: {
     padding: '40px 20px',
