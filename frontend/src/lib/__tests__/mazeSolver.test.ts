@@ -24,48 +24,66 @@ function openMaze(width: number, height: number): MazeData {
 }
 
 describe('computeOptimalMoves', () => {
-  it('returns total path length when key is collected en-route to goal', () => {
+  it('returns total path length when both regalia are collected en-route', () => {
     const maze = openMaze(5, 5);
-    // start (0,0) → key (2,0) → goal (4,0): straight line, 4 moves total.
+    // start (0,0) → robe (1,0) → scepter (3,0) → goal (4,0): 4 moves total.
     const optimal = computeOptimalMoves(
       maze,
       { x: 0, y: 0 },
-      { x: 2, y: 0 },
+      { x: 1, y: 0 },
+      { x: 3, y: 0 },
       { x: 4, y: 0 }
     );
     expect(optimal).toBe(4);
   });
 
-  it('detours through key when key is off the direct path', () => {
+  it('detours through both pickups when off the direct path', () => {
     const maze = openMaze(5, 5);
-    // start (0,0) → key (0,2) → goal (4,0). On a 5x5 torus the cheapest route
-    // is (0,0)→(0,1)→(0,2) then (0,2)→(0,1)→(0,0)→wrap-left→(4,0) = 5 moves.
+    // start (0,0) → robe (0,2) → scepter (0,1) → goal (4,0).
+    // Optimal: D D U U then wrap-left → 5 moves.
     const optimal = computeOptimalMoves(
       maze,
       { x: 0, y: 0 },
       { x: 0, y: 2 },
+      { x: 0, y: 1 },
       { x: 4, y: 0 }
     );
     expect(optimal).toBe(5);
   });
 
-  it('treats start === key as already-collected (hasKey at dist 0)', () => {
+  it('treats start === robe as already-collected', () => {
     const maze = openMaze(5, 5);
-    // (0,0) → (3,0) on a 5-wide torus: wrap-left twice (0→4→3) = 2 moves.
+    // Start on robe (0,0), need scepter at (0,1), goal at (3,0).
+    // Path: D, U, wrap-left twice = 4. Or D U L L = 4. BFS should find 4.
     const optimal = computeOptimalMoves(
       maze,
+      { x: 0, y: 0 },
+      { x: 0, y: 0 },
+      { x: 0, y: 1 },
+      { x: 3, y: 0 }
+    );
+    expect(optimal).toBe(4);
+  });
+
+  it('treats start === both pickups as fully equipped', () => {
+    const maze = openMaze(5, 5);
+    // Start on both robe and scepter, just need to reach goal.
+    const optimal = computeOptimalMoves(
+      maze,
+      { x: 0, y: 0 },
       { x: 0, y: 0 },
       { x: 0, y: 0 },
       { x: 3, y: 0 }
     );
-    expect(optimal).toBe(2);
+    expect(optimal).toBe(2); // wrap-left twice
   });
 
   it('exploits toroidal wraparound for shorter paths', () => {
     const maze = openMaze(10, 1);
-    // (0,0) → goal (9,0). Wrapping left: 1 step. Forward: 9 steps. BFS picks 1.
+    // Start on both robe and scepter (0,0), goal at (9,0): 1 wrap-left.
     const optimal = computeOptimalMoves(
       maze,
+      { x: 0, y: 0 },
       { x: 0, y: 0 },
       { x: 0, y: 0 },
       { x: 9, y: 0 }
@@ -74,8 +92,15 @@ describe('computeOptimalMoves', () => {
   });
 
   it('returns a valid solution for a real generated maze', () => {
-    const { maze, kingPos, keyPos, goalPos } = generateMaze('solver-test');
-    const optimal = computeOptimalMoves(maze, kingPos, keyPos, goalPos);
+    const { maze, kingPos, robePos, scepterPos, goalPos } =
+      generateMaze('solver-test');
+    const optimal = computeOptimalMoves(
+      maze,
+      kingPos,
+      robePos,
+      scepterPos,
+      goalPos
+    );
     expect(optimal).not.toBeNull();
     expect(optimal).toBeGreaterThan(0);
   });
@@ -97,13 +122,10 @@ describe('tierFromMoveCount', () => {
   });
 
   it('returns Robot when moveCount is below claimed optimal (defensive)', () => {
-    // Should never happen with a sound optimal, but the badge spec treats
-    // "<= optimal" as the perfect bucket — match it.
     expect(tierFromMoveCount(49, 50)).toBe(CrownTier.Robot);
   });
 
   it('returns Gold below 1.05x optimal', () => {
-    // optimal=100, < 105 moves → Gold
     expect(tierFromMoveCount(101, 100)).toBe(CrownTier.Gold);
     expect(tierFromMoveCount(104, 100)).toBe(CrownTier.Gold);
   });

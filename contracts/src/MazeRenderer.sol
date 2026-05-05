@@ -14,11 +14,13 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 ///      [2:4]   height (uint16 BE)
 ///      [4:6]   startX
 ///      [6:8]   startY
-///      [8:10]  keyX
-///      [10:12] keyY
-///      [12:14] goalX
-///      [14:16] goalY
-///      [16:]   packed_cells: ceil(width*height/2) bytes
+///      [8:10]  robeX
+///      [10:12] robeY
+///      [12:14] scepterX
+///      [14:16] scepterY
+///      [16:18] goalX
+///      [18:20] goalY
+///      [20:]   packed_cells: ceil(width*height/2) bytes
 ///
 ///      Each packed-cells byte holds two 4-bit cells (high nibble = even index,
 ///      low nibble = odd index). Within a nibble:
@@ -43,8 +45,10 @@ contract MazeRenderer {
         uint16 height;
         uint16 startX;
         uint16 startY;
-        uint16 keyX;
-        uint16 keyY;
+        uint16 robeX;
+        uint16 robeY;
+        uint16 scepterX;
+        uint16 scepterY;
         uint16 goalX;
         uint16 goalY;
     }
@@ -56,7 +60,7 @@ contract MazeRenderer {
         string zkBg;
         string crownBg;
         string player;
-        string key;
+        string regalia;
         string goal;
     }
 
@@ -104,18 +108,20 @@ contract MazeRenderer {
     // ---------------------------------------------------------------------
 
     function _decodeHeader(bytes calldata layout) internal pure returns (Header memory h) {
-        require(layout.length >= 16, "Layout too short");
+        require(layout.length >= 20, "Layout too short");
         h.width = _readU16(layout, 0);
         h.height = _readU16(layout, 2);
         h.startX = _readU16(layout, 4);
         h.startY = _readU16(layout, 6);
-        h.keyX = _readU16(layout, 8);
-        h.keyY = _readU16(layout, 10);
-        h.goalX = _readU16(layout, 12);
-        h.goalY = _readU16(layout, 14);
+        h.robeX = _readU16(layout, 8);
+        h.robeY = _readU16(layout, 10);
+        h.scepterX = _readU16(layout, 12);
+        h.scepterY = _readU16(layout, 14);
+        h.goalX = _readU16(layout, 16);
+        h.goalY = _readU16(layout, 18);
         require(h.width > 0 && h.height > 0, "Empty maze");
         uint256 totalCells = uint256(h.width) * uint256(h.height);
-        uint256 expected = 16 + (totalCells + 1) / 2;
+        uint256 expected = 20 + (totalCells + 1) / 2;
         require(layout.length >= expected, "Layout truncated");
     }
 
@@ -124,9 +130,9 @@ contract MazeRenderer {
     }
 
     /// @dev Read a single 4-bit cell at row-major index `idx`. The packed bytes
-    ///      live in `layout[16:]`; high nibble = even index, low nibble = odd.
+    ///      live in `layout[20:]`; high nibble = even index, low nibble = odd.
     function _cellAt(bytes calldata layout, uint256 idx) internal pure returns (uint8) {
-        uint256 byteIdx = 16 + (idx >> 1);
+        uint256 byteIdx = 20 + (idx >> 1);
         uint8 b = uint8(layout[byteIdx]);
         return (idx & 1) == 0 ? (b >> 4) & 0x0F : b & 0x0F;
     }
@@ -261,9 +267,9 @@ contract MazeRenderer {
         );
     }
 
-    /// @dev Player / key / goal as filled circles. Cheap to encode, reads as
-    ///      "things in the maze" at NFT-thumbnail size where pixel sprites
-    ///      would not survive the downscale.
+    /// @dev Player / robe / scepter / goal as filled circles. Cheap to encode,
+    ///      reads as "things in the maze" at NFT-thumbnail size where pixel
+    ///      sprites would not survive the downscale.
     function _renderGlyphs(Header memory h, Palette memory p) internal pure returns (bytes memory) {
         uint256 r = CELL / 2 - 2;
         return abi.encodePacked(
@@ -273,7 +279,15 @@ contract MazeRenderer {
                 r,
                 p.player
             ),
-            _circle(uint256(h.keyX) * CELL + CELL / 2, uint256(h.keyY) * CELL + CELL / 2, r, p.key),
+            _circle(
+                uint256(h.robeX) * CELL + CELL / 2, uint256(h.robeY) * CELL + CELL / 2, r, p.regalia
+            ),
+            _circle(
+                uint256(h.scepterX) * CELL + CELL / 2,
+                uint256(h.scepterY) * CELL + CELL / 2,
+                r,
+                p.regalia
+            ),
             _circle(
                 uint256(h.goalX) * CELL + CELL / 2, uint256(h.goalY) * CELL + CELL / 2, r, p.goal
             )
@@ -324,9 +338,10 @@ contract MazeRenderer {
         // Crown highlight: always gold, regardless of seed (matches frontend).
         p.crownBg = _hsl(48, 85, 55);
 
-        // Entities: gold/yellow for player & key, complementary for goal.
+        // Entities: gold/yellow for player & regalia (both pickups share a
+        // color), complementary for goal.
         p.player = _hsl(45, 90, 60);
-        p.key = _hsl(55, 85, 55);
+        p.regalia = _hsl(55, 85, 55);
         p.goal = _hsl((baseHue + 90) % 360, 65, 50);
     }
 

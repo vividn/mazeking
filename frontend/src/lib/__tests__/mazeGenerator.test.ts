@@ -16,7 +16,8 @@ describe('generateMaze', () => {
       expect(result1.maze.width).toBe(result2.maze.width);
       expect(result1.maze.height).toBe(result2.maze.height);
       expect(result1.kingPos).toEqual(result2.kingPos);
-      expect(result1.keyPos).toEqual(result2.keyPos);
+      expect(result1.robePos).toEqual(result2.robePos);
+      expect(result1.scepterPos).toEqual(result2.scepterPos);
       expect(result1.goalPos).toEqual(result2.goalPos);
 
       // Check all cells are identical
@@ -35,8 +36,10 @@ describe('generateMaze', () => {
       const positionsDiffer =
         result1.kingPos.x !== result2.kingPos.x ||
         result1.kingPos.y !== result2.kingPos.y ||
-        result1.keyPos.x !== result2.keyPos.x ||
-        result1.keyPos.y !== result2.keyPos.y;
+        result1.robePos.x !== result2.robePos.x ||
+        result1.robePos.y !== result2.robePos.y ||
+        result1.scepterPos.x !== result2.scepterPos.x ||
+        result1.scepterPos.y !== result2.scepterPos.y;
 
       let wallsDiffer = false;
       const minWidth = Math.min(result1.maze.width, result2.maze.width);
@@ -65,7 +68,8 @@ describe('generateMaze', () => {
         const result2 = generateMaze(seed);
 
         expect(result1.kingPos).toEqual(result2.kingPos);
-        expect(result1.keyPos).toEqual(result2.keyPos);
+        expect(result1.robePos).toEqual(result2.robePos);
+        expect(result1.scepterPos).toEqual(result2.scepterPos);
         expect(result1.goalPos).toEqual(result2.goalPos);
       }
     });
@@ -148,14 +152,24 @@ describe('generateMaze', () => {
       expect(reachableNonText).toBe(nonTextCount);
     });
 
-    it('key position is reachable from king position', () => {
-      const result = generateMaze('key-reachable-test');
-      const { maze, kingPos, keyPos } = result;
+    it('robe position is reachable from king position', () => {
+      const result = generateMaze('robe-reachable-test');
+      const { maze, kingPos, robePos } = result;
 
       const reachable = findReachableCells(maze, kingPos);
-      const keyKey = `${keyPos.x},${keyPos.y}`;
+      const k = `${robePos.x},${robePos.y}`;
 
-      expect(reachable.has(keyKey)).toBe(true);
+      expect(reachable.has(k)).toBe(true);
+    });
+
+    it('scepter position is reachable from king position', () => {
+      const result = generateMaze('scepter-reachable-test');
+      const { maze, kingPos, scepterPos } = result;
+
+      const reachable = findReachableCells(maze, kingPos);
+      const k = `${scepterPos.x},${scepterPos.y}`;
+
+      expect(reachable.has(k)).toBe(true);
     });
 
     it('goal position is reachable from king position', () => {
@@ -246,35 +260,25 @@ describe('generateMaze', () => {
 
     it('all positions are within maze bounds', () => {
       const result = generateMaze('bounds-test');
-      const { maze, kingPos, keyPos, goalPos } = result;
+      const { maze, kingPos, robePos, scepterPos, goalPos } = result;
 
-      expect(kingPos.x).toBeGreaterThanOrEqual(0);
-      expect(kingPos.x).toBeLessThan(maze.width);
-      expect(kingPos.y).toBeGreaterThanOrEqual(0);
-      expect(kingPos.y).toBeLessThan(maze.height);
-
-      expect(keyPos.x).toBeGreaterThanOrEqual(0);
-      expect(keyPos.x).toBeLessThan(maze.width);
-      expect(keyPos.y).toBeGreaterThanOrEqual(0);
-      expect(keyPos.y).toBeLessThan(maze.height);
-
-      expect(goalPos.x).toBeGreaterThanOrEqual(0);
-      expect(goalPos.x).toBeLessThan(maze.width);
-      expect(goalPos.y).toBeGreaterThanOrEqual(0);
-      expect(goalPos.y).toBeLessThan(maze.height);
+      for (const p of [kingPos, robePos, scepterPos, goalPos]) {
+        expect(p.x).toBeGreaterThanOrEqual(0);
+        expect(p.x).toBeLessThan(maze.width);
+        expect(p.y).toBeGreaterThanOrEqual(0);
+        expect(p.y).toBeLessThan(maze.height);
+      }
     });
 
-    it('king, key, and goal are at different positions', () => {
+    it('king, robe, scepter, and goal are at different positions', () => {
       const result = generateMaze('positions-test');
-      const { kingPos, keyPos, goalPos } = result;
+      const { kingPos, robePos, scepterPos, goalPos } = result;
 
-      const kingKey = `${kingPos.x},${kingPos.y}`;
-      const keyKey = `${keyPos.x},${keyPos.y}`;
-      const goalKey = `${goalPos.x},${goalPos.y}`;
-
-      expect(kingKey).not.toBe(keyKey);
-      expect(kingKey).not.toBe(goalKey);
-      expect(keyKey).not.toBe(goalKey);
+      const positions = [kingPos, robePos, scepterPos, goalPos].map(
+        (p) => `${p.x},${p.y}`
+      );
+      const unique = new Set(positions);
+      expect(unique.size).toBe(positions.length);
     });
 
     it('text cells are marked correctly', () => {
@@ -380,7 +384,8 @@ describe('generateMaze', () => {
       const b = generateMaze('zkDEBUG', { debug: true });
 
       expect(a.kingPos).toEqual(b.kingPos);
-      expect(a.keyPos).toEqual(b.keyPos);
+      expect(a.robePos).toEqual(b.robePos);
+      expect(a.scepterPos).toEqual(b.scepterPos);
       expect(a.goalPos).toEqual(b.goalPos);
 
       for (let y = 0; y < a.maze.height; y++) {

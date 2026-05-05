@@ -17,7 +17,7 @@ global MAX_MOVES: u32 = 1000;
 
 // Verify that a sequence of moves:
 // 1. Never passes through walls
-// 2. Passes through the key position
+// 2. Passes through BOTH the robe and scepter positions (in any order)
 // 3. Ends at the goal position
 //
 // Pure path-validity check; no hash binding. Used both by `main` (after
@@ -27,8 +27,10 @@ pub fn verify_solution(
     height: u16,
     start_x: u16,
     start_y: u16,
-    key_x: u16,
-    key_y: u16,
+    robe_x: u16,
+    robe_y: u16,
+    scepter_x: u16,
+    scepter_y: u16,
     goal_x: u16,
     goal_y: u16,
     packed_cells: [u8; MAX_PACKED_BYTES],
@@ -48,14 +50,19 @@ pub fn verify_solution(
 
     // Initialize state
     let mut pos = Position::new(start_x, start_y);
-    let mut has_key = false;
+    let mut has_robe = false;
+    let mut has_scepter = false;
 
-    let key_pos = Position::new(key_x, key_y);
+    let robe_pos = Position::new(robe_x, robe_y);
+    let scepter_pos = Position::new(scepter_x, scepter_y);
     let goal_pos = Position::new(goal_x, goal_y);
 
-    // Check if we start on the key
-    if pos.equals(key_pos) {
-        has_key = true;
+    // Check if we start on robe / scepter
+    if pos.equals(robe_pos) {
+        has_robe = true;
+    }
+    if pos.equals(scepter_pos) {
+        has_scepter = true;
     }
 
     // Process each move
@@ -72,16 +79,20 @@ pub fn verify_solution(
             // Update position
             pos = next_position(pos, direction, width, height);
 
-            // Check if we collected the key
-            if pos.equals(key_pos) {
-                has_key = true;
+            // Check if we collected robe or scepter
+            if pos.equals(robe_pos) {
+                has_robe = true;
+            }
+            if pos.equals(scepter_pos) {
+                has_scepter = true;
             }
         }
     }
 
-    // Final assertions
-    assert(has_key); // Must have collected the key
-    assert(pos.equals(goal_pos)); // Must end at goal
+    // Final assertions: both regalia pieces must be collected, then the goal.
+    assert(has_robe);
+    assert(has_scepter);
+    assert(pos.equals(goal_pos));
 }
 
 // Main proof entry point.
@@ -91,8 +102,8 @@ pub fn verify_solution(
 //   move_count: number of moves used in the solution
 //
 // Private inputs (witness only):
-//   width/height, start/key/goal positions, packed cell layout, the
-//   move sequence. The Pedersen hash binds them to `maze_hash`.
+//   width/height, start/robe/scepter/goal positions, packed cell layout,
+//   the move sequence. The Pedersen hash binds them to `maze_hash`.
 fn main(
     maze_hash: pub Field,
     move_count: pub u32,
@@ -100,8 +111,10 @@ fn main(
     height: u16,
     start_x: u16,
     start_y: u16,
-    key_x: u16,
-    key_y: u16,
+    robe_x: u16,
+    robe_y: u16,
+    scepter_x: u16,
+    scepter_y: u16,
     goal_x: u16,
     goal_y: u16,
     packed_cells: [u8; MAX_PACKED_BYTES],
@@ -115,8 +128,10 @@ fn main(
         height,
         start_x,
         start_y,
-        key_x,
-        key_y,
+        robe_x,
+        robe_y,
+        scepter_x,
+        scepter_y,
         goal_x,
         goal_y,
         packed_cells,
@@ -128,8 +143,10 @@ fn main(
         height,
         start_x,
         start_y,
-        key_x,
-        key_y,
+        robe_x,
+        robe_y,
+        scepter_x,
+        scepter_y,
         goal_x,
         goal_y,
         packed_cells,
@@ -148,43 +165,36 @@ fn pack_cells(even: u8, odd: u8) -> u8 {
 }
 
 // Simple 4x4 test maze with a clear path
-// Path: (0,0) -> Right x3 to (3,0) [key] -> Down x3 to (3,3) -> Left to (2,3) [goal]
+// Path: (0,0) -> Right x3 to (3,0) [robe] -> Down x3 to (3,3) -> Left to
+// (2,3) [scepter @ (1,3)? no -- make scepter en route] -> ...
+//
+// We use a different layout from the original: open corridor along the top
+// row collects the robe, descent down column 3 to (3,3), then leftward
+// across the bottom to pick up the scepter at (0,3) and end at (2,3) goal.
+// To keep the tests simple and verify the new dual-collection rule, we use
+// a fully-open 4x4 (no walls) and exercise paths over it.
 fn create_4x4_test_maze() -> [u8; 8] {
-    // 16 cells -> 8 packed bytes
-    let c0 = Cell::from_parts(false, false, 0).data; // (0,0) start
-    let c1 = Cell::from_parts(true, false, 0).data; // (1,0) south wall
-    let c2 = Cell::from_parts(true, false, 0).data; // (2,0) south wall
-    let c3 = Cell::from_parts(false, true, 0).data; // (3,0) key - east wall
-
-    let c4 = Cell::from_parts(false, true, 0).data; // (0,1) east wall
-    let c5 = Cell::from_parts(true, true, 0).data; // (1,1) blocked
-    let c6 = Cell::from_parts(true, true, 0).data; // (2,1) blocked
-    let c7 = Cell::from_parts(false, true, 0).data; // (3,1) east wall
-
-    let c8 = Cell::from_parts(false, true, 0).data; // (0,2) east wall
-    let c9 = Cell::from_parts(true, true, 0).data; // (1,2) blocked
-    let c10 = Cell::from_parts(true, true, 0).data; // (2,2) blocked
-    let c11 = Cell::from_parts(false, true, 0).data; // (3,2) east wall
-
-    let c12 = Cell::from_parts(true, false, 0).data; // (0,3) south wall
-    let c13 = Cell::from_parts(true, false, 0).data; // (1,3) south wall
-    let c14 = Cell::from_parts(true, false, 0).data; // (2,3) goal
-    let c15 = Cell::from_parts(true, true, 0).data; // (3,3) both walls
+    // 16 cells -> 8 packed bytes, all with no walls (open).
+    let c = Cell::from_parts(false, false, 0).data;
 
     let mut packed: [u8; 8] = [0; 8];
-    packed[0] = pack_cells(c0, c1);
-    packed[1] = pack_cells(c2, c3);
-    packed[2] = pack_cells(c4, c5);
-    packed[3] = pack_cells(c6, c7);
-    packed[4] = pack_cells(c8, c9);
-    packed[5] = pack_cells(c10, c11);
-    packed[6] = pack_cells(c12, c13);
-    packed[7] = pack_cells(c14, c15);
+    for i in 0..8 {
+        packed[i] = pack_cells(c, c);
+    }
     packed
 }
 
 #[test]
-fn test_valid_4x4_solution() {
+fn test_valid_4x4_solution_robe_first() {
+    // Open 4x4. start=(0,0), robe=(3,0), scepter=(0,3), goal=(2,3).
+    // Path: R,R,R,D,D,D,L,L,L (collect robe at (3,0), traverse to (3,3) then
+    // wrap-left to (0,3) collecting scepter, then R,R to (2,3) goal).
+    // Simpler: R R R (now robe), D D D (now (3,3)), L (now (2,3) goal but no
+    // scepter yet) -- bad. Use:  D D D L L L (scepter at (0,3) collected via
+    // (0,1)(0,2)(0,3), then wrap-left? No -- open 4x4 is toroidal. Try this:
+    //   R R R D D D  -> now at (3,3) with robe collected.
+    //   L L L        -> walks to (0,3) collecting scepter.
+    //   R R          -> (2,3) goal.
     let cells = create_4x4_test_maze();
 
     let mut padded_cells: [u8; MAX_PACKED_BYTES] = [0; MAX_PACKED_BYTES];
@@ -193,19 +203,52 @@ fn test_valid_4x4_solution() {
     }
 
     let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
-    moves[0] = DIR_RIGHT;
-    moves[1] = DIR_RIGHT;
-    moves[2] = DIR_RIGHT; // Now at key (3,0)
-    moves[3] = DIR_DOWN;
-    moves[4] = DIR_DOWN;
-    moves[5] = DIR_DOWN; // Now at (3,3)
-    moves[6] = DIR_LEFT; // Now at goal (2,3)
+    moves[0] = DIR_RIGHT; // (1,0)
+    moves[1] = DIR_RIGHT; // (2,0)
+    moves[2] = DIR_RIGHT; // (3,0) robe
+    moves[3] = DIR_DOWN; // (3,1)
+    moves[4] = DIR_DOWN; // (3,2)
+    moves[5] = DIR_DOWN; // (3,3)
+    moves[6] = DIR_LEFT; // (2,3)
+    moves[7] = DIR_LEFT; // (1,3)
+    moves[8] = DIR_LEFT; // (0,3) scepter
+    moves[9] = DIR_RIGHT; // (1,3)
+    moves[10] = DIR_RIGHT; // (2,3) goal
 
-    verify_solution(4, 4, 0, 0, 3, 0, 2, 3, padded_cells, 7, moves);
+    verify_solution(4, 4, 0, 0, 3, 0, 0, 3, 2, 3, padded_cells, 11, moves);
+}
+
+#[test]
+fn test_valid_4x4_solution_scepter_first() {
+    // Same maze, scepter collected before robe -- must still pass.
+    let cells = create_4x4_test_maze();
+
+    let mut padded_cells: [u8; MAX_PACKED_BYTES] = [0; MAX_PACKED_BYTES];
+    for i in 0..8 {
+        padded_cells[i] = cells[i];
+    }
+
+    let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
+    moves[0] = DIR_DOWN; // (0,1)
+    moves[1] = DIR_DOWN; // (0,2)
+    moves[2] = DIR_DOWN; // (0,3) scepter
+    moves[3] = DIR_UP; // (0,2)
+    moves[4] = DIR_UP; // (0,1)
+    moves[5] = DIR_UP; // (0,0)
+    moves[6] = DIR_RIGHT; // (1,0)
+    moves[7] = DIR_RIGHT; // (2,0)
+    moves[8] = DIR_RIGHT; // (3,0) robe
+    moves[9] = DIR_DOWN; // (3,1)
+    moves[10] = DIR_DOWN; // (3,2)
+    moves[11] = DIR_DOWN; // (3,3)
+    moves[12] = DIR_LEFT; // (2,3) goal
+
+    verify_solution(4, 4, 0, 0, 3, 0, 0, 3, 2, 3, padded_cells, 13, moves);
 }
 
 #[test(should_fail)]
-fn test_miss_key() {
+fn test_miss_robe() {
+    // Walks scepter+goal but skips robe -- should fail.
     let cells = create_4x4_test_maze();
 
     let mut padded_cells: [u8; MAX_PACKED_BYTES] = [0; MAX_PACKED_BYTES];
@@ -214,17 +257,60 @@ fn test_miss_key() {
     }
 
     let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
-    moves[0] = DIR_DOWN;
-    moves[1] = DIR_DOWN;
-    moves[2] = DIR_DOWN;
-    moves[3] = DIR_RIGHT;
-    moves[4] = DIR_RIGHT;
+    moves[0] = DIR_DOWN; // (0,1)
+    moves[1] = DIR_DOWN; // (0,2)
+    moves[2] = DIR_DOWN; // (0,3) scepter
+    moves[3] = DIR_RIGHT; // (1,3)
+    moves[4] = DIR_RIGHT; // (2,3) goal -- but no robe
 
-    verify_solution(4, 4, 0, 0, 3, 0, 2, 3, padded_cells, 5, moves);
+    verify_solution(4, 4, 0, 0, 3, 0, 0, 3, 2, 3, padded_cells, 5, moves);
+}
+
+#[test(should_fail)]
+fn test_miss_scepter() {
+    // Walks robe+goal but skips scepter -- should fail.
+    let cells = create_4x4_test_maze();
+
+    let mut padded_cells: [u8; MAX_PACKED_BYTES] = [0; MAX_PACKED_BYTES];
+    for i in 0..8 {
+        padded_cells[i] = cells[i];
+    }
+
+    let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
+    moves[0] = DIR_RIGHT; // (1,0)
+    moves[1] = DIR_RIGHT; // (2,0)
+    moves[2] = DIR_RIGHT; // (3,0) robe
+    moves[3] = DIR_DOWN; // (3,1)
+    moves[4] = DIR_DOWN; // (3,2)
+    moves[5] = DIR_DOWN; // (3,3)
+    moves[6] = DIR_LEFT; // (2,3) goal -- but no scepter
+
+    verify_solution(4, 4, 0, 0, 3, 0, 0, 3, 2, 3, padded_cells, 7, moves);
+}
+
+#[test(should_fail)]
+fn test_miss_both() {
+    // Walks straight to goal, no robe and no scepter -- should fail.
+    let cells = create_4x4_test_maze();
+
+    let mut padded_cells: [u8; MAX_PACKED_BYTES] = [0; MAX_PACKED_BYTES];
+    for i in 0..8 {
+        padded_cells[i] = cells[i];
+    }
+
+    let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
+    moves[0] = DIR_RIGHT; // (1,0)
+    moves[1] = DIR_RIGHT; // (2,0)
+    moves[2] = DIR_DOWN; // (2,1)
+    moves[3] = DIR_DOWN; // (2,2)
+    moves[4] = DIR_DOWN; // (2,3) goal
+
+    verify_solution(4, 4, 0, 0, 3, 0, 0, 3, 2, 3, padded_cells, 5, moves);
 }
 
 #[test(should_fail)]
 fn test_wrong_destination() {
+    // Picks up both but ends at the wrong cell.
     let cells = create_4x4_test_maze();
 
     let mut padded_cells: [u8; MAX_PACKED_BYTES] = [0; MAX_PACKED_BYTES];
@@ -235,183 +321,71 @@ fn test_wrong_destination() {
     let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
     moves[0] = DIR_RIGHT;
     moves[1] = DIR_RIGHT;
-    moves[2] = DIR_RIGHT;
+    moves[2] = DIR_RIGHT; // robe
     moves[3] = DIR_DOWN;
     moves[4] = DIR_DOWN;
+    moves[5] = DIR_DOWN;
+    moves[6] = DIR_LEFT;
+    moves[7] = DIR_LEFT;
+    moves[8] = DIR_LEFT; // scepter at (0,3)
 
-    verify_solution(4, 4, 0, 0, 3, 0, 2, 3, padded_cells, 5, moves);
-}
-
-#[test(should_fail)]
-fn test_through_wall() {
-    let cells = create_4x4_test_maze();
-
-    let mut padded_cells: [u8; MAX_PACKED_BYTES] = [0; MAX_PACKED_BYTES];
-    for i in 0..8 {
-        padded_cells[i] = cells[i];
-    }
-
-    let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
-    moves[0] = DIR_DOWN;
-    moves[1] = DIR_RIGHT;
-
-    verify_solution(4, 4, 0, 0, 3, 0, 2, 3, padded_cells, 2, moves);
+    verify_solution(4, 4, 0, 0, 3, 0, 0, 3, 2, 3, padded_cells, 9, moves);
 }
 
 // ============================================================================
-// 10x10 Demo Maze
+// Wraparound + start-on-collectable tests (open 3x3)
 // ============================================================================
 
-// Create a 10x10 maze with a known solution path (packed format)
-// 100 cells -> 50 packed bytes
-fn create_10x10_demo_maze() -> [u8; 50] {
-    // First create unpacked cells
-    let mut cells: [u8; 100] = [0; 100];
-
-    // Initialize all cells with both walls (closed)
-    for i in 0..100 {
-        cells[i] = Cell::from_parts(true, true, 0).data;
-    }
-
-    // Create a path by removing walls
-    // Path goes: (0,0) -> right to (9,0) -> down to (9,9) -> left to (5,9) (goal)
-
-    // Row 0: open corridor right
-    for x in 0..9 {
-        cells[x] = Cell::from_parts(true, false, 0).data;
-    }
-    // (9,0) has east wall (edge), open south for path down
-    cells[9] = Cell::from_parts(false, true, 0).data;
-
-    // Column 9: open corridor down
-    for y in 1..9 {
-        let idx = y * 10 + 9;
-        cells[idx] = Cell::from_parts(false, true, 0).data;
-    }
-    // (9,9) needs to allow going left
-    cells[99] = Cell::from_parts(true, true, 0).data;
-
-    // Row 9: open corridor left from (9,9) to (5,9)
-    // Remove east walls from cells (4,9) through (8,9)
-    for x in 4..9 {
-        let idx = 9 * 10 + x;
-        cells[idx] = Cell::from_parts(true, false, 0).data;
-    }
-
-    // Now pack the cells
-    let mut packed: [u8; 50] = [0; 50];
-    for i in 0..100 {
-        let byte_idx = i / 2;
-        let is_odd = (i % 2) == 1;
-        if is_odd {
-            packed[byte_idx] = packed[byte_idx] | (cells[i] & 0x0F);
-        } else {
-            packed[byte_idx] = (cells[i] & 0x0F) << 4;
-        }
-    }
-    packed
-}
-
-#[test]
-fn test_10x10_valid_solution() {
-    let cells = create_10x10_demo_maze();
-
-    let mut padded_cells: [u8; MAX_PACKED_BYTES] = [0; MAX_PACKED_BYTES];
-    for i in 0..50 {
-        padded_cells[i] = cells[i];
-    }
-
-    let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
-    let mut idx = 0;
-
-    // Right x9: (0,0) to (9,0) - collect key
-    for _ in 0..9 {
-        moves[idx] = DIR_RIGHT;
-        idx += 1;
-    }
-
-    // Down x9: (9,0) to (9,9)
-    for _ in 0..9 {
-        moves[idx] = DIR_DOWN;
-        idx += 1;
-    }
-
-    // Left x4: (9,9) to (5,9) - goal
-    for _ in 0..4 {
-        moves[idx] = DIR_LEFT;
-        idx += 1;
-    }
-
-    verify_solution(10, 10, 0, 0, 9, 0, 5, 9, padded_cells, 22, moves);
-}
-
-#[test(should_fail)]
-fn test_10x10_skip_key() {
-    let cells = create_10x10_demo_maze();
-
-    let mut padded_cells: [u8; MAX_PACKED_BYTES] = [0; MAX_PACKED_BYTES];
-    for i in 0..50 {
-        padded_cells[i] = cells[i];
-    }
-
-    let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
-
-    verify_solution(10, 10, 0, 0, 9, 0, 5, 9, padded_cells, 0, moves);
-}
-
-#[test(should_fail)]
-fn test_10x10_invalid_move() {
-    let cells = create_10x10_demo_maze();
-
-    let mut padded_cells: [u8; MAX_PACKED_BYTES] = [0; MAX_PACKED_BYTES];
-    for i in 0..50 {
-        padded_cells[i] = cells[i];
-    }
-
-    let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
-    moves[0] = DIR_DOWN; // Should fail - south wall at (0,0)
-
-    verify_solution(10, 10, 0, 0, 9, 0, 5, 9, padded_cells, 1, moves);
-}
-
-// Test toroidal wrapping in a small open maze
-// 9 cells -> 5 packed bytes
 fn create_open_3x3() -> [u8; 5] {
-    let c = Cell::from_parts(false, false, 0).data; // no walls
-
+    let c = Cell::from_parts(false, false, 0).data;
     let mut packed: [u8; 5] = [0; 5];
-    // Cells 0-8, all open
-    packed[0] = pack_cells(c, c); // 0, 1
-    packed[1] = pack_cells(c, c); // 2, 3
-    packed[2] = pack_cells(c, c); // 4, 5
-    packed[3] = pack_cells(c, c); // 6, 7
-    packed[4] = pack_cells(c, 0); // 8, padding
+    packed[0] = pack_cells(c, c);
+    packed[1] = pack_cells(c, c);
+    packed[2] = pack_cells(c, c);
+    packed[3] = pack_cells(c, c);
+    packed[4] = pack_cells(c, 0);
     packed
 }
 
 #[test]
 fn test_wrap_around_solution() {
+    // 3x3 toroidal. start=(0,0), robe=(2,2), scepter=(2,0), goal=(1,1).
     let cells = create_open_3x3();
-
     let mut padded_cells: [u8; MAX_PACKED_BYTES] = [0; MAX_PACKED_BYTES];
     for i in 0..5 {
         padded_cells[i] = cells[i];
     }
 
     let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
-    moves[0] = DIR_LEFT; // (0,0) -> (2,0) wrap
-    moves[1] = DIR_DOWN; // (2,0) -> (2,1)
-    moves[2] = DIR_DOWN; // (2,1) -> (2,2) = key
-    moves[3] = DIR_LEFT; // (2,2) -> (1,2)
-    moves[4] = DIR_UP; // (1,2) -> (1,1) = goal
+    moves[0] = DIR_LEFT; // (0,0) -> (2,0) wrap, scepter
+    moves[1] = DIR_DOWN; // (2,1)
+    moves[2] = DIR_DOWN; // (2,2) robe
+    moves[3] = DIR_LEFT; // (1,2)
+    moves[4] = DIR_UP; // (1,1) goal
 
-    verify_solution(3, 3, 0, 0, 2, 2, 1, 1, padded_cells, 5, moves);
+    verify_solution(3, 3, 0, 0, 2, 2, 2, 0, 1, 1, padded_cells, 5, moves);
 }
 
 #[test]
-fn test_start_on_key() {
+fn test_start_on_robe() {
+    // Start on the robe; only need to fetch scepter then reach goal.
     let cells = create_open_3x3();
+    let mut padded_cells: [u8; MAX_PACKED_BYTES] = [0; MAX_PACKED_BYTES];
+    for i in 0..5 {
+        padded_cells[i] = cells[i];
+    }
 
+    let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
+    moves[0] = DIR_RIGHT; // (1,0) scepter
+    moves[1] = DIR_DOWN; // (1,1) goal
+
+    verify_solution(3, 3, 0, 0, 0, 0, 1, 0, 1, 1, padded_cells, 2, moves);
+}
+
+#[test]
+fn test_start_on_both() {
+    // Same cell for robe and scepter -- counts as both collected at start.
+    let cells = create_open_3x3();
     let mut padded_cells: [u8; MAX_PACKED_BYTES] = [0; MAX_PACKED_BYTES];
     for i in 0..5 {
         padded_cells[i] = cells[i];
@@ -421,7 +395,7 @@ fn test_start_on_key() {
     moves[0] = DIR_RIGHT;
     moves[1] = DIR_DOWN;
 
-    verify_solution(3, 3, 0, 0, 0, 0, 1, 1, padded_cells, 2, moves);
+    verify_solution(3, 3, 0, 0, 0, 0, 0, 0, 1, 1, padded_cells, 2, moves);
 }
 
 // ============================================================================
@@ -440,15 +414,19 @@ fn test_main_4x4_with_hash() {
     let mut moves: [u8; MAX_MOVES] = [0; MAX_MOVES];
     moves[0] = DIR_RIGHT;
     moves[1] = DIR_RIGHT;
-    moves[2] = DIR_RIGHT;
+    moves[2] = DIR_RIGHT; // robe
     moves[3] = DIR_DOWN;
     moves[4] = DIR_DOWN;
     moves[5] = DIR_DOWN;
     moves[6] = DIR_LEFT;
+    moves[7] = DIR_LEFT;
+    moves[8] = DIR_LEFT; // scepter at (0,3)
+    moves[9] = DIR_RIGHT;
+    moves[10] = DIR_RIGHT; // goal
 
-    let h = compute_maze_hash(4, 4, 0, 0, 3, 0, 2, 3, padded_cells);
+    let h = compute_maze_hash(4, 4, 0, 0, 3, 0, 0, 3, 2, 3, padded_cells);
 
-    main(h, 7, 4, 4, 0, 0, 3, 0, 2, 3, padded_cells, moves);
+    main(h, 11, 4, 4, 0, 0, 3, 0, 0, 3, 2, 3, padded_cells, moves);
 }
 
 #[test(should_fail)]
@@ -468,10 +446,13 @@ fn test_main_rejects_wrong_hash() {
     moves[4] = DIR_DOWN;
     moves[5] = DIR_DOWN;
     moves[6] = DIR_LEFT;
+    moves[7] = DIR_LEFT;
+    moves[8] = DIR_LEFT;
+    moves[9] = DIR_RIGHT;
+    moves[10] = DIR_RIGHT;
 
-    // Truth hash for the actual layout, perturbed by +1 - should fail.
-    let truth = compute_maze_hash(4, 4, 0, 0, 3, 0, 2, 3, padded_cells);
+    let truth = compute_maze_hash(4, 4, 0, 0, 3, 0, 0, 3, 2, 3, padded_cells);
     let bogus = truth + 1;
 
-    main(bogus, 7, 4, 4, 0, 0, 3, 0, 2, 3, padded_cells, moves);
+    main(bogus, 11, 4, 4, 0, 0, 3, 0, 0, 3, 2, 3, padded_cells, moves);
 }

@@ -35,7 +35,8 @@ export function useZkProof(
   maze: MazeData,
   moves: Move[],
   startPos: Position,
-  keyPos: Position,
+  robePos: Position,
+  scepterPos: Position,
   goalPos: Position
 ): UseZkProofResult {
   const [state, setState] = useState<ProofState>({
@@ -58,7 +59,13 @@ export function useZkProof(
     try {
       setState({ stage: 'loading-circuit', progress: 5 });
 
-      const zkMaze = serializeForZk(maze, startPos, keyPos, goalPos);
+      const zkMaze = serializeForZk(
+        maze,
+        startPos,
+        robePos,
+        scepterPos,
+        goalPos
+      );
 
       // Compute the canonical layout bytes + Pedersen hash up-front. The
       // circuit re-derives the hash from the private witness and asserts
@@ -98,7 +105,7 @@ export function useZkProof(
           error instanceof Error ? error.message : 'Unknown error occurred',
       });
     }
-  }, [maze, moves, startPos, keyPos, goalPos, handleProgress]);
+  }, [maze, moves, startPos, robePos, scepterPos, goalPos, handleProgress]);
 
   const reset = useCallback(() => {
     setState({ stage: 'idle', progress: 0 });

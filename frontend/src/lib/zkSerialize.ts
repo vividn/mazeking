@@ -84,8 +84,10 @@ export interface ZkMazeData {
   height: number;
   startX: number;
   startY: number;
-  keyX: number;
-  keyY: number;
+  robeX: number;
+  robeY: number;
+  scepterX: number;
+  scepterY: number;
   goalX: number;
   goalY: number;
   packedCells: number[]; // Packed array (2 cells per byte)
@@ -97,7 +99,8 @@ export interface ZkMazeData {
 export function serializeForZk(
   maze: MazeData,
   startPos: Position,
-  keyPos: Position,
+  robePos: Position,
+  scepterPos: Position,
   goalPos: Position
 ): ZkMazeData {
   const { width, height, cells } = maze;
@@ -123,8 +126,10 @@ export function serializeForZk(
     height,
     startX: startPos.x,
     startY: startPos.y,
-    keyX: keyPos.x,
-    keyY: keyPos.y,
+    robeX: robePos.x,
+    robeY: robePos.y,
+    scepterX: scepterPos.x,
+    scepterY: scepterPos.y,
     goalX: goalPos.x,
     goalY: goalPos.y,
     packedCells,
@@ -193,8 +198,10 @@ export interface ProverInput {
   height: number;
   start_x: number;
   start_y: number;
-  key_x: number;
-  key_y: number;
+  robe_x: number;
+  robe_y: number;
+  scepter_x: number;
+  scepter_y: number;
   goal_x: number;
   goal_y: number;
   packed_cells: number[]; // Padded to MAX_PACKED_BYTES
@@ -251,8 +258,10 @@ export function generateProverInput(
     height: zkMaze.height,
     start_x: zkMaze.startX,
     start_y: zkMaze.startY,
-    key_x: zkMaze.keyX,
-    key_y: zkMaze.keyY,
+    robe_x: zkMaze.robeX,
+    robe_y: zkMaze.robeY,
+    scepter_x: zkMaze.scepterX,
+    scepter_y: zkMaze.scepterY,
     goal_x: zkMaze.goalX,
     goal_y: zkMaze.goalY,
     packed_cells: paddedPackedCells,
@@ -277,8 +286,10 @@ export function generateProverToml(input: ProverInput): string {
   lines.push(`height = ${input.height}`);
   lines.push(`start_x = ${input.start_x}`);
   lines.push(`start_y = ${input.start_y}`);
-  lines.push(`key_x = ${input.key_x}`);
-  lines.push(`key_y = ${input.key_y}`);
+  lines.push(`robe_x = ${input.robe_x}`);
+  lines.push(`robe_y = ${input.robe_y}`);
+  lines.push(`scepter_x = ${input.scepter_x}`);
+  lines.push(`scepter_y = ${input.scepter_y}`);
   lines.push(`goal_x = ${input.goal_x}`);
   lines.push(`goal_y = ${input.goal_y}`);
   lines.push(`move_count = ${input.move_count}`);
@@ -294,12 +305,14 @@ export function generateProverToml(input: ProverInput): string {
 
 /**
  * Create a simple test maze for demonstration.
- * This creates a 10x10 maze with a clear path from start to key to goal.
+ * This creates a 10x10 maze with a clear path that picks up robe at (9,0)
+ * and scepter at (9,9) before reaching the goal at (5,9).
  */
 export function createTestMaze(): {
   maze: MazeData;
   startPos: Position;
-  keyPos: Position;
+  robePos: Position;
+  scepterPos: Position;
   goalPos: Position;
   solution: Move[];
 } {
@@ -339,10 +352,11 @@ export function createTestMaze(): {
   }
 
   const startPos: Position = { x: 0, y: 0 };
-  const keyPos: Position = { x: 9, y: 0 };
+  const robePos: Position = { x: 9, y: 0 };
+  const scepterPos: Position = { x: 9, y: 9 };
   const goalPos: Position = { x: 5, y: 9 };
 
-  // Solution: Right x9, Down x9, Left x4
+  // Solution: Right x9 (robe), Down x9 (scepter), Left x4 (goal)
   const solution: Move[] = [];
   for (let i = 0; i < 9; i++) solution.push(Move.Right);
   for (let i = 0; i < 9; i++) solution.push(Move.Down);
@@ -351,7 +365,8 @@ export function createTestMaze(): {
   return {
     maze: { width, height, cells },
     startPos,
-    keyPos,
+    robePos,
+    scepterPos,
     goalPos,
     solution,
   };
@@ -359,17 +374,20 @@ export function createTestMaze(): {
 
 /**
  * Simulate a path and check if it's valid.
- * Returns true if the path collects the key and ends at goal without hitting walls.
+ * Returns true if the path collects both robe and scepter and ends at goal
+ * without hitting walls.
  */
 export function validatePath(
   maze: MazeData,
   startPos: Position,
-  keyPos: Position,
+  robePos: Position,
+  scepterPos: Position,
   goalPos: Position,
   moves: Move[]
 ): { valid: boolean; error?: string } {
   let pos = { ...startPos };
-  let hasKey = pos.x === keyPos.x && pos.y === keyPos.y;
+  let hasRobe = pos.x === robePos.x && pos.y === robePos.y;
+  let hasScepter = pos.x === scepterPos.x && pos.y === scepterPos.y;
 
   for (let i = 0; i < moves.length; i++) {
     const move = moves[i];
@@ -385,14 +403,19 @@ export function validatePath(
     // Update position
     pos = getNewPosition(maze, pos, move);
 
-    // Check key pickup
-    if (pos.x === keyPos.x && pos.y === keyPos.y) {
-      hasKey = true;
+    if (pos.x === robePos.x && pos.y === robePos.y) {
+      hasRobe = true;
+    }
+    if (pos.x === scepterPos.x && pos.y === scepterPos.y) {
+      hasScepter = true;
     }
   }
 
-  if (!hasKey) {
-    return { valid: false, error: 'Path does not collect the key' };
+  if (!hasRobe) {
+    return { valid: false, error: 'Path does not collect the robe' };
+  }
+  if (!hasScepter) {
+    return { valid: false, error: 'Path does not collect the scepter' };
   }
 
   if (pos.x !== goalPos.x || pos.y !== goalPos.y) {

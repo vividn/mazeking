@@ -105,9 +105,10 @@ contract MazeKingNFTTest is Test {
     ///      always returns true).
     function _mockLayout() internal pure returns (bytes memory) {
         bytes memory layout = new bytes(MazeConstants.LAYOUT_HEADER_BYTES + 50);
-        // BE u16 header: width=10, height=10, sx=0, sy=0, kx=5, ky=5, gx=9, gy=9
-        uint16[8] memory hdr = [uint16(10), 10, 0, 0, 5, 5, 9, 9];
-        for (uint256 i = 0; i < 8; i++) {
+        // BE u16 header (10 fields):
+        //   width=10, height=10, sx=0, sy=0, robe=(5,5), scepter=(7,2), goal=(9,9)
+        uint16[10] memory hdr = [uint16(10), 10, 0, 0, 5, 5, 7, 2, 9, 9];
+        for (uint256 i = 0; i < 10; i++) {
             layout[i * 2] = bytes1(uint8(hdr[i] >> 8));
             layout[i * 2 + 1] = bytes1(uint8(hdr[i] & 0xFF));
         }
@@ -497,10 +498,10 @@ contract MazeKingNFTTest is Test {
     ///      caller passes to `mintWithProof`). The renderer uses these
     ///      bytes, so the cell pattern matters; the proof verifier is mocked.
     function _smallMazeLayout() internal pure returns (bytes memory) {
-        bytes memory layout = new bytes(16 + 8);
-        // Header: width=4, height=4, sx=0, sy=0, kx=2, ky=1, gx=3, gy=3
-        uint16[8] memory hdr = [uint16(4), 4, 0, 0, 2, 1, 3, 3];
-        for (uint256 i = 0; i < 8; i++) {
+        bytes memory layout = new bytes(20 + 8);
+        // Header: width=4, height=4, sx=0, sy=0, robe=(2,1), scepter=(0,2), goal=(3,3)
+        uint16[10] memory hdr = [uint16(4), 4, 0, 0, 2, 1, 0, 2, 3, 3];
+        for (uint256 i = 0; i < 10; i++) {
             layout[i * 2] = bytes1(uint8(hdr[i] >> 8));
             layout[i * 2 + 1] = bytes1(uint8(hdr[i] & 0xFF));
         }
@@ -511,7 +512,7 @@ contract MazeKingNFTTest is Test {
         //   0x3 = no walls, CrownText
         uint8[8] memory cells = [0xC9, 0x63, 0xC0, 0x49, 0xCC, 0x33, 0xC9, 0x66];
         for (uint256 i = 0; i < 8; i++) {
-            layout[16 + i] = bytes1(cells[i]);
+            layout[20 + i] = bytes1(cells[i]);
         }
         return layout;
     }
@@ -525,14 +526,14 @@ contract MazeKingNFTTest is Test {
         nft.mintWithProof(hex"00", mazeHash, layout, 50);
 
         bytes memory stored = nft.layouts(tokenId);
-        assertEq(stored.length, 24);
+        assertEq(stored.length, 28);
 
         assertEq(uint8(stored[0]), 0);
         assertEq(uint8(stored[1]), 4);
         assertEq(uint8(stored[2]), 0);
         assertEq(uint8(stored[3]), 4);
 
-        assertEq(uint8(stored[16]), 0xC9);
+        assertEq(uint8(stored[20]), 0xC9);
     }
 
     function test_MintLayoutWrittenOnce() public {
@@ -619,7 +620,7 @@ contract MazeKingNFTTest is Test {
         assertTrue(_contains(svg, "<g stroke="));
         // Text-cell fills should appear in the SVG (cellType 1/2/3 produce rects).
         assertTrue(_contains(svg, "<rect x="));
-        // Player/key/goal circles.
+        // Player / robe / scepter / goal circles.
         assertTrue(_contains(svg, "<circle"));
     }
 

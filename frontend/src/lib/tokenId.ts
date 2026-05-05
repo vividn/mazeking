@@ -8,8 +8,8 @@
  * also the on-chain token identity. Because a single Pedersen call binds
  * the entire layout, there is no separate keccak-of-publicInputs step.
  *
- * The Pedersen hash itself is computed via bb.js (Barretenberg WASM); that
- * wiring is the responsibility of ma-6cr.8 (frontend Pedersen integration).
+ * The layout encodes 4 entity positions in the header (king, robe, scepter,
+ * goal) — see `serializeLayoutBytes` for the canonical byte order.
  */
 import { generateMaze } from './mazeGenerator';
 import { isDebugSeedActive } from './debugSeed';
@@ -22,9 +22,10 @@ import {
 
 /// Canonical layout bytes hashed to derive `mazeHash`.
 ///
-/// Layout (1516 bytes total for the default config):
-///   bytes[ 0..16] = 8 BE u16: width, height, sx, sy, kx, ky, gx, gy
-///   bytes[16..]   = packed_cells, zero-padded to MAX_PACKED_BYTES
+/// Layout (1520 bytes total for the default config):
+///   bytes[ 0..20] = 10 BE u16: width, height, sx, sy, robe_x, robe_y,
+///                              scepter_x, scepter_y, gx, gy
+///   bytes[20..]   = packed_cells, zero-padded to MAX_PACKED_BYTES
 ///
 /// Must mirror the Noir `compute_maze_hash` byte layout exactly.
 export function serializeLayoutBytes(
@@ -33,10 +34,13 @@ export function serializeLayoutBytes(
   const zk =
     typeof seedOrZk === 'string'
       ? (() => {
-          const { maze, kingPos, keyPos, goalPos } = generateMaze(seedOrZk, {
-            debug: isDebugSeedActive(seedOrZk),
-          });
-          return serializeForZk(maze, kingPos, keyPos, goalPos);
+          const { maze, kingPos, robePos, scepterPos, goalPos } = generateMaze(
+            seedOrZk,
+            {
+              debug: isDebugSeedActive(seedOrZk),
+            }
+          );
+          return serializeForZk(maze, kingPos, robePos, scepterPos, goalPos);
         })()
       : seedOrZk;
 
@@ -46,12 +50,14 @@ export function serializeLayoutBytes(
     zk.height,
     zk.startX,
     zk.startY,
-    zk.keyX,
-    zk.keyY,
+    zk.robeX,
+    zk.robeY,
+    zk.scepterX,
+    zk.scepterY,
     zk.goalX,
     zk.goalY,
   ];
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 10; i++) {
     out[i * 2] = (header[i] >> 8) & 0xff;
     out[i * 2 + 1] = header[i] & 0xff;
   }
