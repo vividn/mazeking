@@ -184,11 +184,23 @@ export const Controls: React.FC<ControlsProps> = ({
           onTouchEnd={handleHandleTouchEnd}
           onClick={() => setExpanded((v) => !v)}
           aria-label={expanded ? 'Collapse controls' : 'Expand controls'}
+          aria-expanded={expanded}
           role="button"
         >
           <div
-            style={{ ...styles.handleBar, backgroundColor: `${accentColor}aa` }}
-          />
+            style={{
+              ...styles.handlePill,
+              backgroundColor: `${accentColor}cc`,
+              color: arrowFg,
+            }}
+          >
+            <span style={styles.handleChevron} aria-hidden>
+              {expanded ? '▼' : '▲'}
+            </span>
+            <span style={styles.handleLabel}>
+              {expanded ? 'Hide menu' : 'Menu'}
+            </span>
+          </div>
         </div>
         <div style={styles.compactRow}>
           <CompactButton
@@ -386,10 +398,10 @@ const styles: Record<string, React.CSSProperties> = {
   },
   actionButton: {
     flex: '1 1 auto',
-    minWidth: '90px',
-    padding: '10px 14px',
-    fontSize: '14px',
-    fontWeight: 600,
+    minWidth: '96px',
+    padding: '12px 16px',
+    fontSize: '16px',
+    fontWeight: 700,
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
@@ -397,6 +409,7 @@ const styles: Record<string, React.CSSProperties> = {
     WebkitTapHighlightColor: 'transparent',
     touchAction: 'manipulation',
     boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+    minHeight: '44px',
   },
   compactBar: {
     pointerEvents: 'auto',
@@ -413,10 +426,25 @@ const styles: Record<string, React.CSSProperties> = {
     touchAction: 'none',
     WebkitTapHighlightColor: 'transparent',
   },
-  handleBar: {
-    width: '44px',
-    height: '4px',
-    borderRadius: '2px',
+  handlePill: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '4px 14px',
+    borderRadius: '999px',
+    fontSize: '13px',
+    fontWeight: 700,
+    letterSpacing: '0.04em',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+    minHeight: '24px',
+  },
+  handleChevron: {
+    fontSize: '11px',
+    lineHeight: 1,
+  },
+  handleLabel: {
+    lineHeight: 1,
+    textTransform: 'uppercase',
   },
   compactRow: {
     display: 'flex',

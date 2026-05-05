@@ -468,24 +468,57 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
         }}
       >
         {isMobile ? (
-          <div
-            style={{
-              ...styles.wordmarkRow,
-              ...styles.wordmarkRowMobile,
-            }}
-          >
-            <div style={{ flexShrink: 0 }}>
-              <Wordmark
-                text={'maze♚\n♚king'}
-                pixelSize={3}
-                color={colors.textBackgroundColor}
-                zkColor={colors.zkBackgroundColor}
-                crownColor={colors.crownBackgroundColor}
-                ariaLabel="MAZEKING"
-              />
+          <>
+            <div
+              style={{
+                ...styles.wordmarkRow,
+                ...styles.wordmarkRowMobile,
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleResetToDefault}
+                style={styles.wordmarkButton}
+                aria-label="Reset to initial maze"
+                title="Reset to initial maze"
+              >
+                <Wordmark
+                  text={'maze♚\n♚king'}
+                  pixelSize={3}
+                  color={colors.textBackgroundColor}
+                  zkColor={colors.zkBackgroundColor}
+                  crownColor={colors.crownBackgroundColor}
+                  ariaLabel="MAZEKING"
+                />
+              </button>
+              <div style={styles.headerSpacer} />
+              <button
+                onClick={() => setHistorySidebarOpen(true)}
+                style={{
+                  ...styles.mobileIconButton,
+                  borderColor: getContrastColor(colors.headerBackgroundColor),
+                  color: getContrastColor(colors.headerBackgroundColor),
+                }}
+                title="History"
+                aria-label="Open history"
+              >
+                🕘
+              </button>
+              <button
+                onClick={handleNewMaze}
+                style={{
+                  ...styles.mobilePrimaryCta,
+                  backgroundColor: colors.uiAccentColor,
+                  color: buttonTextColor,
+                }}
+                title="Start a new game"
+                aria-label="New game"
+              >
+                + New
+              </button>
             </div>
-            {statsGroupNode}
-          </div>
+            <div style={styles.mobileStatsRow}>{statsGroupNode}</div>
+          </>
         ) : (
           <div style={styles.headerRowDesktop}>
             <button
@@ -789,11 +822,43 @@ const styles: Record<string, React.CSSProperties> = {
     whiteSpace: 'nowrap',
   },
   statsGroupMobile: {
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    gap: '2px',
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '12px',
     minWidth: 0,
     flexShrink: 1,
+  },
+  mobileStatsRow: {
+    display: 'flex',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  mobileIconButton: {
+    width: '40px',
+    height: '40px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0,
+    background: 'transparent',
+    border: '1px solid rgba(255, 255, 255, 0.45)',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '18px',
+    lineHeight: 1,
+    flexShrink: 0,
+  },
+  mobilePrimaryCta: {
+    padding: '8px 14px',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '15px',
+    fontWeight: 700,
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+    minHeight: '40px',
   },
   stat: {
     fontSize: '15px',
@@ -819,9 +884,10 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'inline-block',
   },
   statMobile: {
-    fontSize: '12px',
+    fontSize: '14px',
     lineHeight: 1.2,
     whiteSpace: 'nowrap',
+    color: '#f0f0f0',
   },
   headerSpacer: {
     flex: 1,
@@ -900,7 +966,7 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'relative',
   },
   mazeContainerMobile: {
-    paddingBottom: 'calc(58px + env(safe-area-inset-bottom, 0px))',
+    paddingBottom: 'calc(86px + env(safe-area-inset-bottom, 0px))',
   },
   loading: {
     display: 'flex',
