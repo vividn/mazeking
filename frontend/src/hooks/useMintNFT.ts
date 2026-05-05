@@ -1,10 +1,17 @@
+import { useCallback, useState } from 'react';
 import {
   useWriteContract,
   useWaitForTransactionReceipt,
   useAccount,
   usePublicClient,
 } from 'wagmi';
-import { BaseError } from 'viem';
+import {
+  BaseError,
+  ContractFunctionRevertedError,
+  HttpRequestError,
+  TimeoutError,
+  UserRejectedRequestError,
+} from 'viem';
 import MazeKingNFTAbi from '../lib/abi/MazeKingNFT.json';
 import { getContractAddress } from '../lib/contracts';
 
@@ -21,17 +28,31 @@ import { getContractAddress } from '../lib/contracts';
 export function useMintNFT() {
   const { address, chain } = useAccount();
   const publicClient = usePublicClient();
+  const [simulateError, setSimulateError] = useState<unknown>(null);
+  const [isSimulating, setIsSimulating] = useState(false);
   const {
     data: hash,
     writeContract,
-    isPending,
-    error,
-    reset,
+    isPending: isWritePending,
+    error: writeError,
+    reset: resetWrite,
   } = useWriteContract();
 
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
-  });
+  const {
+    isLoading: isConfirming,
+    isSuccess,
+    error: receiptError,
+  } = useWaitForTransactionReceipt({ hash });
+
+  // Single error surface across simulate / write / receipt phases so the UI
+  // doesn't have to know which step blew up. ma-q7n.
+  const error = simulateError ?? writeError ?? receiptError ?? null;
+
+  const reset = useCallback(() => {
+    setSimulateError(null);
+    setIsSimulating(false);
+    resetWrite();
+  }, [resetWrite]);
 
   const mintWithProof = async (
     proof: Uint8Array,
@@ -39,15 +60,21 @@ export function useMintNFT() {
     layout: Uint8Array,
     moveCount: number
   ) => {
+    setSimulateError(null);
+
     if (!chain) {
-      throw new Error('No chain connected');
+      const err = new Error('No chain connected');
+      setSimulateError(err);
+      throw err;
     }
 
     const nftAddress = getContractAddress(chain.id, 'nft');
     if (!nftAddress) {
-      throw new Error(
+      const err = new Error(
         `Contract not deployed on ${chain.name}. Please deploy contracts first.`
       );
+      setSimulateError(err);
+      throw err;
     }
 
     const proofHex = `0x${Array.from(proof)
@@ -72,6 +99,7 @@ export function useMintNFT() {
     // of being masked as `IntrinsicGasTooHighError` ("gas limit too high")
     // by Alchemy's estimateGas-on-revert behaviour. See ma-6ff.
     if (publicClient) {
+      setIsSimulating(true);
       try {
         await publicClient.simulateContract({
           account: address,
@@ -84,7 +112,13 @@ export function useMintNFT() {
         const reason =
           simErr instanceof BaseError ? simErr.shortMessage : String(simErr);
         console.error('mintWithProof simulate failed:', reason, simErr);
+        // Surface to the UI via the unified `error` field — without this
+        // the simulate revert was logged-only and the mint button just sat
+        // there. ma-q7n.
+        setSimulateError(simErr);
         throw simErr;
+      } finally {
+        setIsSimulating(false);
       }
     }
 
@@ -99,10 +133,54 @@ export function useMintNFT() {
   return {
     mintWithProof,
     hash,
-    isPending,
+    isPending: isWritePending || isSimulating,
     isConfirming,
     isSuccess,
     error,
+    errorMessage: formatMintError(error),
     reset,
   };
+}
+
+/**
+ * Categorize a mint-flow error into a short, user-facing string. Falls back
+ * to a generic "see console" message so the UI is never silent. ma-q7n.
+ */
+export function formatMintError(err: unknown): string | null {
+  if (!err) return null;
+
+  if (err instanceof BaseError) {
+    if (err.walk((e) => e instanceof UserRejectedRequestError)) {
+      return 'Wallet rejected the transaction.';
+    }
+    const reverted = err.walk(
+      (e) => e instanceof ContractFunctionRevertedError
+    ) as ContractFunctionRevertedError | null;
+    if (reverted) {
+      const reason =
+        reverted.reason ??
+        reverted.shortMessage ??
+        reverted.message ??
+        'unknown reason';
+      return `Transaction reverted: ${reason}`;
+    }
+    if (err.walk((e) => e instanceof TimeoutError)) {
+      return 'Transaction timed out waiting for confirmation. Try again.';
+    }
+    if (err.walk((e) => e instanceof HttpRequestError)) {
+      return 'Network error: failed to reach RPC. Try again.';
+    }
+    return err.shortMessage || err.message || 'Mint failed — see console.';
+  }
+
+  // Plain Error / string fallthrough — usually our own throws or fetch failures
+  // that don't surface as BaseError (e.g. CORS rejecting a wagmi-internal RPC
+  // request before viem wraps it).
+  const msg = err instanceof Error ? err.message : String(err);
+  if (
+    /network|fetch|cors|failed to fetch|connection refused|econn/i.test(msg)
+  ) {
+    return 'Network error: failed to reach RPC. Try again.';
+  }
+  return msg ? `Mint failed — ${msg}` : 'Mint failed — see console.';
 }

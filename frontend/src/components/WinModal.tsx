@@ -202,7 +202,7 @@ export function WinModal({
     isPending,
     isConfirming,
     isSuccess,
-    error: mintError,
+    errorMessage: mintErrorMessage,
   } = useMintNFT();
 
   // On successful mint, persist tokenId↔seed locally so the My Mazes view can
@@ -741,16 +741,16 @@ export function WinModal({
                             'Mint Achievement NFT'}
                         </button>
 
-                        {mintError && (
+                        {mintErrorMessage && (
                           <div
+                            role="alert"
                             style={{
                               ...errorStyle,
                               marginTop: '12px',
                               fontSize: '12px',
                             }}
                           >
-                            {(mintError as Error | null)?.message ||
-                              'Mint failed. Please try again.'}
+                            {mintErrorMessage}
                           </div>
                         )}
                       </>
@@ -760,8 +760,8 @@ export function WinModal({
               )}
 
             {proofState.stage === 'error' && (
-              <div style={errorStyle}>
-                Error: {proofState.error || 'Unknown error'}
+              <div role="alert" style={errorStyle}>
+                Proof generation failed: {proofState.error || 'Unknown error'}
                 <button
                   className="win-button"
                   style={{ ...zkButtonStyle, marginTop: '12px' }}
