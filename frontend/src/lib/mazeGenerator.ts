@@ -12,15 +12,17 @@ import { CellType, type Cell, type MazeData, type Position } from '../types';
 // Descender characters (g, j, p, q, y) extend 2 rows below baseline; layout
 // treats CHAR_HEIGHT as the canonical line height so descenders draw into the
 // bottom margin instead of inflating maze size.
-const CHAR_HEIGHT = 8;
+export const CHAR_HEIGHT = 8;
 const CHAR_SPACING = 1;
 const LINE_SPACING = 3;
 
-// Wordmark margin: exactly 5 cells of breathing room around the rendered text.
-// - Top: 5 cells above the ascender line (full ascender height regardless of letters used).
-// - Bottom: 5 cells below the baseline (descenders extend into this margin).
-// - Left/Right: 5 cells past the leftmost/rightmost glyph cell of the line.
-const WORDMARK_MARGIN = 5;
+// Wordmark margin: exactly 4 cells of breathing room around the rendered text.
+// - Top: 4 cells above the ascender line (full ascender height regardless of letters used).
+// - Bottom: 4 cells below the baseline (descenders extend into this margin).
+// - Left/Right: 4 cells past the leftmost/rightmost glyph-box edge of the widest line.
+// Margin is computed as integer cells from the start — no rounding, no minimum-size
+// floor — so every render produces identical, verifiable counts.
+export const WORDMARK_MARGIN = 4;
 
 const WRAP_WIDTH_CELLS = 50;
 
@@ -89,13 +91,12 @@ function calculateMazeDimensions(text: string): {
   // textLayout.width is the measured rendered width (sum of per-char cell widths + spacing).
   // textLayout.height spans the ascender line of the first line to the baseline of the last
   // line — descenders are intentionally excluded so they extend into the bottom margin.
-  const width = textLayout.width + WORDMARK_MARGIN * 2;
-  const height = textLayout.height + WORDMARK_MARGIN * 2;
-  const minSize = 20;
-
+  // Maze dimensions are textLayout + 2*WORDMARK_MARGIN exactly. No min-size floor: a
+  // floor would force asymmetric centering (e.g. text width 9 → maze 20 → 5+6 split)
+  // and break the "exactly N cells on every side" contract.
   return {
-    width: Math.max(width, minSize),
-    height: Math.max(height, minSize),
+    width: textLayout.width + WORDMARK_MARGIN * 2,
+    height: textLayout.height + WORDMARK_MARGIN * 2,
     textLayout,
   };
 }

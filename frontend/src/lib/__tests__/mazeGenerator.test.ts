@@ -1,6 +1,36 @@
 import { describe, it, expect } from 'vitest';
-import { generateMaze, canMove } from '../mazeGenerator';
+import {
+  generateMaze,
+  canMove,
+  WORDMARK_MARGIN,
+  CHAR_HEIGHT,
+} from '../mazeGenerator';
 import { CellType, type MazeData, type Position } from '../../types';
+
+interface BoundingBox {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
+function textCellBoundingBox(maze: MazeData): BoundingBox {
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (let y = 0; y < maze.height; y++) {
+    for (let x = 0; x < maze.width; x++) {
+      if (maze.cells[y][x].cellType !== CellType.Normal) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  return { minX, maxX, minY, maxY };
+}
 
 // Helper to check if a cell is any type of text cell
 function isTextCell(maze: MazeData, x: number, y: number): boolean {
@@ -275,6 +305,64 @@ describe('generateMaze', () => {
       expect(kingKey).not.toBe(keyKey);
       expect(kingKey).not.toBe(goalKey);
       expect(keyKey).not.toBe(goalKey);
+    });
+
+    it('exports WORDMARK_MARGIN of exactly 4 cells', () => {
+      expect(WORDMARK_MARGIN).toBe(4);
+    });
+
+    // Margin contract: every word, every side, every render — exactly
+    // WORDMARK_MARGIN cells between the rendered text's glyph box and the
+    // surrounding maze edge. Seeds below were chosen so the glyph box's
+    // four corners all contain at least one filled cell, so a bounding-box
+    // scan of text cells equals the glyph box exactly.
+    const cornerFilledSeeds = ['BOB', 'HI', 'BB', 'BOOB', 'BABE'];
+
+    for (const seed of cornerFilledSeeds) {
+      it(`'${seed}' has exactly ${4} cells of margin on every side`, () => {
+        const { maze } = generateMaze(seed);
+        const bbox = textCellBoundingBox(maze);
+
+        const left = bbox.minX;
+        const right = maze.width - 1 - bbox.maxX;
+        const top = bbox.minY;
+        // Bottom is measured from the BASELINE, not the lowest filled cell:
+        // descenders extend INTO the bottom margin (none of these seeds use
+        // descenders, so baseline === maxY here).
+        const bottom = maze.height - 1 - bbox.maxY;
+
+        expect(left).toBe(WORDMARK_MARGIN);
+        expect(right).toBe(WORDMARK_MARGIN);
+        expect(top).toBe(WORDMARK_MARGIN);
+        expect(bottom).toBe(WORDMARK_MARGIN);
+      });
+    }
+
+    it('descenders extend into the bottom margin without inflating it', () => {
+      // 'p' has 2 descender rows below the baseline. The bottom margin is
+      // measured from the baseline, NOT from the descender's lowest cell.
+      const { maze } = generateMaze('Bp');
+      const bbox = textCellBoundingBox(maze);
+
+      // B's top row is filled, so minY === ascender line === WORDMARK_MARGIN.
+      expect(bbox.minY).toBe(WORDMARK_MARGIN);
+      // Baseline is at startY + (CHAR_HEIGHT - 1).
+      const baselineY = WORDMARK_MARGIN + CHAR_HEIGHT - 1;
+      expect(maze.height - 1 - baselineY).toBe(WORDMARK_MARGIN);
+      // p descends 2 rows below baseline and they land within the margin.
+      expect(bbox.maxY).toBe(baselineY + 2);
+      // Margin from maze edge to deepest descender cell is therefore
+      // WORDMARK_MARGIN - 2 (descender ate 2 rows of margin).
+      expect(maze.height - 1 - bbox.maxY).toBe(WORDMARK_MARGIN - 2);
+    });
+
+    it('maze dimensions are exactly textLayout + 2*WORDMARK_MARGIN (no min-size floor)', () => {
+      // 'I' is the smallest reasonable single-char seed: 5 wide × 8 tall.
+      // With WORDMARK_MARGIN=4 the maze is 13×16 — well below any prior
+      // min-size floor. If a floor were re-introduced, margins would skew.
+      const { maze } = generateMaze('I');
+      expect(maze.width).toBe(5 + 2 * WORDMARK_MARGIN);
+      expect(maze.height).toBe(CHAR_HEIGHT + 2 * WORDMARK_MARGIN);
     });
 
     it('text cells are marked correctly', () => {
