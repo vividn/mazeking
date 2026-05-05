@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { MazeData, ColorScheme } from '../types';
+import { generateColorScheme } from '../lib/colorGenerator';
+import { generateMaze } from '../lib/mazeGenerator';
+import { isDebugSeedActive } from '../lib/debugSeed';
 import { isValidChar, filterToValidChars } from '../lib/pixelFont';
+import { Maze } from './Maze';
+import { MazeSizeWarning } from './MazeSizeWarning';
 import { pickTextColor } from '../lib/contrastText';
 
 interface HeaderSeedInputProps {
@@ -17,12 +23,75 @@ export function HeaderSeedInput({
 }: HeaderSeedInputProps) {
   const [value, setValue] = useState('');
   const [shake, setShake] = useState(false);
+  const [previewMaze, setPreviewMaze] = useState<MazeData | null>(null);
+  const [previewColors, setPreviewColors] = useState<ColorScheme | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const debounceTimerRef = useRef<number | null>(null);
+  const generationRef = useRef(0);
+  const idleCallbackRef = useRef<number | null>(null);
+
+  const cancelPendingPreview = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    if (idleCallbackRef.current) {
+      if (window.cancelIdleCallback) {
+        window.cancelIdleCallback(idleCallbackRef.current);
+      }
+      idleCallbackRef.current = null;
+    }
+    generationRef.current++;
+  }, []);
 
   useEffect(() => {
     const id = window.setTimeout(() => inputRef.current?.focus(), 30);
     return () => window.clearTimeout(id);
   }, []);
+
+  // Debounced, low-priority preview generation
+  useEffect(() => {
+    cancelPendingPreview();
+
+    const seedForPreview = value.trim();
+    if (!seedForPreview) {
+      setPreviewMaze(null);
+      setPreviewColors(null);
+      return;
+    }
+
+    const currentGeneration = generationRef.current;
+
+    const scheduleGeneration = () => {
+      const scheduleIdle =
+        window.requestIdleCallback ??
+        ((cb: () => void) => window.setTimeout(cb, 1));
+
+      idleCallbackRef.current = scheduleIdle(() => {
+        if (generationRef.current !== currentGeneration) return;
+
+        const colors = generateColorScheme(seedForPreview);
+        const maze = generateMaze(seedForPreview, {
+          debug: isDebugSeedActive(seedForPreview),
+        }).maze;
+
+        if (generationRef.current === currentGeneration) {
+          setPreviewColors(colors);
+          setPreviewMaze(maze);
+        }
+      });
+    };
+
+    if (value.endsWith(' ')) {
+      scheduleGeneration();
+    } else {
+      debounceTimerRef.current = window.setTimeout(scheduleGeneration, 300);
+    }
+  }, [value, cancelPendingPreview]);
+
+  useEffect(() => {
+    return () => cancelPendingPreview();
+  }, [cancelPendingPreview]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,10 +109,11 @@ export function HeaderSeedInput({
   );
 
   const submit = useCallback(() => {
+    cancelPendingPreview();
     const seed = value.trim();
     if (seed) onStartGame(seed);
     else onCancel();
-  }, [value, onStartGame, onCancel]);
+  }, [value, onStartGame, onCancel, cancelPendingPreview]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -82,6 +152,30 @@ export function HeaderSeedInput({
           }
         `}
       </style>
+      {previewMaze && previewColors && (
+        <div
+          style={{
+            ...styles.previewOverlay,
+            backgroundColor: previewColors.pageBackgroundColor,
+          }}
+        >
+          <MazeSizeWarning
+            width={previewMaze.width}
+            height={previewMaze.height}
+          />
+          <Maze
+            maze={previewMaze}
+            playerPos={{ x: 0, y: 0 }}
+            keyPos={null}
+            goalPos={{ x: 0, y: 0 }}
+            hasKey={false}
+            colors={previewColors}
+            zoom={1}
+            visited={new Set()}
+            showEntities={false}
+          />
+        </div>
+      )}
       <input
         ref={inputRef}
         type="text"
@@ -135,6 +229,15 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '8px',
     minWidth: 0,
     justifyContent: 'flex-end',
+  },
+  previewOverlay: {
+    position: 'fixed',
+    top: 60,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999,
+    backgroundColor: '#1a1a1a',
   },
   input: {
     flex: '1 1 240px',
