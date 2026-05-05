@@ -8,10 +8,19 @@ import {
 } from './pixelFont';
 import { CellType, type Cell, type MazeData, type Position } from '../types';
 
+// Pixel font geometry: 8 cells from ascender line (row 0) to baseline (row 7).
+// Descender characters (g, j, p, q, y) extend 2 rows below baseline; layout
+// treats CHAR_HEIGHT as the canonical line height so descenders draw into the
+// bottom margin instead of inflating maze size.
 const CHAR_HEIGHT = 8;
 const CHAR_SPACING = 1;
 const LINE_SPACING = 3;
-const MARGIN_CHARS = 0.75; // 0.75 character-widths of margin
+
+// Wordmark margin: exactly 5 cells of breathing room around the rendered text.
+// - Top: 5 cells above the ascender line (full ascender height regardless of letters used).
+// - Bottom: 5 cells below the baseline (descenders extend into this margin).
+// - Left/Right: 5 cells past the leftmost/rightmost glyph cell of the line.
+const WORDMARK_MARGIN = 5;
 
 const WRAP_WIDTH_CELLS = 50;
 
@@ -77,9 +86,11 @@ function calculateMazeDimensions(text: string): {
   textLayout: TextLayout;
 } {
   const textLayout = layoutText(text);
-  const marginCells = Math.ceil(MARGIN_CHARS * 6);
-  const width = textLayout.width + marginCells * 2;
-  const height = textLayout.height + marginCells * 2;
+  // textLayout.width is the measured rendered width (sum of per-char cell widths + spacing).
+  // textLayout.height spans the ascender line of the first line to the baseline of the last
+  // line — descenders are intentionally excluded so they extend into the bottom margin.
+  const width = textLayout.width + WORDMARK_MARGIN * 2;
+  const height = textLayout.height + WORDMARK_MARGIN * 2;
   const minSize = 20;
 
   return {
