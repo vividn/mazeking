@@ -342,6 +342,40 @@ describe('generateMaze', () => {
       });
     }
 
+    it("'snow' (x-height only) tightens top margin: glyph top at WORDMARK_MARGIN, height drops by 3", () => {
+      // s,n,o,w all start filling at pattern row 3 (no ascenders, no cap-height).
+      // New contract: maze top sits 4 cells above the visible glyph top, not 4
+      // above an empty ascender line. So height shrinks by topOffset=3.
+      const { maze } = generateMaze('snow');
+      const bbox = textCellBoundingBox(maze);
+
+      expect(bbox.minY).toBe(WORDMARK_MARGIN);
+      expect(maze.height).toBe(CHAR_HEIGHT - 3 + 2 * WORDMARK_MARGIN);
+      // Baseline still at startY + (CHAR_HEIGHT - 1); bottom margin remains 4.
+      const baselineY = WORDMARK_MARGIN - 3 + (CHAR_HEIGHT - 1);
+      expect(maze.height - 1 - baselineY).toBe(WORDMARK_MARGIN);
+    });
+
+    it("'High' (with ascender) keeps full ascender-line top margin", () => {
+      // 'H' fills row 0 → topOffset = 0 → height unchanged from ma-1mv contract.
+      const { maze } = generateMaze('High');
+      const bbox = textCellBoundingBox(maze);
+
+      expect(bbox.minY).toBe(WORDMARK_MARGIN);
+      expect(maze.height).toBe(CHAR_HEIGHT + 2 * WORDMARK_MARGIN);
+    });
+
+    it("'in' (i-dot at row 1) tightens by exactly 1: top margin lands on the dot", () => {
+      // 'i' has dot at pattern row 1; 'n' starts at row 3. topOffset = 1.
+      // Topmost filled cell is the i-dot, which sits exactly WORDMARK_MARGIN
+      // below the maze top.
+      const { maze } = generateMaze('in');
+      const bbox = textCellBoundingBox(maze);
+
+      expect(bbox.minY).toBe(WORDMARK_MARGIN);
+      expect(maze.height).toBe(CHAR_HEIGHT - 1 + 2 * WORDMARK_MARGIN);
+    });
+
     it('descenders extend into the bottom margin without inflating it', () => {
       // 'p' has 2 descender rows below the baseline. The bottom margin is
       // measured from the baseline, NOT from the descender's lowest cell.

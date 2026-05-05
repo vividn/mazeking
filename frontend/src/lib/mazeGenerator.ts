@@ -2,6 +2,7 @@ import { createRng, type Rng } from './seededRandom';
 import {
   getCharWidth,
   getTextDimensions,
+  getTextTopRow,
   getCharPattern,
   getCharacterBoundaries,
   calculateEntryCountRange,
@@ -17,7 +18,10 @@ const CHAR_SPACING = 1;
 const LINE_SPACING = 3;
 
 // Wordmark margin: exactly 4 cells of breathing room around the rendered text.
-// - Top: 4 cells above the ascender line (full ascender height regardless of letters used).
+// - Top: 4 cells above the topmost filled cell of the first line. For words
+//   with ascenders ('high'), that's row 0 (ascender line). For x-height-only
+//   words ('snow'), the line shifts up so the visible cap-/x-height row sits
+//   exactly WORDMARK_MARGIN below the maze top — no phantom ascender padding.
 // - Bottom: 4 cells below the baseline (descenders extend into this margin).
 // - Left/Right: 4 cells past the leftmost/rightmost glyph-box edge of the widest line.
 // Margin is computed as integer cells from the start — no rounding, no minimum-size
@@ -35,6 +39,9 @@ interface TextLayout {
   lines: string[];
   width: number;
   height: number;
+  // Topmost filled row of the first line's glyphs (0 if any glyph fills the
+  // ascender line). Drives the top-margin tightening for x-height-only words.
+  topOffset: number;
 }
 
 // Track character positions for creating entry points
@@ -79,6 +86,7 @@ function layoutText(text: string): TextLayout {
     lines,
     width: maxWidth,
     height: lines.length * (CHAR_HEIGHT + LINE_SPACING) - LINE_SPACING,
+    topOffset: lines.length > 0 ? getTextTopRow(lines[0]) : 0,
   };
 }
 
@@ -94,9 +102,11 @@ function calculateMazeDimensions(text: string): {
   // Maze dimensions are textLayout + 2*WORDMARK_MARGIN exactly. No min-size floor: a
   // floor would force asymmetric centering (e.g. text width 9 → maze 20 → 5+6 split)
   // and break the "exactly N cells on every side" contract.
+  // topOffset trims the empty rows above the first line's tallest glyph so x-height-only
+  // words sit flush with the top margin rather than carrying phantom ascender padding.
   return {
     width: textLayout.width + WORDMARK_MARGIN * 2,
-    height: textLayout.height + WORDMARK_MARGIN * 2,
+    height: textLayout.height - textLayout.topOffset + WORDMARK_MARGIN * 2,
     textLayout,
   };
 }
@@ -125,7 +135,10 @@ function embedTextCells(
   const placements: CharPlacement[] = [];
 
   const startX = Math.floor((width - textLayout.width) / 2);
-  const startY = Math.floor((height - textLayout.height) / 2);
+  // startY places pattern-row 0 of the first line above the top margin by
+  // exactly textLayout.topOffset rows, so the first line's topmost FILLED
+  // pattern-row lands at maze row WORDMARK_MARGIN.
+  const startY = WORDMARK_MARGIN - textLayout.topOffset;
 
   let currentY = startY;
 

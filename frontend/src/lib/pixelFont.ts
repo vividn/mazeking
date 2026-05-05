@@ -606,6 +606,28 @@ export function getCharWidth(char: string): number {
   return pattern[0].length;
 }
 
+// Topmost (lowest-index) filled row across all glyphs in `text`. Used by the
+// wordmark layout to tighten the top margin when a line has no ascenders:
+// x-height-only words (e.g. 'snow') start at pattern row 3, so the maze
+// shifts up by that offset to keep exactly WORDMARK_MARGIN cells above the
+// visible glyph top. Returns 0 if any glyph fills row 0 (full ascender /
+// cap-height) or if `text` has no renderable glyphs.
+export function getTextTopRow(text: string): number {
+  let top = Infinity;
+  for (const ch of text) {
+    const pattern = getCharPattern(ch);
+    if (!pattern) continue;
+    for (let row = 0; row < pattern.length; row++) {
+      if (pattern[row].some((cell) => cell)) {
+        if (row < top) top = row;
+        break;
+      }
+    }
+    if (top === 0) return 0;
+  }
+  return top === Infinity ? 0 : top;
+}
+
 export function getTextDimensions(text: string): {
   width: number;
   height: number;
