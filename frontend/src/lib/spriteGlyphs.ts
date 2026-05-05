@@ -288,15 +288,19 @@ function drawImageGlyph(
  * - `wearingCrown` — render the player wearing a crown. Used for the
  *   win-modal/NFT moment. `crownTier` selects the variant (default: Plain);
  *   pass `crownColor` to tint the crown distinct from the player.
- * - `wearingRegalia` (when not wearing crown) — render PERSON_WITH_REGALIA.
- * - Otherwise — plain PERSON_NO_REGALIA.
+ * - `hasRobe` / `hasScepter` (when not wearing crown) — pick the bitmap
+ *   matching what's been collected: robe-only, scepter-only, or both.
+ * - Otherwise — plain peasant.
  *
- * The crown takes precedence over regalia: if both are true, the crown wins.
+ * The crown takes precedence: if `wearingCrown`, robe/scepter are ignored
+ * (the king sprite already shows full regalia).
  *
- * When `images` is supplied, the bitmap glyphs replace the procedural sprites:
- * peasant / peasantRegalia / king. `color`, `regaliaColor`, `crownColor`, and
- * `crownTier` go unused on the bitmap path — PNGs are pre-rendered art and
- * there's only one king bitmap for now (TODO: tier-specific king variants).
+ * When `images` is supplied, the bitmap glyphs replace the procedural sprites.
+ * `color`, `regaliaColor`, `crownColor`, and `crownTier` go unused on the
+ * bitmap path — PNGs are pre-rendered art (TODO: tier-specific king variants).
+ *
+ * Procedural fallback (no `images`) only has plain + full-regalia patterns,
+ * so partial-collection states render as plain until the PNGs finish loading.
  */
 export function drawPerson(
   ctx: CanvasRenderingContext2D,
@@ -304,7 +308,8 @@ export function drawPerson(
   y: number,
   size: number,
   color: string,
-  wearingRegalia: boolean,
+  hasRobe: boolean,
+  hasScepter: boolean,
   regaliaColor?: string,
   wearingCrown: boolean = false,
   crownColor?: string,
@@ -317,8 +322,16 @@ export function drawPerson(
       drawImageGlyph(ctx, images.king, x, y, size);
       return;
     }
-    if (wearingRegalia) {
+    if (hasRobe && hasScepter) {
       drawImageGlyph(ctx, images.peasantRegalia, x, y, size);
+      return;
+    }
+    if (hasRobe) {
+      drawImageGlyph(ctx, images.peasantRobe, x, y, size);
+      return;
+    }
+    if (hasScepter) {
+      drawImageGlyph(ctx, images.peasantScepter, x, y, size);
       return;
     }
     drawImageGlyph(ctx, images.peasant, x, y, size);
@@ -337,7 +350,7 @@ export function drawPerson(
     return;
   }
 
-  if (wearingRegalia) {
+  if (hasRobe && hasScepter) {
     if (regaliaColor && regaliaColor !== color) {
       // Two-pass would overlap the wider regalia silhouette over the body —
       // simpler to just paint the whole regalia figure in the player color
