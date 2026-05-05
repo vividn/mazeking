@@ -609,6 +609,62 @@ export interface GenerateOptions {
   debug?: boolean;
 }
 
+// Fraction of remaining internal non-text walls to knock down after the
+// spanning-tree maze is built, introducing cycles so multiple paths exist
+// between any two cells (vs the single path a pure spanning tree gives).
+const EXTRA_PATH_WALL_REMOVAL_RATIO = 0.02;
+
+// Remove ~EXTRA_PATH_WALL_REMOVAL_RATIO of remaining internal walls between
+// non-text cells to add path variety / cycles to the spanning-tree maze.
+//
+// Determinism: candidate walls are enumerated in canonical row-major order
+// (south before east per cell), then selected via the same seeded RNG stream
+// that drove generation. Same (seed, dimensions) → same selection. Outer-
+// boundary (wraparound) walls and walls touching text cells are excluded.
+function removeExtraWallsForPathVariety(maze: MazeData, rng: Rng): void {
+  const { width, height, cells } = maze;
+
+  interface Candidate {
+    x: number;
+    y: number;
+    direction: 'S' | 'E';
+  }
+  const candidates: Candidate[] = [];
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const cell = cells[y][x];
+      if (isTextCell(cell)) continue;
+
+      // South wall — skip outer perimeter (wraps) and text-adjacent walls
+      if (cell.southWall && y < height - 1 && !isTextCell(cells[y + 1][x])) {
+        candidates.push({ x, y, direction: 'S' });
+      }
+      // East wall — skip outer perimeter (wraps) and text-adjacent walls
+      if (cell.eastWall && x < width - 1 && !isTextCell(cells[y][x + 1])) {
+        candidates.push({ x, y, direction: 'E' });
+      }
+    }
+  }
+
+  if (candidates.length === 0) return;
+
+  const target = Math.max(
+    1,
+    Math.round(candidates.length * EXTRA_PATH_WALL_REMOVAL_RATIO)
+  );
+
+  const shuffled = rng.shuffle(candidates);
+  for (let i = 0; i < target; i++) {
+    const wall = shuffled[i];
+    if (wall.direction === 'S') {
+      cells[wall.y][wall.x].southWall = false;
+    } else {
+      cells[wall.y][wall.x].eastWall = false;
+    }
+  }
+}
+
 const DEBUG_WALL_REMOVAL_PROBABILITY = 0.66;
 
 // Remove ~66% of remaining internal walls between non-text cells.
@@ -665,7 +721,10 @@ export function generateMaze(
   // 5. Generate maze paths for non-text areas
   generateNonTextMazePaths(maze, rng);
 
-  // 5b. Debug mode: blow out most non-text internal walls for fast testing
+  // 5b. Add ~2% extra wall removals for path variety (cycles)
+  removeExtraWallsForPathVariety(maze, rng);
+
+  // 5c. Debug mode: blow out most non-text internal walls for fast testing
   if (opts.debug) {
     debugRemoveInternalWalls(maze, rng);
   }

@@ -422,6 +422,48 @@ describe('generateMaze', () => {
     });
   });
 
+  describe('extra path variety', () => {
+    // Counts all open passages in the maze (every cell is connected via the
+    // toroidal grid, so a spanning tree over N cells has exactly N-1 open
+    // walls). The 2% extra-removal pass must push this above N-1.
+    function countAllPassages(maze: MazeData): {
+      cells: number;
+      passages: number;
+    } {
+      const cells = maze.width * maze.height;
+      let passages = 0;
+      for (let y = 0; y < maze.height; y++) {
+        for (let x = 0; x < maze.width; x++) {
+          if (!maze.cells[y][x].eastWall) passages++;
+          if (!maze.cells[y][x].southWall) passages++;
+        }
+      }
+      return { cells, passages };
+    }
+
+    it('produces strictly more passages than a spanning tree (cycles)', () => {
+      const { maze } = generateMaze('extra-paths-test');
+      const { cells, passages } = countAllPassages(maze);
+      expect(passages).toBeGreaterThan(cells - 1);
+    });
+
+    it('is deterministic across runs', () => {
+      const a = generateMaze('cycle-determinism');
+      const b = generateMaze('cycle-determinism');
+      for (let y = 0; y < a.maze.height; y++) {
+        for (let x = 0; x < a.maze.width; x++) {
+          expect(a.maze.cells[y][x]).toEqual(b.maze.cells[y][x]);
+        }
+      }
+    });
+
+    it('preserves connectivity (every cell still reachable)', () => {
+      const { maze, kingPos } = generateMaze('cycle-connectivity');
+      const reachable = findReachableCellsSimple(maze, kingPos);
+      expect(reachable.size).toBe(maze.width * maze.height);
+    });
+  });
+
   describe('lowercase letters', () => {
     it('handles lowercase letters correctly', () => {
       const result = generateMaze('hello');
