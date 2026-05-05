@@ -59,9 +59,14 @@ interface CanonicalPalette {
 }
 
 /**
- * Mirror of MazeRenderer._palette() in contracts/src/MazeRenderer.sol.
- * Numbers MUST stay in lockstep with that contract — drift makes the
- * live game render disagree with the on-chain SVG for the same maze.
+ * Canonical palette derived from the maze hash. The structural fields
+ * (`wall`, `mazeBg`, `textBg`, `zkBg`, `crownBg`) MUST match
+ * `MazeRenderer._palette()` in contracts/src/MazeRenderer.sol byte-for-byte —
+ * those are the colors the on-chain SVG renders, and the live game render
+ * has to agree on them. The entity fields (`player`, `key`, `goal`) are
+ * frontend-only: the on-chain SVG no longer draws character/pickup/goal
+ * overlays (ma-e7r), so these recipes live here as the single source of
+ * truth for the live canvas glyphs.
  */
 function canonicalPaletteFromHash(mazeHash: string): CanonicalPalette {
   const baseHue = Number(BigInt(mazeHash) % 360n);
@@ -115,7 +120,9 @@ function paletteFromHashAndSeed(
 ): ColorScheme {
   const c = canonicalPaletteFromHash(mazeHash);
 
-  // Eight canonical fields — byte-for-byte aligned with MazeRenderer.sol.
+  // Structural fields (wall/mazeBg/textBg/zkBg/crownBg) — byte-for-byte
+  // aligned with MazeRenderer.sol. Entity fields (player/key/goal) are
+  // frontend-only; see canonicalPaletteFromHash.
   const wallColor = hsl(c.wall.h, c.wall.s, c.wall.l);
   const mazeBackgroundColor = hsl(c.mazeBg.h, c.mazeBg.s, c.mazeBg.l);
   const textBackgroundColor = hsl(c.textBg.h, c.textBg.s, c.textBg.l);

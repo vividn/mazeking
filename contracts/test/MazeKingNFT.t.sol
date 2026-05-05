@@ -620,8 +620,9 @@ contract MazeKingNFTTest is Test {
         assertTrue(_contains(svg, "<g stroke="));
         // Text-cell fills should appear in the SVG (cellType 1/2/3 produce rects).
         assertTrue(_contains(svg, "<rect x="));
-        // Player / robe / scepter / goal circles.
-        assertTrue(_contains(svg, "<circle"));
+        // Entity overlays (player/robe/scepter/goal) intentionally NOT rendered:
+        // the SVG is the static maze structure, not a snapshot of mid-game state.
+        assertFalse(_contains(svg, "<circle"));
     }
 
     function test_SetRenderer() public {
