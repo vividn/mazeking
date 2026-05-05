@@ -25,6 +25,8 @@ import { MazeSizeWarning } from './MazeSizeWarning';
 import { Wordmark } from './Wordmark';
 import { pickTextColor } from '../lib/contrastText';
 import { DEFAULT_SEED } from '../App';
+import robeUrl from '../glyphs/robe.png?url';
+import scepterUrl from '../glyphs/scepter.png?url';
 
 interface GameProps {
   initialSeed: string;
@@ -414,9 +416,12 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
             }}
             title={gameState.hasRobe ? 'Robe collected' : 'Find the robe'}
           >
-            <span aria-hidden style={styles.statIcon}>
-              👘
-            </span>
+            <img
+              aria-hidden
+              src={robeUrl}
+              alt=""
+              style={styles.statSprite}
+            />
             {gameState.hasRobe ? 'robe' : 'Find robe'}
           </span>
           <span
@@ -428,9 +433,12 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
               gameState.hasScepter ? 'Scepter collected' : 'Find the scepter'
             }
           >
-            <span aria-hidden style={styles.statIcon}>
-              ⚜
-            </span>
+            <img
+              aria-hidden
+              src={scepterUrl}
+              alt=""
+              style={styles.statSprite}
+            />
             {gameState.hasScepter ? 'scepter' : 'Find scepter'}
           </span>
         </>
@@ -806,6 +814,14 @@ const styles: Record<string, React.CSSProperties> = {
   statIcon: {
     fontSize: '14px',
     lineHeight: 1,
+  },
+  statSprite: {
+    width: '16px',
+    height: '16px',
+    objectFit: 'contain',
+    imageRendering: 'pixelated',
+    verticalAlign: 'middle',
+    display: 'inline-block',
   },
   statMobile: {
     fontSize: '12px',
