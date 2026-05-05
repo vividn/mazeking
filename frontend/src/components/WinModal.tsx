@@ -6,7 +6,6 @@ import { useMintNFT } from '../hooks/useMintNFT';
 import { ProofProgress } from './ProofProgress';
 import { ProofImage } from './ProofImage';
 import { Maze } from './Maze';
-import { KaztleText } from './KaztleText';
 import { areContractsDeployed } from '../lib/contracts';
 import { sepolia } from 'wagmi/chains';
 import { computeTokenIdFromMazeHash } from '../lib/tokenId';
@@ -295,10 +294,10 @@ export function WinModal({
   const modalStyle: React.CSSProperties = {
     backgroundColor: colors.pathColor,
     borderRadius: '16px',
-    padding: '48px 40px',
+    padding: '28px 32px',
     maxWidth: '500px',
     width: '90%',
-    maxHeight: '90vh',
+    maxHeight: '95vh',
     overflowY: 'auto',
     boxShadow: `0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 2px ${colors.uiAccentColor}`,
     position: 'relative',
@@ -309,8 +308,8 @@ export function WinModal({
     display: 'block',
     width: 'auto',
     height: 'auto',
-    maxWidth: '160px',
-    maxHeight: '140px',
+    maxWidth: '120px',
+    maxHeight: '110px',
     filter: 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35))',
     flexShrink: 0,
   };
@@ -323,7 +322,7 @@ export function WinModal({
   };
 
   const titleStyle: React.CSSProperties = {
-    fontSize: '36px',
+    fontSize: '30px',
     fontWeight: 'bold',
     margin: 0,
     color: colors.playerColor,
@@ -350,14 +349,16 @@ export function WinModal({
     position: 'relative',
     backgroundColor: colors.textBackgroundColor,
     borderRadius: '12px',
-    padding: '14px',
-    marginBottom: '24px',
+    padding: '10px',
+    marginBottom: '16px',
     boxShadow: `inset 0 0 0 2px ${colors.uiAccentColor}, 0 8px 24px rgba(0, 0, 0, 0.25)`,
   };
 
   const thumbnailStyle: React.CSSProperties = {
     width: '100%',
+    maxWidth: '280px',
     aspectRatio: '1 / 1',
+    margin: '0 auto',
     borderRadius: '6px',
     overflow: 'hidden',
     backgroundColor: '#1a1a1a',
@@ -397,30 +398,18 @@ export function WinModal({
     marginTop: '2px',
   };
 
-  const seedLabelStyle: React.CSSProperties = {
-    marginTop: '10px',
-    fontSize: '11px',
-    textAlign: 'center',
-    color: colors.wallColor,
-    opacity: 0.7,
-    fontFamily: 'monospace',
-    textTransform: 'uppercase',
-    letterSpacing: '1px',
-    wordBreak: 'break-word',
-  };
-
   const zkSectionStyle: React.CSSProperties = {
-    marginBottom: '32px',
+    marginBottom: '20px',
   };
 
   const buttonContainerStyle: React.CSSProperties = {
     display: 'flex',
-    gap: '12px',
+    gap: '10px',
     flexDirection: 'column',
   };
 
   const baseButtonStyle: React.CSSProperties = {
-    padding: '16px 32px',
+    padding: '12px 24px',
     fontSize: '16px',
     fontWeight: '600',
     border: 'none',
@@ -512,15 +501,15 @@ export function WinModal({
             display: flex;
             flex-direction: row;
             align-items: center;
-            gap: 20px;
-            margin: 8px 0 24px;
+            gap: 16px;
+            margin: 0 0 16px;
           }
 
           @media (max-width: 480px) {
             .win-hero-row {
               flex-direction: column;
               text-align: center;
-              gap: 12px;
+              gap: 8px;
             }
           }
 
@@ -581,7 +570,7 @@ export function WinModal({
                 Coronation!
               </h2>
               <p style={heroSubtitleStyle}>
-                This <KaztleText colors={colors} /> is yours
+                This KaZtle is yours, and you can prove it!
               </p>
               <p style={variantSubtitleStyle}>{subtitle}</p>
             </div>
@@ -608,7 +597,6 @@ export function WinModal({
                 />
               )}
             </div>
-            <div style={seedLabelStyle}>{seed}</div>
             <div
               className="win-stamp"
               style={stampStyle}
