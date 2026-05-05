@@ -14,7 +14,7 @@ export const CONTRACT_ADDRESSES: Record<
   { nft: `0x${string}`; verifier: `0x${string}` }
 > = {
   11155111: {
-    nft: '0xa9B0C038ff03d996F57c65dC562F7A30F15ECcDc',
-    verifier: '0x520F7Ad9D989cdFA113186d4A40Ab89D135307F4',
+    nft: '0xA84AD3BF7D6f86F4d460f667e048296B21da8A16',
+    verifier: '0x56Afe31602BFA0A2cFb5e164cF0775F61c0751aE',
   },
 };
