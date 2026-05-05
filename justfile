@@ -120,14 +120,19 @@ generate-verifier:
 
 # === CONTRACT DEPLOYMENT ===
 
-# Deploy contracts locally (starts Anvil if needed)
-deploy-local: _ensure-anvil
+# Deploy contracts locally (starts Anvil if needed).
+# Regenerates the Solidity verifier first so on-chain VK matches the
+# current circuit source — see ma-6ff for the stale-verifier incident.
+deploy-local: _ensure-anvil generate-verifier
     @echo -e "{{BLUE}}[deploy]{{NC}} Deploying to local network..."
     @just _deploy-contracts {{anvil_rpc}} "local"
     @just _generate-frontend-config 31337
     @echo -e "{{GREEN}}[deploy]{{NC}} Local deployment complete!"
 
-# Deploy contracts to Sepolia testnet
+# Deploy contracts to Sepolia testnet.
+# Regenerates the Solidity verifier first — circuit and on-chain VK MUST
+# stay in lockstep (ma-6ff). Skip with `SKIP_VERIFIER_GEN=1` when
+# redeploying the same circuit.
 deploy-sepolia:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -142,6 +147,10 @@ deploy-sepolia:
         echo -e "{{RED}}[deploy]{{NC}} Error: PRIVATE_KEY not set"
         echo "Set it in .env or export it"
         exit 1
+    fi
+
+    if [ "${SKIP_VERIFIER_GEN:-0}" != "1" ]; then
+        just generate-verifier
     fi
 
     echo -e "{{BLUE}}[deploy]{{NC}} Deploying to Sepolia testnet..."

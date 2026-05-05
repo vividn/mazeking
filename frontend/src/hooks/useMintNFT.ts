@@ -2,7 +2,9 @@ import {
   useWriteContract,
   useWaitForTransactionReceipt,
   useAccount,
+  usePublicClient,
 } from 'wagmi';
+import { BaseError } from 'viem';
 import MazeKingNFTAbi from '../lib/abi/MazeKingNFT.json';
 import { getContractAddress } from '../lib/contracts';
 
@@ -17,7 +19,8 @@ import { getContractAddress } from '../lib/contracts';
  * the same hash is computed over.
  */
 export function useMintNFT() {
-  const { chain } = useAccount();
+  const { address, chain } = useAccount();
+  const publicClient = usePublicClient();
   const {
     data: hash,
     writeContract,
@@ -63,6 +66,27 @@ export function useMintNFT() {
       chainId: chain.id,
       chainName: chain.name,
     });
+
+    // Pre-flight simulate so a verifier revert (stale on-chain VK,
+    // proof/witness mismatch, etc.) surfaces with its real reason instead
+    // of being masked as `IntrinsicGasTooHighError` ("gas limit too high")
+    // by Alchemy's estimateGas-on-revert behaviour. See ma-6ff.
+    if (publicClient) {
+      try {
+        await publicClient.simulateContract({
+          account: address,
+          address: nftAddress,
+          abi: MazeKingNFTAbi,
+          functionName: 'mintWithProof',
+          args: [proofHex, mazeHash, layoutHex, moveCount],
+        });
+      } catch (simErr) {
+        const reason =
+          simErr instanceof BaseError ? simErr.shortMessage : String(simErr);
+        console.error('mintWithProof simulate failed:', reason, simErr);
+        throw simErr;
+      }
+    }
 
     await writeContract({
       address: nftAddress,
