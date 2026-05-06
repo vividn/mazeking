@@ -467,7 +467,15 @@ export function Game({ initialSeed, onSeedChange, active, replay }: GameProps) {
     >
       {isMobile ? (
         <>
-          <span style={{ ...styles.stat, ...statMobileStyle }}>
+          <span
+            style={{
+              ...styles.stat,
+              ...statMobileStyle,
+              ...styles.statMobileMoves,
+              backgroundColor: colors.uiAccentColor,
+              color: buttonTextColor,
+            }}
+          >
             Moves: <strong>{gameState.moveCount}</strong>
           </span>
           <span
@@ -798,10 +806,10 @@ export function Game({ initialSeed, onSeedChange, active, replay }: GameProps) {
       {isMobile && !seedBarOpen && (
         <Controls
           onMove={handleMove}
-          onNewGame={handleNewMaze}
           onHistory={() => setHistorySidebarOpen(true)}
           onShare={handleCopyLink}
           onRestart={handlePlayAgain}
+          onViewCollection={() => navigate('/mazes')}
           disabled={gameState.gameWon}
           accentColor={colors.uiAccentColor}
           wallColor={colors.wallColor}
@@ -978,6 +986,11 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: 1.2,
     whiteSpace: 'nowrap',
     color: '#f0f0f0',
+  },
+  statMobileMoves: {
+    padding: '3px 10px',
+    borderRadius: '999px',
+    fontWeight: 700,
   },
   headerSpacer: {
     flex: 1,

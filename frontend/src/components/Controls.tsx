@@ -3,10 +3,10 @@ import { pickTextColor } from '../lib/contrastText';
 
 interface ControlsProps {
   onMove: (direction: 'up' | 'down' | 'left' | 'right') => void;
-  onNewGame: () => void;
   onHistory: () => void;
   onShare: () => void;
   onRestart: () => void;
+  onViewCollection: () => void;
   disabled?: boolean;
   accentColor: string;
   wallColor: string;
@@ -21,10 +21,10 @@ const TAP_MAX_DURATION = 250;
 
 export const Controls: React.FC<ControlsProps> = ({
   onMove,
-  onNewGame,
   onHistory,
   onShare,
   onRestart,
+  onViewCollection,
   disabled = false,
   accentColor,
   wallColor,
@@ -41,8 +41,9 @@ export const Controls: React.FC<ControlsProps> = ({
     [disabled, onMove]
   );
 
-  // Swipe-up on the compact row expands; swipe-down collapses
-  const handleHandleTouchStart = useCallback((e: React.TouchEvent) => {
+  // Swipe-up expands; swipe-down collapses. Used by both the handle and the
+  // expanded panel body so a downward drag anywhere in the menu closes it.
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartRef.current = { y: e.touches[0].clientY, t: Date.now() };
   }, []);
 
@@ -57,6 +58,16 @@ export const Controls: React.FC<ControlsProps> = ({
       setExpanded(false);
     } else if (dt < TAP_MAX_DURATION && Math.abs(dy) < 8) {
       setExpanded((v) => !v);
+    }
+    touchStartRef.current = null;
+  }, []);
+
+  const handlePanelTouchEnd = useCallback((e: React.TouchEvent) => {
+    const start = touchStartRef.current;
+    if (!start) return;
+    const dy = start.y - e.changedTouches[0].clientY;
+    if (dy < -SWIPE_THRESHOLD) {
+      setExpanded(false);
     }
     touchStartRef.current = null;
   }, []);
@@ -79,25 +90,25 @@ export const Controls: React.FC<ControlsProps> = ({
 
   const arrowBg = disabled ? 'rgba(128,128,128,0.25)' : `${accentColor}cc`;
   const arrowBgFaint = disabled ? 'rgba(128,128,128,0.15)' : `${accentColor}88`;
-  // Pick contrast based on the underlying hue (alpha is stripped).
   const arrowFg = pickTextColor(accentColor);
-  const accentFg = pickTextColor(accentColor);
   const wallFg = pickTextColor(wallColor);
   const textBgFg = pickTextColor(textBackgroundColor);
 
   return (
     <div data-controls-root style={styles.root}>
-      {/* Expanded panel: full d-pad + action buttons */}
+      {/* Expanded panel: arrow keypad + 2x2 actions */}
       <div
         style={{
           ...styles.expandedPanel,
-          maxHeight: expanded ? '320px' : '0px',
+          maxHeight: expanded ? '160px' : '0px',
           opacity: expanded ? 1 : 0,
           pointerEvents: expanded ? 'auto' : 'none',
         }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handlePanelTouchEnd}
       >
         <div style={styles.expandedInner}>
-          <div style={styles.dpad}>
+          <div style={styles.arrowGrid} data-testid="controls-arrow-grid">
             <div />
             <ArrowButton
               label="▲"
@@ -116,16 +127,6 @@ export const Controls: React.FC<ControlsProps> = ({
               bg={arrowBg}
               fg={arrowFg}
             />
-            <div style={styles.dpadCenter} />
-            <ArrowButton
-              label="▶"
-              dir="right"
-              onPress={handleMove}
-              disabled={disabled}
-              bg={arrowBg}
-              fg={arrowFg}
-            />
-            <div />
             <ArrowButton
               label="▼"
               dir="down"
@@ -134,23 +135,21 @@ export const Controls: React.FC<ControlsProps> = ({
               bg={arrowBg}
               fg={arrowFg}
             />
-            <div />
-          </div>
-          <div style={styles.actionGroup}>
-            <ActionButton
-              label="New Maze"
-              onPress={() => {
-                setExpanded(false);
-                onNewGame();
-              }}
-              bg={accentColor}
-              fg={accentFg}
+            <ArrowButton
+              label="▶"
+              dir="right"
+              onPress={handleMove}
+              disabled={disabled}
+              bg={arrowBg}
+              fg={arrowFg}
             />
+          </div>
+          <div style={styles.actionGrid} data-testid="controls-action-grid">
             <ActionButton
-              label="Restart"
+              label="Collection"
               onPress={() => {
                 setExpanded(false);
-                onRestart();
+                onViewCollection();
               }}
               bg={wallColor}
               fg={wallFg}
@@ -172,6 +171,15 @@ export const Controls: React.FC<ControlsProps> = ({
               bg={textBackgroundColor}
               fg={textBgFg}
             />
+            <ActionButton
+              label="Restart"
+              onPress={() => {
+                setExpanded(false);
+                onRestart();
+              }}
+              bg={accentColor}
+              fg={arrowFg}
+            />
           </div>
         </div>
       </div>
@@ -180,7 +188,7 @@ export const Controls: React.FC<ControlsProps> = ({
       <div style={styles.compactBar}>
         <div
           style={styles.handle}
-          onTouchStart={handleHandleTouchStart}
+          onTouchStart={handleTouchStart}
           onTouchEnd={handleHandleTouchEnd}
           onClick={() => setExpanded((v) => !v)}
           aria-label={expanded ? 'Collapse controls' : 'Expand controls'}
@@ -327,7 +335,6 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       ...styles.actionButton,
       backgroundColor: bg,
       color: fg,
-      // Dark text shadow muddies black text on light bg; only keep when text is white.
       textShadow: fg === '#fff' ? '0 1px 2px rgba(0,0,0,0.4)' : 'none',
     }}
   >
@@ -357,27 +364,25 @@ const styles: Record<string, React.CSSProperties> = {
   },
   expandedInner: {
     display: 'flex',
-    flexDirection: 'column',
+    flexDirection: 'row',
     gap: '12px',
-    padding: '14px 16px',
-    alignItems: 'center',
+    padding: '10px 12px',
+    alignItems: 'stretch',
+    justifyContent: 'space-between',
   },
-  dpad: {
+  arrowGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, 56px)',
-    gridTemplateRows: 'repeat(3, 56px)',
+    gridTemplateColumns: 'repeat(3, 40px)',
+    gridTemplateRows: 'repeat(2, 40px)',
     gap: '6px',
-  },
-  dpadCenter: {
-    width: '56px',
-    height: '56px',
+    flexShrink: 0,
   },
   arrowButton: {
-    width: '56px',
-    height: '56px',
+    width: '40px',
+    height: '40px',
     border: 'none',
-    borderRadius: '12px',
-    fontSize: '22px',
+    borderRadius: '8px',
+    fontSize: '18px',
     fontWeight: 600,
     cursor: 'pointer',
     userSelect: 'none',
@@ -389,18 +394,18 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
   },
-  actionGroup: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '8px',
-    justifyContent: 'center',
-    width: '100%',
+  actionGrid: {
+    flex: 1,
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gridTemplateRows: 'repeat(2, 40px)',
+    gap: '6px',
+    minWidth: 0,
   },
   actionButton: {
-    flex: '1 1 auto',
-    minWidth: '96px',
-    padding: '12px 16px',
-    fontSize: '16px',
+    height: '40px',
+    padding: '0 10px',
+    fontSize: '14px',
     fontWeight: 700,
     border: 'none',
     borderRadius: '8px',
@@ -409,7 +414,9 @@ const styles: Record<string, React.CSSProperties> = {
     WebkitTapHighlightColor: 'transparent',
     touchAction: 'manipulation',
     boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
-    minHeight: '44px',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
   compactBar: {
     pointerEvents: 'auto',
