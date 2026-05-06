@@ -258,21 +258,63 @@ _generate-frontend-config chain_id:
     node {{scripts_dir}}/generate-contracts-config.js {{chain_id}}
     @echo -e "{{GREEN}}[config]{{NC}} Frontend config generated!"
 
-# === SVG RENDERER REDEPLOY ===
+# === SIDE-CONTRACT UPGRADES ===
 #
-# Redeploy the on-chain SVG renderer and rehook MazeKingNFT at the new
-# address. Use after changing the rendering algo (see ma-e7r). The bare
-# `redeploy-svg` recipe is a guard — pick `-local` or `-sepolia` explicitly.
-# See scripts/redeploy-svg.sh for the full flow.
+# Upgrade individual side contracts (renderer, verifier, awarder) without
+# redeploying MazeKingNFT itself. Each recipe deploys a fresh side contract,
+# rehooks the NFT via setX(newAddress), runs an ABI sanity probe, and
+# regenerates frontend/src/lib/contracts.generated.ts.
+#
+# Use `just deploy-sepolia` for full re-deploys (including NFT) — the upgrade
+# recipes here are the "exception that proves the rule" for partial swaps.
+# See DEPLOY.md for the decision matrix.
+#
+# Each `*` guard recipe is intentionally bare so an operator can't fat-finger
+# Sepolia when they meant local — pick `-local` or `-sepolia` explicitly.
+# Sepolia variants require env vars from `scripts/with-sepolia.sh`.
 
-redeploy-svg:
+# --- Renderer ---
+# `redeploy-svg-*` aliases predate the upgrade-* family (ma-96n); both names
+# call into the same script and behave identically.
+
+upgrade-renderer:
     @{{scripts_dir}}/redeploy-svg.sh
 
-redeploy-svg-local: _ensure-anvil
+upgrade-renderer-local: _ensure-anvil
     @{{scripts_dir}}/redeploy-svg.sh local
 
-redeploy-svg-sepolia:
+upgrade-renderer-sepolia:
     @{{scripts_dir}}/redeploy-svg.sh sepolia
+
+redeploy-svg: upgrade-renderer
+
+redeploy-svg-local: upgrade-renderer-local
+
+redeploy-svg-sepolia: upgrade-renderer-sepolia
+
+# --- Verifier ---
+# Regenerates the verifier from the circuit before deploy — keeps on-chain
+# VK in lockstep with circuit source (ma-6ff).
+
+upgrade-verifier:
+    @{{scripts_dir}}/upgrade-verifier.sh
+
+upgrade-verifier-local: _ensure-anvil
+    @{{scripts_dir}}/upgrade-verifier.sh local
+
+upgrade-verifier-sepolia:
+    @{{scripts_dir}}/upgrade-verifier.sh sepolia
+
+# --- Badge awarder ---
+
+upgrade-awarder:
+    @{{scripts_dir}}/upgrade-awarder.sh
+
+upgrade-awarder-local: _ensure-anvil
+    @{{scripts_dir}}/upgrade-awarder.sh local
+
+upgrade-awarder-sepolia:
+    @{{scripts_dir}}/upgrade-awarder.sh sepolia
 
 # === DEVELOPMENT ===
 

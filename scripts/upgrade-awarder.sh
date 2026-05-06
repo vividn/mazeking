@@ -1,18 +1,23 @@
 #!/usr/bin/env bash
-# Redeploy the on-chain SVG renderer and rehook the NFT contract.
+# Upgrade the on-chain badge awarder and rehook the NFT contract.
 #
-# The MazeRenderer contract is read by MazeKingNFT via a stored renderer
-# pointer. Whenever the SVG generation algo changes (see ma-e7r), the renderer
-# must be redeployed AND the NFT contract repointed at the new address.
+# The MazeKingNFT contract delegates badge logic to a pluggable awarder
+# (badgeAwarder) called once per verified mint. Whenever badge rules change
+# (new tier thresholds, new badge bits, new strategy), the awarder must be
+# redeployed AND the NFT contract repointed at the new address.
 #
-# Usage: scripts/redeploy-svg.sh <env>
+# This is one of the three "exception that proves the rule" upgrade recipes
+# for side contracts. The full deploy (just deploy-sepolia) is the only path
+# that should redeploy MazeKingNFT itself.
+#
+# Usage: scripts/upgrade-awarder.sh <env>
 #   env: "local"   → anvil chainId 31337
 #        "sepolia" → Sepolia testnet chainId 11155111
 #
 # Required env vars (sepolia only):
-#   SEPOLIA_RPC_URL, PRIVATE_KEY
+#   SEPOLIA_RPC_URL, PRIVATE_KEY (set via scripts/with-sepolia.sh)
 #
-# See bead ma-96n for context.
+# See bead ma-e6k for context.
 
 set -euo pipefail
 
@@ -32,11 +37,11 @@ case "$ENV" in
     sepolia)
         CHAIN_ID="11155111"
         if [ -z "${SEPOLIA_RPC_URL:-}" ]; then
-            echo "Error: SEPOLIA_RPC_URL not set" >&2
+            echo "Error: SEPOLIA_RPC_URL not set (did you run via scripts/with-sepolia.sh?)" >&2
             exit 1
         fi
         if [ -z "${PRIVATE_KEY:-}" ]; then
-            echo "Error: PRIVATE_KEY not set" >&2
+            echo "Error: PRIVATE_KEY not set (did you run via scripts/with-sepolia.sh?)" >&2
             exit 1
         fi
         RPC_URL="$SEPOLIA_RPC_URL"
@@ -46,14 +51,12 @@ case "$ENV" in
         cat >&2 <<EOF
 Error: missing environment.
 
-Usage: just upgrade-renderer-local     # anvil chainId 31337
-       just upgrade-renderer-sepolia   # Sepolia chainId 11155111
+Usage: just upgrade-awarder-local       # anvil chainId 31337
+       just upgrade-awarder-sepolia     # Sepolia chainId 11155111
 
-(The legacy 'redeploy-svg-{local,sepolia}' aliases also work.)
-
-The bare 'just upgrade-renderer' recipe is a guard that prints this message
-— specify an environment explicitly so the operator can't fat-finger
-Sepolia when they meant local.
+The bare 'just upgrade-awarder' recipe is a guard that prints this message —
+specify an environment explicitly so the operator can't fat-finger Sepolia
+when they meant local.
 EOF
         exit 1
         ;;
@@ -75,7 +78,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
-log() { printf "${1}[redeploy-svg]${NC} %s\n" "$2"; }
+log() { printf "${1}[upgrade-awarder]${NC} %s\n" "$2"; }
 
 # ---------------------------------------------------------------------------
 # Preconditions
@@ -93,8 +96,7 @@ if [ -z "$NFT_ADDRESS" ] || [ "$NFT_ADDRESS" = "0x000000000000000000000000000000
     exit 1
 fi
 
-# Verify chain id matches what the RPC reports — paranoia against pointing
-# the wrong PRIVATE_KEY at the wrong network.
+# Verify chain id matches what the RPC reports.
 ACTUAL_CHAIN=$(cast chain-id --rpc-url "$RPC_URL")
 if [ "$ACTUAL_CHAIN" != "$CHAIN_ID" ]; then
     log "$RED" "RPC reports chain $ACTUAL_CHAIN but expected $CHAIN_ID. Aborting."
@@ -108,49 +110,53 @@ fi
 log "$BLUE" "Environment: $ENV (chain $CHAIN_ID)"
 log "$BLUE" "NFT contract: $NFT_ADDRESS"
 
-OLD_RENDERER=$(cast call "$NFT_ADDRESS" "renderer()(address)" --rpc-url "$RPC_URL")
-log "$BLUE" "Current renderer: $OLD_RENDERER"
+OLD_AWARDER=$(cast call "$NFT_ADDRESS" "badgeAwarder()(address)" --rpc-url "$RPC_URL")
+log "$BLUE" "Current awarder: $OLD_AWARDER"
 
 # ---------------------------------------------------------------------------
-# Build + deploy the new renderer
+# Build + deploy the new awarder
+#
+# DefaultBadgeAwarder takes the NFT address as a constructor arg — it reads
+# admin-set state (registrarApproved, optimalMoves, BADGE_* constants) from
+# the NFT to compute badge bitfields.
 # ---------------------------------------------------------------------------
 
 log "$YELLOW" "Building contracts..."
 (cd "$CONTRACTS_DIR" && forge build >/dev/null)
 
-log "$YELLOW" "Deploying MazeRenderer..."
+log "$YELLOW" "Deploying DefaultBadgeAwarder..."
+# `--constructor-args` is variadic and consumes every following token until
+# the next flag, so the <CONTRACT> positional has to come *before* it.
 DEPLOY_OUT=$(cd "$CONTRACTS_DIR" && forge create \
     --rpc-url "$RPC_URL" \
     --private-key "$PRIVATE_KEY" \
     --broadcast \
     --json \
-    src/MazeRenderer.sol:MazeRenderer)
+    src/DefaultBadgeAwarder.sol:DefaultBadgeAwarder \
+    --constructor-args "$NFT_ADDRESS")
 
-NEW_RENDERER=$(echo "$DEPLOY_OUT" | jq -er '.deployedTo')
+NEW_AWARDER=$(echo "$DEPLOY_OUT" | jq -er '.deployedTo')
 DEPLOY_TX=$(echo "$DEPLOY_OUT" | jq -er '.transactionHash')
-log "$GREEN" "MazeRenderer deployed at $NEW_RENDERER (tx $DEPLOY_TX)"
+log "$GREEN" "DefaultBadgeAwarder deployed at $NEW_AWARDER (tx $DEPLOY_TX)"
 
 # ---------------------------------------------------------------------------
 # ABI sanity check before we rehook.
 #
-# IMazeRenderer.tokenURI(uint256, bytes) is the only function the NFT calls.
-# We probe it with empty bytes; the renderer's _decodeHeader requires
-# layout.length >= 20 so a correctly-deployed contract should revert with
-# "Layout too short". Any other failure mode (selector miss, no return data,
-# different revert reason) means the deployed contract isn't what we expect.
+# DefaultBadgeAwarder exposes a public immutable `nft` pointer set in its
+# constructor. We read it back and confirm it equals the NFT we just
+# deployed against — anything else means the deployed contract isn't a
+# DefaultBadgeAwarder, or it was deployed against the wrong NFT.
 # ---------------------------------------------------------------------------
 
-log "$YELLOW" "Verifying renderer ABI matches NFT expectations..."
-PROBE_OUT=$(cast call "$NEW_RENDERER" "tokenURI(uint256,bytes)(string)" 0 0x \
-    --rpc-url "$RPC_URL" 2>&1 || true)
-if ! echo "$PROBE_OUT" | grep -q "Layout too short"; then
-    log "$RED" "Renderer ABI probe failed. Expected revert 'Layout too short', got:"
-    echo "$PROBE_OUT" >&2
+log "$YELLOW" "Verifying awarder ABI matches NFT expectations..."
+AWARDER_NFT=$(cast call "$NEW_AWARDER" "nft()(address)" --rpc-url "$RPC_URL" 2>&1 || true)
+if [ "${AWARDER_NFT,,}" != "${NFT_ADDRESS,,}" ]; then
+    log "$RED" "Awarder ABI probe failed: awarder.nft() = $AWARDER_NFT, expected $NFT_ADDRESS"
     log "$RED" "Aborting before rehook — the deployed contract does not match"
-    log "$RED" "the IMazeRenderer interface the NFT calls into."
+    log "$RED" "the IBadgeAwarder shape the NFT calls into, or it was wired to the wrong NFT."
     exit 1
 fi
-log "$GREEN" "Renderer ABI probe OK (revert reason matches)."
+log "$GREEN" "Awarder ABI probe OK (nft pointer matches)."
 
 # ---------------------------------------------------------------------------
 # Confirm before rehooking on a non-anvil chain
@@ -159,13 +165,13 @@ log "$GREEN" "Renderer ABI probe OK (revert reason matches)."
 if [ "$REQUIRE_CONFIRM" = "1" ]; then
     echo ""
     log "$YELLOW" "About to rehook NFT contract on chain $CHAIN_ID:"
-    log "$YELLOW" "  NFT:          $NFT_ADDRESS"
-    log "$YELLOW" "  Old renderer: $OLD_RENDERER"
-    log "$YELLOW" "  New renderer: $NEW_RENDERER"
+    log "$YELLOW" "  NFT:         $NFT_ADDRESS"
+    log "$YELLOW" "  Old awarder: $OLD_AWARDER"
+    log "$YELLOW" "  New awarder: $NEW_AWARDER"
     echo ""
-    read -r -p "Type 'yes' to broadcast setRenderer: " CONFIRM
+    read -r -p "Type 'yes' to broadcast setBadgeAwarder: " CONFIRM
     if [ "$CONFIRM" != "yes" ]; then
-        log "$RED" "Aborted by operator. New renderer is deployed but NFT still points at $OLD_RENDERER."
+        log "$RED" "Aborted by operator. New awarder is deployed but NFT still points at $OLD_AWARDER."
         exit 1
     fi
 fi
@@ -174,41 +180,43 @@ fi
 # Rehook
 # ---------------------------------------------------------------------------
 
-log "$YELLOW" "Calling setRenderer on NFT contract..."
-REHOOK_JSON=$(cast send "$NFT_ADDRESS" "setRenderer(address)" "$NEW_RENDERER" \
+log "$YELLOW" "Calling setBadgeAwarder on NFT contract..."
+REHOOK_JSON=$(cast send "$NFT_ADDRESS" "setBadgeAwarder(address)" "$NEW_AWARDER" \
     --rpc-url "$RPC_URL" \
     --private-key "$PRIVATE_KEY" \
     --json)
 
 REHOOK_TX=$(echo "$REHOOK_JSON" | jq -er '.transactionHash')
 GAS_USED=$(echo "$REHOOK_JSON" | jq -er '.gasUsed')
-# gasUsed is hex-encoded in cast --json output; normalise to decimal.
 GAS_USED_DEC=$(printf "%d" "$GAS_USED")
 log "$GREEN" "Rehook tx: $REHOOK_TX (gas used: $GAS_USED_DEC)"
 
 # Confirm the on-chain pointer actually updated.
-ON_CHAIN_AFTER=$(cast call "$NFT_ADDRESS" "renderer()(address)" --rpc-url "$RPC_URL")
-if [ "${ON_CHAIN_AFTER,,}" != "${NEW_RENDERER,,}" ]; then
-    log "$RED" "Post-rehook check failed: NFT still reports renderer=$ON_CHAIN_AFTER"
+ON_CHAIN_AFTER=$(cast call "$NFT_ADDRESS" "badgeAwarder()(address)" --rpc-url "$RPC_URL")
+if [ "${ON_CHAIN_AFTER,,}" != "${NEW_AWARDER,,}" ]; then
+    log "$RED" "Post-rehook check failed: NFT still reports badgeAwarder=$ON_CHAIN_AFTER"
     exit 1
 fi
 
 # ---------------------------------------------------------------------------
 # Update deployment file + regenerate frontend config
+#
+# The awarder address isn't currently consumed by the frontend — only the
+# NFT, verifier, and renderer addresses are. But we still update the
+# deployment JSON for parity with the other side-contract upgrades and so
+# operators can audit the live awarder pointer post-deploy.
 # ---------------------------------------------------------------------------
 
-log "$YELLOW" "Updating $DEPLOYMENT_FILE with new renderer address..."
+log "$YELLOW" "Updating $DEPLOYMENT_FILE with new awarder address..."
 TMP_FILE=$(mktemp)
-jq --arg r "$NEW_RENDERER" --argjson ts "$(date +%s)" \
-    '.renderer = $r | .timestamp = $ts' \
+jq --arg a "$NEW_AWARDER" --argjson ts "$(date +%s)" \
+    '.badgeAwarder = $a | .timestamp = $ts' \
     "$DEPLOYMENT_FILE" > "$TMP_FILE"
-mv "$TMP_FILE" "$DEPLOYMENT_FILE"
+mv -f "$TMP_FILE" "$DEPLOYMENT_FILE"
 
-# Mirror to latest.json if it currently tracks this chain (Deploy.s.sol writes
-# both files in lockstep; we preserve that invariant here).
 if [ -f "$LATEST_FILE" ] && \
    [ "$(jq -er '.chainId' "$LATEST_FILE" 2>/dev/null || echo)" = "$CHAIN_ID" ]; then
-    cp "$DEPLOYMENT_FILE" "$LATEST_FILE"
+    cp -f "$DEPLOYMENT_FILE" "$LATEST_FILE"
 fi
 
 log "$YELLOW" "Regenerating frontend contracts config..."
@@ -219,11 +227,11 @@ node "$PROJECT_ROOT/scripts/generate-contracts-config.js" "$CHAIN_ID"
 # ---------------------------------------------------------------------------
 
 echo ""
-log "$GREEN" "=== Redeploy summary ==="
+log "$GREEN" "=== Upgrade summary ==="
 echo "  Environment:    $ENV (chain $CHAIN_ID)"
 echo "  NFT contract:   $NFT_ADDRESS"
-echo "  Old renderer:   $OLD_RENDERER"
-echo "  New renderer:   $NEW_RENDERER"
+echo "  Old awarder:    $OLD_AWARDER"
+echo "  New awarder:    $NEW_AWARDER"
 echo "  Deploy tx:      $DEPLOY_TX"
 echo "  Rehook tx:      $REHOOK_TX"
 echo "  Rehook gas:     $GAS_USED_DEC"

@@ -1,18 +1,23 @@
 #!/usr/bin/env bash
-# Redeploy the on-chain SVG renderer and rehook the NFT contract.
+# Upgrade the on-chain Honk verifier and rehook the NFT contract.
 #
-# The MazeRenderer contract is read by MazeKingNFT via a stored renderer
-# pointer. Whenever the SVG generation algo changes (see ma-e7r), the renderer
-# must be redeployed AND the NFT contract repointed at the new address.
+# The MazeKingNFT contract is read by the verifier via a stored verifier
+# pointer (verifierContract). Whenever the circuit ABI changes (new public
+# inputs, new constraints, etc.), the verifier must be regenerated AND
+# redeployed AND the NFT contract repointed at the new address.
 #
-# Usage: scripts/redeploy-svg.sh <env>
+# This is one of the three "exception that proves the rule" upgrade recipes
+# for side contracts. The full deploy (just deploy-sepolia) is the only path
+# that should redeploy MazeKingNFT itself.
+#
+# Usage: scripts/upgrade-verifier.sh <env>
 #   env: "local"   → anvil chainId 31337
 #        "sepolia" → Sepolia testnet chainId 11155111
 #
 # Required env vars (sepolia only):
-#   SEPOLIA_RPC_URL, PRIVATE_KEY
+#   SEPOLIA_RPC_URL, PRIVATE_KEY (set via scripts/with-sepolia.sh)
 #
-# See bead ma-96n for context.
+# See bead ma-e6k for context.
 
 set -euo pipefail
 
@@ -32,11 +37,11 @@ case "$ENV" in
     sepolia)
         CHAIN_ID="11155111"
         if [ -z "${SEPOLIA_RPC_URL:-}" ]; then
-            echo "Error: SEPOLIA_RPC_URL not set" >&2
+            echo "Error: SEPOLIA_RPC_URL not set (did you run via scripts/with-sepolia.sh?)" >&2
             exit 1
         fi
         if [ -z "${PRIVATE_KEY:-}" ]; then
-            echo "Error: PRIVATE_KEY not set" >&2
+            echo "Error: PRIVATE_KEY not set (did you run via scripts/with-sepolia.sh?)" >&2
             exit 1
         fi
         RPC_URL="$SEPOLIA_RPC_URL"
@@ -46,14 +51,12 @@ case "$ENV" in
         cat >&2 <<EOF
 Error: missing environment.
 
-Usage: just upgrade-renderer-local     # anvil chainId 31337
-       just upgrade-renderer-sepolia   # Sepolia chainId 11155111
+Usage: just upgrade-verifier-local      # anvil chainId 31337
+       just upgrade-verifier-sepolia    # Sepolia chainId 11155111
 
-(The legacy 'redeploy-svg-{local,sepolia}' aliases also work.)
-
-The bare 'just upgrade-renderer' recipe is a guard that prints this message
-— specify an environment explicitly so the operator can't fat-finger
-Sepolia when they meant local.
+The bare 'just upgrade-verifier' recipe is a guard that prints this message —
+specify an environment explicitly so the operator can't fat-finger Sepolia
+when they meant local.
 EOF
         exit 1
         ;;
@@ -75,7 +78,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
-log() { printf "${1}[redeploy-svg]${NC} %s\n" "$2"; }
+log() { printf "${1}[upgrade-verifier]${NC} %s\n" "$2"; }
 
 # ---------------------------------------------------------------------------
 # Preconditions
@@ -108,49 +111,63 @@ fi
 log "$BLUE" "Environment: $ENV (chain $CHAIN_ID)"
 log "$BLUE" "NFT contract: $NFT_ADDRESS"
 
-OLD_RENDERER=$(cast call "$NFT_ADDRESS" "renderer()(address)" --rpc-url "$RPC_URL")
-log "$BLUE" "Current renderer: $OLD_RENDERER"
+OLD_VERIFIER=$(cast call "$NFT_ADDRESS" "verifierContract()(address)" --rpc-url "$RPC_URL")
+log "$BLUE" "Current verifier: $OLD_VERIFIER"
 
 # ---------------------------------------------------------------------------
-# Build + deploy the new renderer
+# Regenerate verifier from circuit, then build + deploy
+#
+# The verifier is auto-generated from the circuit (bb.js writes
+# src/generated/MazeVerifier.sol). Regenerating ensures the on-chain VK
+# matches the current circuit source — see ma-6ff for the stale-VK incident.
 # ---------------------------------------------------------------------------
+
+log "$YELLOW" "Regenerating verifier from circuit..."
+(cd "$PROJECT_ROOT" && just generate-verifier)
 
 log "$YELLOW" "Building contracts..."
 (cd "$CONTRACTS_DIR" && forge build >/dev/null)
 
-log "$YELLOW" "Deploying MazeRenderer..."
+log "$YELLOW" "Deploying HonkVerifier..."
 DEPLOY_OUT=$(cd "$CONTRACTS_DIR" && forge create \
     --rpc-url "$RPC_URL" \
     --private-key "$PRIVATE_KEY" \
     --broadcast \
     --json \
-    src/MazeRenderer.sol:MazeRenderer)
+    src/generated/MazeVerifier.sol:HonkVerifier)
 
-NEW_RENDERER=$(echo "$DEPLOY_OUT" | jq -er '.deployedTo')
+NEW_VERIFIER=$(echo "$DEPLOY_OUT" | jq -er '.deployedTo')
 DEPLOY_TX=$(echo "$DEPLOY_OUT" | jq -er '.transactionHash')
-log "$GREEN" "MazeRenderer deployed at $NEW_RENDERER (tx $DEPLOY_TX)"
+log "$GREEN" "HonkVerifier deployed at $NEW_VERIFIER (tx $DEPLOY_TX)"
 
 # ---------------------------------------------------------------------------
 # ABI sanity check before we rehook.
 #
-# IMazeRenderer.tokenURI(uint256, bytes) is the only function the NFT calls.
-# We probe it with empty bytes; the renderer's _decodeHeader requires
-# layout.length >= 20 so a correctly-deployed contract should revert with
-# "Layout too short". Any other failure mode (selector miss, no return data,
-# different revert reason) means the deployed contract isn't what we expect.
+# IVerifier.verify(bytes, bytes32[]) is the only function the NFT calls.
+# The NFT supplies a 2-element publicInputs array. We probe with empty
+# proof + empty publicInputs; HonkVerifier should revert with
+# `ProofLengthWrongWithLogN(uint256,uint256,uint256)` (selector 0x59895a53)
+# because proof.length != expectedProofSize * 32. Any other failure mode
+# (selector miss, no return data, different revert) means the deployed
+# contract isn't what we expect.
+#
+# We match on the selector hex rather than the symbol because cast doesn't
+# have the verifier's ABI in scope and only prints the raw selector.
 # ---------------------------------------------------------------------------
 
-log "$YELLOW" "Verifying renderer ABI matches NFT expectations..."
-PROBE_OUT=$(cast call "$NEW_RENDERER" "tokenURI(uint256,bytes)(string)" 0 0x \
+PROOF_LEN_WRONG_SELECTOR="0x59895a53"
+
+log "$YELLOW" "Verifying verifier ABI matches NFT expectations..."
+PROBE_OUT=$(cast call "$NEW_VERIFIER" "verify(bytes,bytes32[])(bool)" 0x "[]" \
     --rpc-url "$RPC_URL" 2>&1 || true)
-if ! echo "$PROBE_OUT" | grep -q "Layout too short"; then
-    log "$RED" "Renderer ABI probe failed. Expected revert 'Layout too short', got:"
+if ! echo "$PROBE_OUT" | grep -q "$PROOF_LEN_WRONG_SELECTOR"; then
+    log "$RED" "Verifier ABI probe failed. Expected revert with selector $PROOF_LEN_WRONG_SELECTOR (ProofLengthWrongWithLogN), got:"
     echo "$PROBE_OUT" >&2
     log "$RED" "Aborting before rehook — the deployed contract does not match"
-    log "$RED" "the IMazeRenderer interface the NFT calls into."
+    log "$RED" "the IVerifier interface the NFT calls into."
     exit 1
 fi
-log "$GREEN" "Renderer ABI probe OK (revert reason matches)."
+log "$GREEN" "Verifier ABI probe OK (revert selector $PROOF_LEN_WRONG_SELECTOR matches ProofLengthWrongWithLogN)."
 
 # ---------------------------------------------------------------------------
 # Confirm before rehooking on a non-anvil chain
@@ -160,12 +177,12 @@ if [ "$REQUIRE_CONFIRM" = "1" ]; then
     echo ""
     log "$YELLOW" "About to rehook NFT contract on chain $CHAIN_ID:"
     log "$YELLOW" "  NFT:          $NFT_ADDRESS"
-    log "$YELLOW" "  Old renderer: $OLD_RENDERER"
-    log "$YELLOW" "  New renderer: $NEW_RENDERER"
+    log "$YELLOW" "  Old verifier: $OLD_VERIFIER"
+    log "$YELLOW" "  New verifier: $NEW_VERIFIER"
     echo ""
-    read -r -p "Type 'yes' to broadcast setRenderer: " CONFIRM
+    read -r -p "Type 'yes' to broadcast setVerifier: " CONFIRM
     if [ "$CONFIRM" != "yes" ]; then
-        log "$RED" "Aborted by operator. New renderer is deployed but NFT still points at $OLD_RENDERER."
+        log "$RED" "Aborted by operator. New verifier is deployed but NFT still points at $OLD_VERIFIER."
         exit 1
     fi
 fi
@@ -174,22 +191,21 @@ fi
 # Rehook
 # ---------------------------------------------------------------------------
 
-log "$YELLOW" "Calling setRenderer on NFT contract..."
-REHOOK_JSON=$(cast send "$NFT_ADDRESS" "setRenderer(address)" "$NEW_RENDERER" \
+log "$YELLOW" "Calling setVerifier on NFT contract..."
+REHOOK_JSON=$(cast send "$NFT_ADDRESS" "setVerifier(address)" "$NEW_VERIFIER" \
     --rpc-url "$RPC_URL" \
     --private-key "$PRIVATE_KEY" \
     --json)
 
 REHOOK_TX=$(echo "$REHOOK_JSON" | jq -er '.transactionHash')
 GAS_USED=$(echo "$REHOOK_JSON" | jq -er '.gasUsed')
-# gasUsed is hex-encoded in cast --json output; normalise to decimal.
 GAS_USED_DEC=$(printf "%d" "$GAS_USED")
 log "$GREEN" "Rehook tx: $REHOOK_TX (gas used: $GAS_USED_DEC)"
 
 # Confirm the on-chain pointer actually updated.
-ON_CHAIN_AFTER=$(cast call "$NFT_ADDRESS" "renderer()(address)" --rpc-url "$RPC_URL")
-if [ "${ON_CHAIN_AFTER,,}" != "${NEW_RENDERER,,}" ]; then
-    log "$RED" "Post-rehook check failed: NFT still reports renderer=$ON_CHAIN_AFTER"
+ON_CHAIN_AFTER=$(cast call "$NFT_ADDRESS" "verifierContract()(address)" --rpc-url "$RPC_URL")
+if [ "${ON_CHAIN_AFTER,,}" != "${NEW_VERIFIER,,}" ]; then
+    log "$RED" "Post-rehook check failed: NFT still reports verifierContract=$ON_CHAIN_AFTER"
     exit 1
 fi
 
@@ -197,18 +213,16 @@ fi
 # Update deployment file + regenerate frontend config
 # ---------------------------------------------------------------------------
 
-log "$YELLOW" "Updating $DEPLOYMENT_FILE with new renderer address..."
+log "$YELLOW" "Updating $DEPLOYMENT_FILE with new verifier address..."
 TMP_FILE=$(mktemp)
-jq --arg r "$NEW_RENDERER" --argjson ts "$(date +%s)" \
-    '.renderer = $r | .timestamp = $ts' \
+jq --arg v "$NEW_VERIFIER" --argjson ts "$(date +%s)" \
+    '.verifier = $v | .timestamp = $ts' \
     "$DEPLOYMENT_FILE" > "$TMP_FILE"
-mv "$TMP_FILE" "$DEPLOYMENT_FILE"
+mv -f "$TMP_FILE" "$DEPLOYMENT_FILE"
 
-# Mirror to latest.json if it currently tracks this chain (Deploy.s.sol writes
-# both files in lockstep; we preserve that invariant here).
 if [ -f "$LATEST_FILE" ] && \
    [ "$(jq -er '.chainId' "$LATEST_FILE" 2>/dev/null || echo)" = "$CHAIN_ID" ]; then
-    cp "$DEPLOYMENT_FILE" "$LATEST_FILE"
+    cp -f "$DEPLOYMENT_FILE" "$LATEST_FILE"
 fi
 
 log "$YELLOW" "Regenerating frontend contracts config..."
@@ -219,11 +233,11 @@ node "$PROJECT_ROOT/scripts/generate-contracts-config.js" "$CHAIN_ID"
 # ---------------------------------------------------------------------------
 
 echo ""
-log "$GREEN" "=== Redeploy summary ==="
+log "$GREEN" "=== Upgrade summary ==="
 echo "  Environment:    $ENV (chain $CHAIN_ID)"
 echo "  NFT contract:   $NFT_ADDRESS"
-echo "  Old renderer:   $OLD_RENDERER"
-echo "  New renderer:   $NEW_RENDERER"
+echo "  Old verifier:   $OLD_VERIFIER"
+echo "  New verifier:   $NEW_VERIFIER"
 echo "  Deploy tx:      $DEPLOY_TX"
 echo "  Rehook tx:      $REHOOK_TX"
 echo "  Rehook gas:     $GAS_USED_DEC"

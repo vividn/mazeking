@@ -116,13 +116,17 @@ function writeIfChanged(filepath, content) {
   fs.writeFileSync(filepath, content, 'utf8');
 }
 
-// `renderer` is optional in the type because pre-existing deploys (and any
-// network where the on-chain SVG renderer hasn't been set yet) won't have it.
-// The mint flow reads tokenURI through the NFT contract, so frontend code
-// only needs the renderer address for direct off-chain calls.
-function rendererLine(deployment) {
-  return deployment.renderer ? `\n    renderer: '${deployment.renderer}',` : '';
+// `renderer` and `badgeAwarder` are optional in the type because pre-existing
+// deploys (and any network where the side-contract upgrades haven't run yet)
+// won't have them. The mint flow reads tokenURI / awarder state through the
+// NFT contract, so frontend code only needs these addresses for direct
+// off-chain calls or operator audits.
+function optionalLine(deployment, key, alias) {
+  const value = deployment[key];
+  return value ? `\n    ${alias || key}: '${value}',` : '';
 }
+
+const TYPE_SHAPE = `{ nft: \`0x\${string}\`; verifier: \`0x\${string}\`; renderer?: \`0x\${string}\`; badgeAwarder?: \`0x\${string}\` }`;
 
 function renderLocal(chainId, deployment) {
   // Single-chain local map. Loader merges this into the public map.
@@ -137,11 +141,11 @@ function renderLocal(chainId, deployment) {
 
 export const CONTRACT_ADDRESSES: Record<
   number,
-  { nft: \`0x\${string}\`; verifier: \`0x\${string}\`; renderer?: \`0x\${string}\` }
+  ${TYPE_SHAPE}
 > = {
   ${chainId}: {
     nft: '${deployment.nft}',
-    verifier: '${deployment.verifier}',${rendererLine(deployment)}
+    verifier: '${deployment.verifier}',${optionalLine(deployment, 'renderer')}${optionalLine(deployment, 'badgeAwarder')}
   },
 };
 `;
@@ -165,11 +169,11 @@ function renderGenerated(chainId, deployment) {
 
 export const CONTRACT_ADDRESSES: Record<
   number,
-  { nft: \`0x\${string}\`; verifier: \`0x\${string}\`; renderer?: \`0x\${string}\` }
+  ${TYPE_SHAPE}
 > = {
   ${chainId}: {
     nft: '${deployment.nft}',
-    verifier: '${deployment.verifier}',${rendererLine(deployment)}
+    verifier: '${deployment.verifier}',${optionalLine(deployment, 'renderer')}${optionalLine(deployment, 'badgeAwarder')}
   },
 };
 `;
