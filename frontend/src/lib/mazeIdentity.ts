@@ -15,6 +15,7 @@
  */
 
 import { BarretenbergSync, Fr } from '@aztec/bb.js';
+import { frToBytes32 } from './frToBytes32';
 import {
   LAYOUT_HEADER_BYTES,
   LAYOUT_TOTAL_BYTES,
@@ -65,18 +66,6 @@ function layoutToFields(layout: Uint8Array): Fr[] {
   return fields;
 }
 
-function frToHex(fr: Fr): `0x${string}` {
-  // Fr.toBuffer() returns the 32-byte big-endian field element. Encode it as
-  // a `0x`-prefixed lowercase hex string so the result is contract-friendly
-  // (bytes32) regardless of any leading-zero stripping in `Fr.toString()`.
-  const buf = fr.toBuffer();
-  let hex = '';
-  for (let i = 0; i < buf.length; i++) {
-    hex += buf[i].toString(16).padStart(2, '0');
-  }
-  return `0x${hex.padStart(64, '0')}` as `0x${string}`;
-}
-
 /**
  * Compute the canonical Pedersen hash of a 1520-byte maze layout.
  *
@@ -90,7 +79,7 @@ export async function computeMazeHash(
   const api = await getApi();
   const fields = layoutToFields(layout);
   const hash = api.pedersenHash(fields, 0);
-  return frToHex(hash);
+  return frToBytes32(hash);
 }
 
 /**

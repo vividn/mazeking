@@ -419,9 +419,47 @@ format-circuits:
 lint:
     @echo -e "{{BLUE}}[lint]{{NC}} Linting all code..."
     @just check-abi-drift
+    @just check-no-fr-tostring
     @just lint-contracts
     @just lint-frontend
     @echo -e "{{GREEN}}[lint]{{NC}} Linting complete!"
+
+# CI gate: forbid direct `.toString()` on Fr field elements in the frontend.
+#
+# Fr → hex through `.toString()` strips leading zeros for ~1-in-256 field
+# elements (those whose high byte is < 0x10), which silently corrupts
+# `bytes32` hex when fed to viem — mints fail in production for some mazes.
+# See bead ma-dr5 + retro 2026-05-05 Appendix C.
+#
+# Always go through `frToBytes32` (frontend/src/lib/frToBytes32.ts), which
+# wraps the only correct path: `Fr.toBuffer()` → per-byte hex with padStart.
+#
+# Match heuristic: any identifier ending in `Fr` or `fr` (case-insensitive last
+# two letters) followed by `.toString(` — catches `Fr.toString()`,
+# `fr.toString()`, `mazeFr.toString()`, `frHash`-style misses are accepted as
+# the cost of a simple grep gate. The helper file itself is allowed to mention
+# the footgun in comments.
+check-no-fr-tostring:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo -e "{{BLUE}}[fr-tostring]{{NC}} Checking for direct .toString() on Fr in frontend/..."
+    matches=$(grep -rEn \
+        --include='*.ts' \
+        --include='*.tsx' \
+        --exclude='*.generated.ts' \
+        --exclude='frToBytes32.ts' \
+        --exclude='frToBytes32.test.ts' \
+        '(^|[^A-Za-z0-9_])[Ff][rR]\.toString[[:space:]]*\(' \
+        {{frontend_dir}}/src 2>/dev/null || true)
+    if [ -n "$matches" ]; then
+        echo "$matches"
+        echo -e "{{RED}}[fr-tostring]{{NC}} Found direct Fr.toString() call(s) above."
+        echo -e "{{YELLOW}}[fr-tostring]{{NC}} Use \`frToBytes32(fr)\` from frontend/src/lib/frToBytes32.ts instead."
+        echo -e "{{YELLOW}}[fr-tostring]{{NC}} Why: Fr.toString() can drop leading zeros for ~1-in-256 hashes →"
+        echo -e "{{YELLOW}}[fr-tostring]{{NC}}      viem zero-extends on the wrong end → bytes32 corruption → mint fails."
+        exit 1
+    fi
+    echo -e "{{GREEN}}[fr-tostring]{{NC}} No direct Fr.toString() calls. ✓"
 
 # Lint contract code
 lint-contracts:
