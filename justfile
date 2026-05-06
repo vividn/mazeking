@@ -124,6 +124,21 @@ verify-palette:
     fi
     echo -e "{{GREEN}}[palette]{{NC}} Palette artifacts in sync."
 
+# CI gate: verify circuit ↔ Solidity ↔ TS public-input shape agreement.
+# The deployed verifier bakes the circuit's verification key into bytecode,
+# so any silent ABI drift between maze_prover/src/main.nr,
+# contracts/src/MazeConstants.sol, and frontend/src/lib/zkSerialize.ts will
+# invalidate the verifier without warning. Run before forge test. See ma-3xv.
+check-abi-drift:
+    @echo -e "{{BLUE}}[abi-drift]{{NC}} Checking circuit ↔ Solidity ↔ TS ABI agreement..."
+    node {{scripts_dir}}/check-abi-drift.js
+
+# Self-test for check-abi-drift: artificially desyncs each source of truth
+# and confirms the gate fires. Slow-ish (mutates files in-place with rollback).
+test-abi-drift:
+    @echo -e "{{BLUE}}[abi-drift]{{NC}} Running check-abi-drift self-tests..."
+    bash {{scripts_dir}}/check-abi-drift.test.sh
+
 # === CIRCUIT COMPILATION ===
 
 # Compile Noir circuits via noir_wasm and sync to frontend (no native nargo)
@@ -393,6 +408,7 @@ format-circuits:
 # Lint all code
 lint:
     @echo -e "{{BLUE}}[lint]{{NC}} Linting all code..."
+    @just check-abi-drift
     @just lint-contracts
     @just lint-frontend
     @echo -e "{{GREEN}}[lint]{{NC}} Linting complete!"
