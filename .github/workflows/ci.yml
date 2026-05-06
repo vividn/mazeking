@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel superseded runs on the same PR; let main runs finish.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  FOUNDRY_PROFILE: ci
+  # Pin to the Noir version baked into pnpm-workspace.yaml's zktools catalog.
+  # Bumping noir_wasm/noir_js requires the matching nargo and a recompile of
+  # the committed maze_prover/target/maze_prover.json.
+  NOIR_VERSION: 1.0.0-beta.17
+  PNPM_VERSION: '9'
+  NODE_VERSION: '20'
+
+jobs:
+  # `nargo test` — circuit-side assertions (proof rule logic).
+  circuit-tests:
+    name: nargo test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # Cache the noirup install so we don't pay the toolchain download on
+      # every PR. Keyed on Noir version — a bump invalidates and reinstalls.
+      - name: Cache nargo install
+        id: nargo-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.nargo
+          key: nargo-${{ runner.os }}-${{ env.NOIR_VERSION }}
+
+      - name: Install Noir/nargo
+        if: steps.nargo-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -L https://raw.githubusercontent.com/noir-lang/noirup/refs/heads/main/install | bash
+          export PATH="$HOME/.nargo/bin:$PATH"
+          noirup -v ${{ env.NOIR_VERSION }}
+
+      - name: Add nargo to PATH
+        run: echo "$HOME/.nargo/bin" >> "$GITHUB_PATH"
+
+      - name: nargo --version
+        run: nargo --version
+
+      - name: nargo test
+        working-directory: maze_prover
+        run: nargo test
+
+  # `forge test` — Solidity contract assertions. Submodules required for
+  # forge-std + openzeppelin-contracts.
+  contract-tests:
+    name: forge test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: forge fmt --check
+        working-directory: contracts
+        run: forge fmt --check
+
+      - name: forge test
+        working-directory: contracts
+        run: forge test -vvv
+
+  # `vitest run` — frontend units + fast-tier e2e (witness execution only).
+  # Reads the committed maze_prover/target/maze_prover.json directly; no
+  # circuit compile step needed in CI.
+  frontend-units:
+    name: vitest run (PR-tier)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: vitest run
+        working-directory: frontend
+        run: pnpm test:run
+
+  # `RUN_E2E_FULL_PROOF=1 vitest run e2eSolveProve` — full UltraHonk proof
+  # generation + off-chain verification. The only gate that catches silent
+  # cross-layer drift between TS prover input ↔ circuit main() (the
+  # regalia-split incident, ma-3rr → ma-6ff). Slower than the PR-tier
+  # vitest run because it actually runs the prover backend.
+  e2e-full-proof:
+    name: e2eSolveProve (full-tier)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # UltraHonk's bb.js downloads a Common Reference String on first proof
+      # generation. Cache it so PR runs aren't dominated by the SRS fetch.
+      - name: Cache UltraHonk CRS
+        uses: actions/cache@v4
+        with:
+          path: ~/.bb-crs
+          key: bb-crs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: e2eSolveProve full-tier
+        working-directory: frontend
+        run: pnpm test:e2e-full
