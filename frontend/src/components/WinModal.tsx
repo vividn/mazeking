@@ -10,6 +10,7 @@ import { sepolia } from 'wagmi/chains';
 import { computeOptimalMoves, tierFromMoveCount } from '../lib/mazeSolver';
 import { pickTextColor } from '../lib/contrastText';
 import kingUrl from '../glyphs/king.png?url';
+import crownUrl from '../glyphs/crown.png?url';
 
 interface WinModalProps {
   isOpen: boolean;
@@ -154,9 +155,10 @@ interface ProofPlaceholderProps {
 
 /**
  * Pre-proof placeholder: solid black box at the proof image's final
- * dimensions. Renders pulsing concentric squares + a scan line when
- * `animated` (proving state); otherwise just the dark box. Children render
- * on top so the idle state can host a centered Generate ZK Proof button.
+ * dimensions. While `animated` (proving state) a single low-contrast crown
+ * sprite breathes in and out at the center — a quiet "we're sealing the
+ * certificate" signal in keeping with the medieval/coronation theme. The
+ * idle state hosts the Generate ZK Proof button via `children`.
  */
 function ProofPlaceholder({
   size,
@@ -184,34 +186,18 @@ function ProofPlaceholder({
       role="status"
       aria-label={ariaLabel}
     >
-      {animated &&
-        [0, 1, 2].map((i) => (
-          <div
-            key={i}
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              width: '40%',
-              height: '40%',
-              border: `2px solid ${accentColor}`,
-              borderRadius: '4px',
-              transform: 'translate(-50%, -50%)',
-              animation: `proofPulse 1.6s ease-in-out ${i * 0.4}s infinite`,
-              opacity: 0,
-            }}
-          />
-        ))}
       {animated && (
-        <div
+        <img
+          src={crownUrl}
+          alt=""
+          aria-hidden
           style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '2px',
-            background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)`,
-            animation: 'proofScan 2.2s linear infinite',
+            width: '40%',
+            height: '40%',
+            objectFit: 'contain',
+            imageRendering: 'pixelated',
+            opacity: 0.4,
+            animation: 'proofRoyalBreath 1.5s ease-in-out infinite',
           }}
         />
       )}
@@ -232,24 +218,10 @@ function ProofPlaceholder({
   );
 }
 
-function stageHelperText(stage: string): string {
-  switch (stage) {
-    case 'loading-circuit':
-      return 'Loading circuit…';
-    case 'initializing-noir':
-      return 'Initializing Noir…';
-    case 'initializing-backend':
-      return 'Starting prover backend…';
-    case 'generating-witness':
-      return 'Computing witness…';
-    case 'generating-proof':
-      return 'Proving…';
-    case 'idle':
-      return 'Preparing zero-knowledge proof…';
-    default:
-      return 'Generating zero-knowledge proof…';
-  }
-}
+// Single quiet line for every proving stage — the multi-stage rotation
+// (Loading circuit / Initializing Noir / Computing witness / …) read as
+// engineering noise and clashed with the modal's medieval/coronation tone.
+const PROOF_HELPER_TEXT = 'Sealing the certificate…';
 
 export function WinModal({
   isOpen,
@@ -659,14 +631,9 @@ export function WinModal({
             from { opacity: 0; transform: scale(0.85); }
             to { opacity: 1; transform: scale(1); }
           }
-          @keyframes proofPulse {
-            0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
-            40%  { opacity: 0.9; }
-            100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
-          }
-          @keyframes proofScan {
-            0%   { transform: translateY(0); }
-            100% { transform: translateY(${proofImageSize}px); }
+          @keyframes proofRoyalBreath {
+            0%, 100% { opacity: 0.30; transform: scale(1); }
+            50%      { opacity: 0.60; transform: scale(1.04); }
           }
           .win-king-hero {
             animation: kingEntrance 250ms ease-out both;
@@ -829,7 +796,7 @@ export function WinModal({
                     <div style={helperTextStyle} aria-live="polite">
                       {proofState.stage === 'error'
                         ? 'Proof generation failed.'
-                        : stageHelperText(proofState.stage)}
+                        : PROOF_HELPER_TEXT}
                     </div>
                   </>
                 )}
