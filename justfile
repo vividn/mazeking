@@ -149,6 +149,40 @@ test-abi-drift:
     @echo -e "{{BLUE}}[abi-drift]{{NC}} Running check-abi-drift self-tests..."
     bash {{scripts_dir}}/check-abi-drift.test.sh
 
+# Codegen the TS ProverInput interface from the circuit's compiled ABI.
+# Sibling to check-abi-drift (count-side gate) — this pins field shape, so
+# adding/renaming a circuit param surfaces as a TypeScript error in
+# `generateProverInput` instead of nargo's runtime "input not found". See
+# bead ma-7qm + retro Appendix C.
+generate-prover-input-types:
+    @echo -e "{{BLUE}}[prover-input-types]{{NC}} Generating TS interface from circuit ABI..."
+    {{node}} {{scripts_dir}}/generate-prover-input-types.js
+    @echo -e "{{GREEN}}[prover-input-types]{{NC}} Generation complete!"
+
+# CI gate: regenerate ProverInput types and assert no diff. Catches both
+# hand-edits to the generated file AND missed regen after circuit ABI
+# changes. Mirrors verify-palette.
+verify-prover-input-types:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo -e "{{BLUE}}[prover-input-types]{{NC}} Verifying generated TS interface is in sync with circuit ABI..."
+    {{node}} {{scripts_dir}}/generate-prover-input-types.js
+    if ! git diff --quiet -- frontend/src/lib/proverInput.generated.ts; then
+        echo -e "{{RED}}[prover-input-types]{{NC}} frontend/src/lib/proverInput.generated.ts is out of sync with maze_prover/target/maze_prover.json."
+        echo -e "{{RED}}[prover-input-types]{{NC}} Either the ABI changed without regen, or someone hand-edited the generated file."
+        echo -e "{{YELLOW}}[prover-input-types]{{NC}} Run \`just generate-prover-input-types\` and commit the result."
+        git --no-pager diff -- frontend/src/lib/proverInput.generated.ts
+        exit 1
+    fi
+    echo -e "{{GREEN}}[prover-input-types]{{NC}} Generated interface in sync with circuit ABI."
+
+# Self-test for generate-prover-input-types: mutate the ABI, confirm the
+# verify gate fires; mutate the generated file by hand, same. Restores via
+# trap.
+test-prover-input-types:
+    @echo -e "{{BLUE}}[prover-input-types]{{NC}} Running generate-prover-input-types self-tests..."
+    bash {{scripts_dir}}/generate-prover-input-types.test.sh
+
 # === CIRCUIT COMPILATION ===
 
 # Compile Noir circuits via noir_wasm and sync to frontend (no native nargo)
@@ -419,6 +453,7 @@ format-circuits:
 lint:
     @echo -e "{{BLUE}}[lint]{{NC}} Linting all code..."
     @just check-abi-drift
+    @just verify-prover-input-types
     @just check-no-fr-tostring
     @just check-consensus-critical
     @just lint-contracts

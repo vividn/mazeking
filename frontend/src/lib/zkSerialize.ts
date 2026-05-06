@@ -39,6 +39,7 @@ import {
   MAX_PACKED_BYTES as _MAX_PACKED_BYTES,
   MAX_MOVES as _MAX_MOVES,
 } from './mazeConstants.generated';
+import type { ProverInputCircuit } from './proverInput.generated';
 
 // Direction constants matching Noir
 export const DIR_UP = 0;
@@ -198,35 +199,24 @@ export const MAX_PACKED_BYTES = _MAX_PACKED_BYTES;
 export const MAX_MOVES = _MAX_MOVES;
 
 /**
- * Prover input structure matching Noir main function signature.
+ * Prover input structure matching the Noir main function signature.
  *
  * Hash-as-public-input architecture (ma-6cr.6):
  *   Public:  maze_hash, move_count
  *   Private: width/height, start/key/goal positions, packed_cells, moves
  *
+ * The shape is codegen'd from `maze_prover/target/maze_prover.json` (ma-7qm)
+ * — the canonical TS source of truth lives in `proverInput.generated.ts`.
+ * Adding/removing/renaming a circuit param and regenerating that file makes
+ * any mismatch in `generateProverInput`'s return literal a TypeScript
+ * compile error rather than nargo's runtime "input not found" (which
+ * doesn't say *which* input). Sibling to the count-side gate in ma-3xv.
+ *
  * Noir's InputMap is name-keyed, so field order in this object is irrelevant
  * to the witness; what matters is that every parameter declared in the
  * circuit's main() appears here.
  */
-export interface ProverInput {
-  // Public inputs
-  maze_hash: `0x${string}`; // 32-byte BN254 field element, hex-encoded
-  move_count: number;
-
-  // Private inputs (witness-only)
-  width: number;
-  height: number;
-  start_x: number;
-  start_y: number;
-  robe_x: number;
-  robe_y: number;
-  scepter_x: number;
-  scepter_y: number;
-  goal_x: number;
-  goal_y: number;
-  packed_cells: number[]; // Padded to MAX_PACKED_BYTES
-  moves: number[]; // Padded to MAX_MOVES
-}
+export type ProverInput = ProverInputCircuit;
 
 /**
  * Generate prover input from maze data and solution path.
