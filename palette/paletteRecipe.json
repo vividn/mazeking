@@ -1,0 +1,37 @@
+{
+  "$comment": [
+    "Single source of truth for the canonical maze palette. Both the on-chain SVG",
+    "renderer (contracts/src/MazePalette.sol) and the live game (frontend/src/lib/",
+    "paletteRecipe.generated.ts) are codegen'd from this file. Run `just generate-palette`",
+    "after editing.",
+    "",
+    "Each field declares a hue derivation, saturation, and lightness:",
+    "  - hue.type = 'offset': hue = (baseHue + offset) % 360",
+    "  - hue.type = 'constant': hue = value (independent of mazeHash)",
+    "  - baseHue = mazeHash % 360 (BigInt) on TS, seed % 360 on Sol.",
+    "",
+    "onChain=true fields are emitted into the Solidity Palette struct and rendered",
+    "by MazeRenderer.sol. They MUST agree byte-for-byte with the TS recipe — this",
+    "is the silent-drift gap bishop flagged in the 2026-05-05 retrospective (§11.A).",
+    "onChain=false fields are frontend-only (entity glyphs that the on-chain SVG no",
+    "longer draws — see ma-e7r)."
+  ],
+  "fields": [
+    { "name": "wall",     "hue": { "type": "offset",   "offset": 0   }, "s": 25, "l": 22, "onChain": true,
+      "doc": "Dark, moderately saturated. Stays legible against any bg." },
+    { "name": "mazeBg",   "hue": { "type": "offset",   "offset": 30  }, "s": 22, "l": 80, "onChain": true,
+      "doc": "Soft, lightly saturated complement to walls." },
+    { "name": "textBg",   "hue": { "type": "offset",   "offset": 200 }, "s": 80, "l": 60, "onChain": true,
+      "doc": "Vibrant complementary hue — letters jump out against bg." },
+    { "name": "zkBg",     "hue": { "type": "offset",   "offset": 320 }, "s": 80, "l": 55, "onChain": true,
+      "doc": "Triadic offset from textBg (200 + 120). ZK-letter highlight." },
+    { "name": "crownBg",  "hue": { "type": "constant", "value":  48  }, "s": 85, "l": 55, "onChain": true,
+      "doc": "Always gold, regardless of seed — crown tier reads as gold everywhere." },
+    { "name": "player",   "hue": { "type": "constant", "value":  45  }, "s": 90, "l": 60, "onChain": false,
+      "doc": "Frontend-only: player sprite glow on the live canvas." },
+    { "name": "key",      "hue": { "type": "constant", "value":  55  }, "s": 85, "l": 55, "onChain": false,
+      "doc": "Frontend-only: pickup glyph on the live canvas." },
+    { "name": "goal",     "hue": { "type": "offset",   "offset": 90  }, "s": 65, "l": 50, "onChain": false,
+      "doc": "Frontend-only: goal glyph on the live canvas." }
+  ]
+}

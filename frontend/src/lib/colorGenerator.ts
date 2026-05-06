@@ -1,4 +1,5 @@
 import { createRng } from './seededRandom';
+import { PALETTE_RECIPE, resolveHue } from './paletteRecipe.generated';
 
 export interface ColorScheme {
   wallColor: string;
@@ -42,9 +43,13 @@ export interface GenerateColorSchemeOptions {
   mazeHash?: string;
 }
 
-const hsl = (h: number, s: number, l: number) => `hsl(${h}, ${s}%, ${l}%)`;
+// HSL output mirrors `MazePalette._hsl` in Solidity byte-for-byte. The
+// no-space form is identical to what the on-chain SVG embeds (see ma-fy3),
+// so the canonical-palette golden tests can assert exact string equality.
+// Browsers parse both forms identically as CSS.
+const hsl = (h: number, s: number, l: number) => `hsl(${h},${s}%,${l}%)`;
 const hsla = (h: number, s: number, l: number, a: number) =>
-  `hsla(${h}, ${s}%, ${l}%, ${a})`;
+  `hsla(${h},${s}%,${l}%,${a})`;
 
 interface CanonicalPalette {
   baseHue: number; // 0..360
@@ -61,26 +66,26 @@ interface CanonicalPalette {
 /**
  * Canonical palette derived from the maze hash. The structural fields
  * (`wall`, `mazeBg`, `textBg`, `zkBg`, `crownBg`) MUST match
- * `MazeRenderer._palette()` in contracts/src/MazeRenderer.sol byte-for-byte —
+ * `MazePalette.palette()` in contracts/src/MazePalette.sol byte-for-byte —
  * those are the colors the on-chain SVG renders, and the live game render
  * has to agree on them. The entity fields (`player`, `key`, `goal`) are
  * frontend-only: the on-chain SVG no longer draws character/pickup/goal
- * overlays (ma-e7r), so these recipes live here as the single source of
- * truth for the live canvas glyphs.
+ * overlays (ma-e7r), so they live in the same recipe but are flagged
+ * `onChain: false` and never reach Solidity.
+ *
+ * The recipe is codegen'd from `palette/paletteRecipe.json` — see ma-fy3.
  */
 function canonicalPaletteFromHash(mazeHash: string): CanonicalPalette {
   const baseHue = Number(BigInt(mazeHash) % 360n);
-  return {
-    baseHue,
-    wall: { h: baseHue, s: 25, l: 22 },
-    mazeBg: { h: (baseHue + 30) % 360, s: 22, l: 80 },
-    textBg: { h: (baseHue + 200) % 360, s: 80, l: 60 },
-    zkBg: { h: (baseHue + 200 + 120) % 360, s: 80, l: 55 },
-    crownBg: { h: 48, s: 85, l: 55 },
-    player: { h: 45, s: 90, l: 60 },
-    key: { h: 55, s: 85, l: 55 },
-    goal: { h: (baseHue + 90) % 360, s: 65, l: 50 },
-  };
+  const out = { baseHue } as CanonicalPalette;
+  for (const f of PALETTE_RECIPE) {
+    (out as Record<string, unknown>)[f.name] = {
+      h: resolveHue(f, baseHue),
+      s: f.s,
+      l: f.l,
+    };
+  }
+  return out;
 }
 
 /**

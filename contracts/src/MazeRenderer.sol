@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import { Base64 } from "@openzeppelin/contracts/utils/Base64.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
+import { MazePalette } from "./MazePalette.sol";
 
 /// @title MazeRenderer
 /// @notice On-chain SVG renderer for MazeKing NFTs.
@@ -60,13 +61,10 @@ contract MazeRenderer {
         uint16 goalY;
     }
 
-    struct Palette {
-        string wall;
-        string mazeBg;
-        string textBg;
-        string zkBg;
-        string crownBg;
-    }
+    /// @dev Palette struct + derivation live in the generated `MazePalette`
+    ///      library — that file is codegen'd from `palette/paletteRecipe.json`
+    ///      so the live game and the on-chain SVG cannot silently drift on
+    ///      canonical colors (see ma-fy3 / 2026-05-05 retro §11.A).
 
     /// @notice Render a base64-encoded data URI for `tokenId`.
     /// @param tokenId Token id (used as the color seed).
@@ -77,7 +75,7 @@ contract MazeRenderer {
         returns (string memory)
     {
         Header memory h = _decodeHeader(layout);
-        Palette memory p = _palette(tokenId);
+        MazePalette.Palette memory p = MazePalette.palette(tokenId);
 
         string memory svg = _renderSvg(h, layout, p);
 
@@ -103,7 +101,7 @@ contract MazeRenderer {
         returns (string memory)
     {
         Header memory h = _decodeHeader(layout);
-        Palette memory p = _palette(tokenId);
+        MazePalette.Palette memory p = MazePalette.palette(tokenId);
         return _renderSvg(h, layout, p);
     }
 
@@ -145,7 +143,7 @@ contract MazeRenderer {
     // SVG rendering
     // ---------------------------------------------------------------------
 
-    function _renderSvg(Header memory h, bytes calldata layout, Palette memory p)
+    function _renderSvg(Header memory h, bytes calldata layout, MazePalette.Palette memory p)
         internal
         pure
         returns (string memory)
@@ -175,7 +173,7 @@ contract MazeRenderer {
     ///      canvas, and each text cell is one pixel of a letter glyph. So
     ///      coloring them per cellType reproduces the canvas's letter render
     ///      without us having to ship a pixel-font ROM in bytecode.
-    function _renderCellFills(Header memory h, bytes calldata layout, Palette memory p)
+    function _renderCellFills(Header memory h, bytes calldata layout, MazePalette.Palette memory p)
         internal
         pure
         returns (bytes memory out)
@@ -215,7 +213,7 @@ contract MazeRenderer {
     ///      canvas — which closes the outer edges using the toroidal wrap —
     ///      we additionally draw the top edge from row (h-1) south walls and
     ///      the left edge from col (w-1) east walls.
-    function _renderWalls(Header memory h, bytes calldata layout, Palette memory p)
+    function _renderWalls(Header memory h, bytes calldata layout, MazePalette.Palette memory p)
         internal
         pure
         returns (bytes memory out)
@@ -268,37 +266,6 @@ contract MazeRenderer {
         return abi.encodePacked(
             '<line x1="', _u(x1), '" y1="', _u(y1), '" x2="', _u(x2), '" y2="', _u(y2), '"/>'
         );
-    }
-
-    // ---------------------------------------------------------------------
-    // Palette (LITE: derived from tokenId; FULL would derive from Poseidon).
-    // ---------------------------------------------------------------------
-
-    /// @dev Build an HSL palette deterministically from `seed`. We use HSL
-    ///      strings rather than computing RGB so the SVG client does the
-    ///      conversion — that's free for us and keeps the bytecode small.
-    function _palette(uint256 seed) internal pure returns (Palette memory p) {
-        uint256 baseHue = seed % 360;
-
-        // Wall: dark, moderately saturated. Stays legible against any bg.
-        p.wall = _hsl(baseHue, 25, 22);
-
-        // Maze background: soft, lightly saturated complement to walls.
-        uint256 mazeBgHue = (baseHue + 30) % 360;
-        p.mazeBg = _hsl(mazeBgHue, 22, 80);
-
-        // Text bg: vibrant complementary hue — letters jump out against bg.
-        p.textBg = _hsl((baseHue + 200) % 360, 80, 60);
-
-        // ZK highlight: triadic offset from text bg.
-        p.zkBg = _hsl((baseHue + 200 + 120) % 360, 80, 55);
-
-        // Crown highlight: always gold, regardless of seed (matches frontend).
-        p.crownBg = _hsl(48, 85, 55);
-    }
-
-    function _hsl(uint256 h, uint256 s, uint256 l) internal pure returns (string memory) {
-        return string(abi.encodePacked("hsl(", _u(h), ",", _u(s), "%,", _u(l), "%)"));
     }
 
     // ---------------------------------------------------------------------

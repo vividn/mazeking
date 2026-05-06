@@ -100,6 +100,17 @@ generate-constants:
     node {{scripts_dir}}/generate-maze-constants.js
     @echo -e "{{GREEN}}[constants]{{NC}} Constants generation complete!"
 
+# === PALETTE CODEGEN ===
+
+# Generate Sol+TS palette from palette/paletteRecipe.json (single source of truth).
+# Idempotent: re-running with no recipe change produces no diff.
+generate-palette:
+    @echo -e "{{BLUE}}[palette]{{NC}} Generating palette codegen from palette/paletteRecipe.json..."
+    {{node}} {{scripts_dir}}/generate-palette.js
+    @echo -e "{{YELLOW}}[palette]{{NC}} Normalizing Solidity output with forge fmt..."
+    cd {{contracts_dir}} && {{forge}} fmt src/MazePalette.sol
+    @echo -e "{{GREEN}}[palette]{{NC}} Palette generation complete!"
+
 # === CIRCUIT COMPILATION ===
 
 # Compile Noir circuits via noir_wasm and sync to frontend (no native nargo)
