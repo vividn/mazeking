@@ -250,6 +250,35 @@ redeploy-svg-local: _ensure-anvil
 redeploy-svg-sepolia:
     @{{scripts_dir}}/redeploy-svg.sh sepolia
 
+# === SIDE-CONTRACT UPGRADES ===
+#
+# Redeploy a single side contract (renderer/verifier/awarder) and rewire
+# MazeKingNFT to the new address. Use after changing the contract source —
+# see DEPLOY.md for the decision matrix. To redeploy MazeKingNFT itself,
+# use `just deploy-sepolia` (storage-layout changes invalidate this path).
+# See bead ma-e6k and scripts/upgrade-side-contract.sh.
+#
+# Sepolia variants require SEPOLIA_RPC_URL + PRIVATE_KEY in env; load via
+# `./scripts/with-sepolia.sh just upgrade-<contract>-sepolia`.
+
+upgrade-renderer-local: _ensure-anvil
+    @{{scripts_dir}}/upgrade-side-contract.sh renderer local
+
+upgrade-renderer-sepolia:
+    @{{scripts_dir}}/upgrade-side-contract.sh renderer sepolia
+
+upgrade-verifier-local: _ensure-anvil generate-verifier
+    @{{scripts_dir}}/upgrade-side-contract.sh verifier local
+
+upgrade-verifier-sepolia: generate-verifier
+    @{{scripts_dir}}/upgrade-side-contract.sh verifier sepolia
+
+upgrade-awarder-local: _ensure-anvil
+    @{{scripts_dir}}/upgrade-side-contract.sh awarder local
+
+upgrade-awarder-sepolia:
+    @{{scripts_dir}}/upgrade-side-contract.sh awarder sepolia
+
 # === DEVELOPMENT ===
 
 # Start frontend development server
