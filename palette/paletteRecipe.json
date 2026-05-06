@@ -1,0 +1,71 @@
+{
+  "$comment": "Single source of truth for the canonical maze palette. Run `just generate-palette` after editing — both Sol and TS sides regenerate from this file. CI's `just verify-palette` re-runs codegen and asserts no diff.",
+  "$schema": "./paletteRecipe.schema",
+  "baseHueModulus": 360,
+  "fields": [
+    {
+      "name": "wall",
+      "structural": true,
+      "hue": { "kind": "offset", "value": 0 },
+      "s": 25,
+      "l": 22,
+      "doc": "Wall stroke color. Dark, moderately saturated; legible on every bg."
+    },
+    {
+      "name": "mazeBg",
+      "structural": true,
+      "hue": { "kind": "offset", "value": 30 },
+      "s": 22,
+      "l": 80,
+      "doc": "Maze background. Soft, lightly saturated complement to walls."
+    },
+    {
+      "name": "textBg",
+      "structural": true,
+      "hue": { "kind": "offset", "value": 200 },
+      "s": 80,
+      "l": 60,
+      "doc": "Embedded-text cell fill. Vibrant complement so letters jump out."
+    },
+    {
+      "name": "zkBg",
+      "structural": true,
+      "hue": { "kind": "offset", "value": 320 },
+      "s": 80,
+      "l": 55,
+      "doc": "Z/K letter highlight. Triadic offset (textBg + 120) for harmony."
+    },
+    {
+      "name": "crownBg",
+      "structural": true,
+      "hue": { "kind": "constant", "value": 48 },
+      "s": 85,
+      "l": 55,
+      "doc": "Crown emoji cell highlight. Always gold, regardless of seed."
+    },
+    {
+      "name": "player",
+      "structural": false,
+      "hue": { "kind": "constant", "value": 45 },
+      "s": 90,
+      "l": 60,
+      "doc": "Live-canvas player glyph. Frontend-only — Sol no longer renders entities (ma-e7r)."
+    },
+    {
+      "name": "key",
+      "structural": false,
+      "hue": { "kind": "constant", "value": 55 },
+      "s": 85,
+      "l": 55,
+      "doc": "Live-canvas key/scepter glyph. Frontend-only."
+    },
+    {
+      "name": "goal",
+      "structural": false,
+      "hue": { "kind": "offset", "value": 90 },
+      "s": 65,
+      "l": 50,
+      "doc": "Live-canvas goal glyph. Frontend-only."
+    }
+  ]
+}

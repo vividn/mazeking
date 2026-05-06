@@ -1,4 +1,5 @@
 import { createRng } from './seededRandom';
+import { canonicalPaletteFromHash } from './paletteRecipe.generated';
 
 export interface ColorScheme {
   wallColor: string;
@@ -30,58 +31,30 @@ export interface GenerateColorSchemeOptions {
   /**
    * Pedersen hash of the canonical maze layout (hex `0x...`). When supplied,
    * the eight canonical palette fields (wall, mazeBg, textBg, zkBg, crownBg,
-   * player, key, goal) are derived from `mazeHash` using the SAME formulas
-   * as the on-chain SVG renderer (`contracts/src/MazeRenderer.sol`
-   * :: `_palette`). The remaining "richer" fields (visited tints, glow,
-   * chrome, ui accent) are still seed-derived so the live game keeps its
-   * visual variety; they are computed as offsets from the canonical hues so
-   * everything still reads as one palette.
+   * player, key, goal) are derived from `mazeHash` via the codegen'd
+   * `canonicalPaletteFromHash` (paletteRecipe.generated.ts), which shares
+   * its single source of truth (`palette/paletteRecipe.json`) with
+   * `contracts/src/MazePalette.sol`. The remaining "richer" fields
+   * (visited tints, glow, chrome, ui accent) are still seed-derived so the
+   * live game keeps its visual variety; they are computed as offsets from
+   * the canonical hues so everything still reads as one palette.
    *
    * When omitted, the function preserves the original seed-only behavior.
    */
   mazeHash?: string;
 }
 
-const hsl = (h: number, s: number, l: number) => `hsl(${h}, ${s}%, ${l}%)`;
+// Match the on-chain renderer's no-space format so structural fields are
+// byte-identical between TS and `MazePalette.sol`. CSS parses both forms;
+// keeping a single format avoids accidental drift between live/render.
+const hsl = (h: number, s: number, l: number) => `hsl(${h},${s}%,${l}%)`;
 const hsla = (h: number, s: number, l: number, a: number) =>
-  `hsla(${h}, ${s}%, ${l}%, ${a})`;
+  `hsla(${h},${s}%,${l}%,${a})`;
 
-interface CanonicalPalette {
-  baseHue: number; // 0..360
-  wall: { h: number; s: number; l: number };
-  mazeBg: { h: number; s: number; l: number };
-  textBg: { h: number; s: number; l: number };
-  zkBg: { h: number; s: number; l: number };
-  crownBg: { h: number; s: number; l: number };
-  player: { h: number; s: number; l: number };
-  key: { h: number; s: number; l: number };
-  goal: { h: number; s: number; l: number };
-}
-
-/**
- * Canonical palette derived from the maze hash. The structural fields
- * (`wall`, `mazeBg`, `textBg`, `zkBg`, `crownBg`) MUST match
- * `MazeRenderer._palette()` in contracts/src/MazeRenderer.sol byte-for-byte —
- * those are the colors the on-chain SVG renders, and the live game render
- * has to agree on them. The entity fields (`player`, `key`, `goal`) are
- * frontend-only: the on-chain SVG no longer draws character/pickup/goal
- * overlays (ma-e7r), so these recipes live here as the single source of
- * truth for the live canvas glyphs.
- */
-function canonicalPaletteFromHash(mazeHash: string): CanonicalPalette {
-  const baseHue = Number(BigInt(mazeHash) % 360n);
-  return {
-    baseHue,
-    wall: { h: baseHue, s: 25, l: 22 },
-    mazeBg: { h: (baseHue + 30) % 360, s: 22, l: 80 },
-    textBg: { h: (baseHue + 200) % 360, s: 80, l: 60 },
-    zkBg: { h: (baseHue + 200 + 120) % 360, s: 80, l: 55 },
-    crownBg: { h: 48, s: 85, l: 55 },
-    player: { h: 45, s: 90, l: 60 },
-    key: { h: 55, s: 85, l: 55 },
-    goal: { h: (baseHue + 90) % 360, s: 65, l: 50 },
-  };
-}
+// `CanonicalPalette` and `canonicalPaletteFromHash` live in
+// `paletteRecipe.generated.ts`, which is regenerated from
+// `palette/paletteRecipe.json` and kept byte-aligned with
+// `contracts/src/MazePalette.sol`. See ma-fy3.
 
 /**
  * Generates a deterministic color palette.

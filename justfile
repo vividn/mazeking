@@ -100,6 +100,30 @@ generate-constants:
     node {{scripts_dir}}/generate-maze-constants.js
     @echo -e "{{GREEN}}[constants]{{NC}} Constants generation complete!"
 
+# Generate palette code (Sol + TS) from palette/paletteRecipe.json.
+# Single source of truth for the canonical palette shared by MazeRenderer.sol
+# and colorGenerator.ts. Idempotent — running twice produces no diff. See ma-fy3.
+generate-palette:
+    @echo -e "{{BLUE}}[palette]{{NC}} Generating palette artifacts from palette/paletteRecipe.json..."
+    node {{scripts_dir}}/generate-palette.js
+    @echo -e "{{GREEN}}[palette]{{NC}} Palette generation complete!"
+
+# CI gate: regenerate palette artifacts and assert no diff. Catches both
+# hand-edits to the generated files AND missed regen after recipe edits.
+verify-palette:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo -e "{{BLUE}}[palette]{{NC}} Verifying palette artifacts are in sync with palette/paletteRecipe.json..."
+    node {{scripts_dir}}/generate-palette.js
+    if ! git diff --quiet -- contracts/src/MazePalette.sol frontend/src/lib/paletteRecipe.generated.ts palette/paletteRecipe.json; then
+        echo -e "{{RED}}[palette]{{NC}} Generated palette artifacts are out of sync."
+        echo -e "{{RED}}[palette]{{NC}} Either the recipe was edited without regen, or someone hand-edited a generated file."
+        echo -e "{{YELLOW}}[palette]{{NC}} Run \`just generate-palette\` and commit the result."
+        git --no-pager diff -- contracts/src/MazePalette.sol frontend/src/lib/paletteRecipe.generated.ts palette/paletteRecipe.json
+        exit 1
+    fi
+    echo -e "{{GREEN}}[palette]{{NC}} Palette artifacts in sync."
+
 # === CIRCUIT COMPILATION ===
 
 # Compile Noir circuits via noir_wasm and sync to frontend (no native nargo)
