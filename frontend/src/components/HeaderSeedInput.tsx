@@ -4,7 +4,6 @@ import { generateColorScheme } from '../lib/colorGenerator';
 import { generateMaze } from '../lib/mazeGenerator';
 import { isDebugSeedActive } from '../lib/debugSeed';
 import { isValidChar, filterToValidChars } from '../lib/pixelFont';
-import { getRandomPhrase } from '../lib/seedPhrases';
 import { Maze } from './Maze';
 import { MazeSizeWarning } from './MazeSizeWarning';
 import { pickTextColor } from '../lib/contrastText';
@@ -14,8 +13,6 @@ interface HeaderSeedInputProps {
   onCancel: () => void;
   accentColor: string;
   textColor: string;
-  /** When true, layout adjusts for mobile header (compact spacing, smaller buttons). */
-  compact?: boolean;
 }
 
 export function HeaderSeedInput({
@@ -23,13 +20,11 @@ export function HeaderSeedInput({
   onCancel,
   accentColor,
   textColor,
-  compact = false,
 }: HeaderSeedInputProps) {
   const [value, setValue] = useState('');
   const [shake, setShake] = useState(false);
   const [previewMaze, setPreviewMaze] = useState<MazeData | null>(null);
   const [previewColors, setPreviewColors] = useState<ColorScheme | null>(null);
-  const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<number | null>(null);
   const generationRef = useRef(0);
@@ -98,23 +93,6 @@ export function HeaderSeedInput({
     return () => cancelPendingPreview();
   }, [cancelPendingPreview]);
 
-  // Tap outside the input root while empty → cancel.
-  // Non-empty input is preserved (outside tap does nothing).
-  // Listen on pointerdown (covers both mouse + touch) at the document level.
-  useEffect(() => {
-    const handlePointerDown = (e: PointerEvent) => {
-      const root = rootRef.current;
-      if (!root) return;
-      const target = e.target;
-      if (target instanceof Node && root.contains(target)) return;
-      if (value.trim() === '') {
-        onCancel();
-      }
-    };
-    document.addEventListener('pointerdown', handlePointerDown);
-    return () => document.removeEventListener('pointerdown', handlePointerDown);
-  }, [value, onCancel]);
-
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       let next = e.target.value;
@@ -150,21 +128,10 @@ export function HeaderSeedInput({
     [submit, onCancel]
   );
 
-  const handleRandomPhrase = useCallback(() => {
-    const phrase = getRandomPhrase();
-    setValue(phrase);
-    inputRef.current?.focus();
-  }, []);
-
   const startTextColor = pickTextColor(accentColor);
-  const isEmpty = value.trim() === '';
 
   return (
-    <div
-      ref={rootRef}
-      style={compact ? { ...styles.row, ...styles.rowCompact } : styles.row}
-      className="header-seed-input"
-    >
+    <div style={styles.row} className="header-seed-input">
       <style>
         {`
           @keyframes headerSeedShake {
@@ -217,60 +184,40 @@ export function HeaderSeedInput({
         value={value}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        placeholder={compact ? 'word or phrase…' : 'type a word or phrase...'}
+        placeholder="type a word or phrase..."
         aria-label="Maze seed"
         style={{
           ...styles.input,
-          ...(compact ? styles.inputCompact : null),
           borderColor: accentColor,
           color: textColor,
           animation: shake ? 'headerSeedShake 0.3s ease-in-out' : undefined,
         }}
       />
-      {compact && isEmpty && (
-        <button
-          type="button"
-          onClick={handleRandomPhrase}
-          style={{
-            ...styles.surpriseButtonCompact,
-            backgroundColor: accentColor,
-            color: startTextColor,
-          }}
-          title="Surprise me with a random phrase"
-          aria-label="Surprise me — random phrase"
-        >
-          🎲
-        </button>
-      )}
-      {(!compact || !isEmpty) && (
-        <button
-          type="button"
-          onClick={submit}
-          style={{
-            ...styles.startButton,
-            ...(compact ? styles.startButtonCompact : null),
-            backgroundColor: accentColor,
-            color: startTextColor,
-          }}
-          title="Start new game (Enter)"
-          aria-label="Start new game"
-        >
-          Start
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={submit}
+        style={{
+          ...styles.startButton,
+          backgroundColor: accentColor,
+          color: startTextColor,
+        }}
+        title="Start new game (Enter)"
+        aria-label="Start new game"
+      >
+        Start
+      </button>
       <button
         type="button"
         onClick={onCancel}
         style={{
           ...styles.cancelButton,
-          ...(compact ? styles.cancelButtonCompact : null),
           borderColor: textColor,
           color: textColor,
         }}
         title="Cancel (Esc)"
         aria-label="Cancel"
       >
-        {compact ? '✕' : 'Cancel'}
+        Cancel
       </button>
     </div>
   );
@@ -284,11 +231,6 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '8px',
     minWidth: 0,
     justifyContent: 'flex-end',
-  },
-  rowCompact: {
-    gap: '6px',
-    width: '100%',
-    justifyContent: 'stretch',
   },
   previewOverlay: {
     position: 'fixed',
@@ -311,13 +253,6 @@ const styles: Record<string, React.CSSProperties> = {
     outline: 'none',
     fontFamily: 'monospace',
   },
-  inputCompact: {
-    flex: '1 1 0',
-    minWidth: 0,
-    maxWidth: 'none',
-    fontSize: '16px',
-    padding: '8px 10px',
-  },
   startButton: {
     padding: '8px 16px',
     border: 'none',
@@ -327,24 +262,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     whiteSpace: 'nowrap',
     flexShrink: 0,
-  },
-  startButtonCompact: {
-    padding: '8px 12px',
-    fontSize: '14px',
-    minHeight: '40px',
-  },
-  surpriseButtonCompact: {
-    padding: '6px 10px',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '18px',
-    fontWeight: 700,
-    whiteSpace: 'nowrap',
-    flexShrink: 0,
-    minHeight: '40px',
-    minWidth: '40px',
-    lineHeight: 1,
   },
   cancelButton: {
     padding: '7px 14px',
@@ -356,12 +273,5 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     whiteSpace: 'nowrap',
     flexShrink: 0,
-  },
-  cancelButtonCompact: {
-    padding: '6px 10px',
-    fontSize: '16px',
-    minHeight: '40px',
-    minWidth: '40px',
-    lineHeight: 1,
   },
 };

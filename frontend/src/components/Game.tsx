@@ -19,6 +19,7 @@ import { getRandomPhrase } from '../lib/seedPhrases';
 import { Maze, type MazeHandle } from './Maze';
 import { Controls } from './Controls';
 import { WinModal } from './WinModal';
+import { SeedBar } from './SeedBar';
 import { HeaderSeedInput } from './HeaderSeedInput';
 import { HistorySidebar } from './HistorySidebar';
 import { MazeSizeWarning } from './MazeSizeWarning';
@@ -121,42 +122,6 @@ export function Game({ initialSeed, onSeedChange, active, replay }: GameProps) {
     if (meta) meta.setAttribute('content', colors.wallColor);
     document.body.style.backgroundColor = colors.pageBackgroundColor;
   }, [active, colors]);
-
-  // Lock the layout while the mobile seed input is open so the soft keyboard
-  // overlays the page instead of reflowing it. We:
-  // 1. Toggle a `seed-input-open` class on html+body — paired CSS swaps
-  //    `100dvh` (visual viewport, shrinks with keyboard) for `100vh` (large
-  //    viewport, stable). iOS Safari relies on this.
-  // 2. Append `interactive-widget=overlays-content` to the viewport meta —
-  //    a hint Chrome 108+ honors to overlay the keyboard.
-  useEffect(() => {
-    if (!isMobile || !seedBarOpen) return;
-    const html = document.documentElement;
-    const body = document.body;
-    const meta = document.querySelector(
-      'meta[name="viewport"]'
-    ) as HTMLMetaElement | null;
-    const previousViewport = meta?.getAttribute('content') ?? null;
-    html.classList.add('seed-input-open');
-    body.classList.add('seed-input-open');
-    if (
-      meta &&
-      previousViewport &&
-      !previousViewport.includes('interactive-widget')
-    ) {
-      meta.setAttribute(
-        'content',
-        `${previousViewport}, interactive-widget=overlays-content`
-      );
-    }
-    return () => {
-      html.classList.remove('seed-input-open');
-      body.classList.remove('seed-input-open');
-      if (meta && previousViewport) {
-        meta.setAttribute('content', previousViewport);
-      }
-    };
-  }, [isMobile, seedBarOpen]);
 
   // Initialize game from seed
   const initGame = useCallback(
@@ -502,15 +467,7 @@ export function Game({ initialSeed, onSeedChange, active, replay }: GameProps) {
     >
       {isMobile ? (
         <>
-          <span
-            style={{
-              ...styles.stat,
-              ...statMobileStyle,
-              ...styles.statMobileMoves,
-              backgroundColor: colors.uiAccentColor,
-              color: buttonTextColor,
-            }}
-          >
+          <span style={{ ...styles.stat, ...statMobileStyle }}>
             Moves: <strong>{gameState.moveCount}</strong>
           </span>
           <span
@@ -603,76 +560,55 @@ export function Game({ initialSeed, onSeedChange, active, replay }: GameProps) {
       >
         {isMobile ? (
           <>
-            {seedBarOpen ? (
-              <div
-                style={{
-                  ...styles.wordmarkRow,
-                  ...styles.wordmarkRowMobile,
-                }}
+            <div
+              style={{
+                ...styles.wordmarkRow,
+                ...styles.wordmarkRowMobile,
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleResetToDefault}
+                style={styles.wordmarkButton}
+                aria-label="Reset to initial maze"
+                title="Reset to initial maze"
               >
-                <HeaderSeedInput
-                  onStartGame={handleSeedBarStart}
-                  onCancel={handleSeedBarCancel}
-                  accentColor={colors.uiAccentColor}
-                  textColor={getContrastColor(colors.headerBackgroundColor)}
-                  compact
+                <Wordmark
+                  text={'maze♚\n♚king'}
+                  pixelSize={3}
+                  color={colors.textBackgroundColor}
+                  zkColor={colors.zkBackgroundColor}
+                  crownColor={colors.crownBackgroundColor}
+                  ariaLabel="MAZEKING"
                 />
-              </div>
-            ) : (
-              <>
-                <div
-                  style={{
-                    ...styles.wordmarkRow,
-                    ...styles.wordmarkRowMobile,
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={handleResetToDefault}
-                    style={styles.wordmarkButton}
-                    aria-label="Reset to initial maze"
-                    title="Reset to initial maze"
-                  >
-                    <Wordmark
-                      text={'maze♚\n♚king'}
-                      pixelSize={3}
-                      color={colors.textBackgroundColor}
-                      zkColor={colors.zkBackgroundColor}
-                      crownColor={colors.crownBackgroundColor}
-                      ariaLabel="MAZEKING"
-                    />
-                  </button>
-                  <div style={styles.headerSpacer} />
-                  <button
-                    onClick={() => setHistorySidebarOpen(true)}
-                    style={{
-                      ...styles.mobileIconButton,
-                      borderColor: getContrastColor(
-                        colors.headerBackgroundColor
-                      ),
-                      color: getContrastColor(colors.headerBackgroundColor),
-                    }}
-                    title="History"
-                    aria-label="Open history"
-                  >
-                    🕘
-                  </button>
-                  <button
-                    onClick={handleNewMaze}
-                    style={{
-                      ...styles.mobilePrimaryCta,
-                      backgroundColor: colors.uiAccentColor,
-                      color: buttonTextColor,
-                    }}
-                    title="Start a new game"
-                    aria-label="New game"
-                  >
-                    + New
-                  </button>
-                </div>
-                <div style={styles.mobileStatsRow}>{statsGroupNode}</div>
-              </>
-            )}
+              </button>
+              <div style={styles.headerSpacer} />
+              <button
+                onClick={() => setHistorySidebarOpen(true)}
+                style={{
+                  ...styles.mobileIconButton,
+                  borderColor: getContrastColor(colors.headerBackgroundColor),
+                  color: getContrastColor(colors.headerBackgroundColor),
+                }}
+                title="History"
+                aria-label="Open history"
+              >
+                🕘
+              </button>
+              <button
+                onClick={handleNewMaze}
+                style={{
+                  ...styles.mobilePrimaryCta,
+                  backgroundColor: colors.uiAccentColor,
+                  color: buttonTextColor,
+                }}
+                title="Start a new game"
+                aria-label="New game"
+              >
+                + New
+              </button>
+            </div>
+            <div style={styles.mobileStatsRow}>{statsGroupNode}</div>
           </>
         ) : (
           <div style={styles.headerRowDesktop}>
@@ -862,10 +798,10 @@ export function Game({ initialSeed, onSeedChange, active, replay }: GameProps) {
       {isMobile && !seedBarOpen && (
         <Controls
           onMove={handleMove}
+          onNewGame={handleNewMaze}
           onHistory={() => setHistorySidebarOpen(true)}
           onShare={handleCopyLink}
           onRestart={handlePlayAgain}
-          onViewCollection={() => navigate('/mazes')}
           disabled={gameState.gameWon}
           accentColor={colors.uiAccentColor}
           wallColor={colors.wallColor}
@@ -894,6 +830,14 @@ export function Game({ initialSeed, onSeedChange, active, replay }: GameProps) {
           navigate('/mazes');
         }}
       />
+
+      {isMobile && (
+        <SeedBar
+          isOpen={seedBarOpen}
+          onStartGame={handleSeedBarStart}
+          onCancel={handleSeedBarCancel}
+        />
+      )}
 
       <HistorySidebar
         isOpen={historySidebarOpen}
@@ -1034,11 +978,6 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: 1.2,
     whiteSpace: 'nowrap',
     color: '#f0f0f0',
-  },
-  statMobileMoves: {
-    padding: '3px 10px',
-    borderRadius: '999px',
-    fontWeight: 700,
   },
   headerSpacer: {
     flex: 1,
