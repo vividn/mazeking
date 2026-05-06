@@ -1,6 +1,18 @@
 /**
  * Seeded pseudo-random number generator using mulberry32 algorithm.
  * Same seed always produces the same sequence of random numbers.
+ *
+ * ⚠️ CONSENSUS-CRITICAL FILE — see ma-5yi
+ *
+ * `hashString`, `createRng` (mulberry32), and the `nextInt`/`shuffle`/`pick`
+ * derivations are the deterministic substrate behind every wall-removal
+ * decision in `mazeGenerator.ts`. A single-bit change to any of these
+ * functions shifts the maze layout for every existing seed → mazeHash →
+ * tokenID. Treat this file as a frozen contract once mainnet ships.
+ *
+ * Post-mainnet edits require a coordinated migration plan AND a
+ * `consensus-critical-change: <bead-id>` line in the commit body.
+ * The lint gate `just check-consensus-critical` enforces this.
  */
 
 function hashString(str: string): number {

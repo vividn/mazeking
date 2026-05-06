@@ -420,6 +420,7 @@ lint:
     @echo -e "{{BLUE}}[lint]{{NC}} Linting all code..."
     @just check-abi-drift
     @just check-no-fr-tostring
+    @just check-consensus-critical
     @just lint-contracts
     @just lint-frontend
     @echo -e "{{GREEN}}[lint]{{NC}} Linting complete!"
@@ -460,6 +461,20 @@ check-no-fr-tostring:
         exit 1
     fi
     echo -e "{{GREEN}}[fr-tostring]{{NC}} No direct Fr.toString() calls. ✓"
+
+# CI gate: ensure consensus-critical files (those that feed mazeHash → tokenID)
+# still bear the CONSENSUS-CRITICAL marker, and that any branch modifying one
+# of them carries a `consensus-critical-change: <bead-id>` ack in a commit
+# message. See scripts/check-consensus-critical.js and bead ma-5yi.
+check-consensus-critical:
+    @echo -e "{{BLUE}}[consensus]{{NC}} Checking consensus-critical markers + change ack..."
+    {{node}} {{scripts_dir}}/check-consensus-critical.js
+
+# Self-test for check-consensus-critical: artificially mutates a registered
+# file and a marker, confirms the gate fires in each case. Restores via trap.
+test-consensus-critical:
+    @echo -e "{{BLUE}}[consensus]{{NC}} Running check-consensus-critical self-tests..."
+    bash {{scripts_dir}}/check-consensus-critical.test.sh
 
 # Lint contract code
 lint-contracts:

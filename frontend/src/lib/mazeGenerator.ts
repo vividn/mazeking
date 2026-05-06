@@ -1,3 +1,20 @@
+/**
+ * ⚠️ CONSENSUS-CRITICAL FILE — see ma-5yi
+ *
+ * Layout constants and the orchestration order in `generateMaze` below feed
+ * directly into the packed-cell bytes that get hashed to produce `mazeHash`,
+ * which IS the on-chain tokenID (see `tokenId.ts`). Any change to a layout
+ * constant, the RNG draw order, or the step sequence in `generateMaze`
+ * silently re-mints every existing seed under a new tokenID.
+ *
+ * Post-mainnet edits require a coordinated migration plan AND a
+ * `consensus-critical-change: <bead-id>` line in the commit body.
+ * Pre-mainnet edits must regenerate Pedersen fixtures
+ * (`just regen-pedersen-fixtures`) and re-run the full test suite.
+ *
+ * The lint gate `just check-consensus-critical` enforces marker presence
+ * and commit-message acks for changes to this file.
+ */
 import { createRng, type Rng } from './seededRandom';
 import {
   getCharWidth,
@@ -9,6 +26,7 @@ import {
 } from './pixelFont';
 import { CellType, type Cell, type MazeData, type Position } from '../types';
 
+// CONSENSUS-CRITICAL: changing any layout constant below changes mazeHash → tokenID for every seed.
 // Pixel font geometry: 8 cells from ascender line (row 0) to baseline (row 7).
 // Descender characters (g, j, p, q, y) extend 2 rows below baseline; layout
 // treats CHAR_HEIGHT as the canonical line height so descenders draw into the
@@ -17,7 +35,9 @@ export const CHAR_HEIGHT = 8;
 const CHAR_SPACING = 1;
 const LINE_SPACING = 3;
 
-// Wordmark margin: exactly 4 cells of breathing room around the rendered text.
+// CONSENSUS-CRITICAL: wordmark margin. Bishop tightened this 3× (ma-kj9, ma-1mv,
+// ma-kwb) chasing visual balance; each change silently changed mint identity for
+// the same seed. Exactly 4 cells of breathing room around the rendered text.
 // - Top: 4 cells above the topmost filled cell of the first line. For words
 //   with ascenders ('high'), that's row 0 (ascender line). For x-height-only
 //   words ('snow'), the line shifts up so the visible cap-/x-height row sits
@@ -28,6 +48,7 @@ const LINE_SPACING = 3;
 // floor — so every render produces identical, verifiable counts.
 export const WORDMARK_MARGIN = 4;
 
+// CONSENSUS-CRITICAL: line-wrap threshold drives lines[] arrangement → maze height.
 const WRAP_WIDTH_CELLS = 50;
 
 // Helper to check if a cell is any type of text cell
@@ -661,9 +682,11 @@ export interface GenerateOptions {
   debug?: boolean;
 }
 
-// Fraction of remaining internal non-text walls to knock down after the
-// spanning-tree maze is built, introducing cycles so multiple paths exist
-// between any two cells (vs the single path a pure spanning tree gives).
+// CONSENSUS-CRITICAL: cycle-injection ratio determines which extra walls are
+// removed → packed-cell bytes → mazeHash. Fraction of remaining internal
+// non-text walls to knock down after the spanning-tree maze is built,
+// introducing cycles so multiple paths exist between any two cells (vs the
+// single path a pure spanning tree gives).
 const EXTRA_PATH_WALL_REMOVAL_RATIO = 0.02;
 
 // Remove ~EXTRA_PATH_WALL_REMOVAL_RATIO of remaining internal walls between
@@ -749,6 +772,10 @@ function debugRemoveInternalWalls(maze: MazeData, rng: Rng): void {
   }
 }
 
+// CONSENSUS-CRITICAL: step order in generateMaze drives RNG draw order. Reordering
+// steps 1–5b (or inserting/removing any rng.* call) shifts the entire maze layout
+// for every seed, even if individual functions are unchanged. The debug branch
+// (5c) is gated on `opts.debug` and only runs for debug-mode seeds.
 export function generateMaze(
   seed: string,
   opts: GenerateOptions = {}

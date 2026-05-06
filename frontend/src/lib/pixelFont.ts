@@ -1,3 +1,18 @@
+/**
+ * ⚠️ CONSENSUS-CRITICAL FILE — see ma-5yi
+ *
+ * The PIXEL_FONT glyph table, getCharWidth/getTextDimensions/getTextTopRow
+ * (which feed `calculateMazeDimensions` in mazeGenerator.ts), getCharPattern
+ * (which marks text cells), getCharacterBoundaries (which drives entry-point
+ * placement), and calculateEntryCountRange (which controls how many entries
+ * are punched per letter region) all feed packed-cell bytes → mazeHash →
+ * tokenID. Editing any glyph or any of these functions changes mint identity
+ * for every existing seed.
+ *
+ * Post-mainnet edits require a coordinated migration plan AND a
+ * `consensus-critical-change: <bead-id>` line in the commit body.
+ * The lint gate `just check-consensus-critical` enforces this.
+ */
 // 8-cell tall pixel font with traversible paths through each letter
 // Each character is represented as a 2D boolean array where true = filled/wall cell
 // Letters are designed with internal passages that can be walked through
@@ -12,6 +27,9 @@ function p(rows: string[]): CharPattern {
   return rows.map((row) => row.split('').map((c) => c === '#'));
 }
 
+// CONSENSUS-CRITICAL: every cell in PIXEL_FONT is a hashed maze input. Adding,
+// removing, or editing any glyph (or its dimensions) changes mazeHash → tokenID
+// for every seed that contains that character.
 // Font designed with paths through letters:
 // - Each letter has at least one traversible path
 // - Paths are connected internally
@@ -907,6 +925,9 @@ export function getCharacterBoundaries(char: string): CharacterBoundaries {
  * The actual count is randomly selected within this range by the caller.
  * External: min 3, max scales with boundary size
  * Internal: min 1, max scales with boundary size
+ *
+ * CONSENSUS-CRITICAL: changing the {min, max} formula shifts how many walls
+ * are knocked out per letter region → packed-cell bytes → mazeHash → tokenID.
  */
 export function calculateEntryCountRange(
   boundarySize: number,

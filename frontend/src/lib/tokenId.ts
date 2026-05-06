@@ -10,6 +10,18 @@
  *
  * The layout encodes 4 entity positions in the header (king, robe, scepter,
  * goal) — see `serializeLayoutBytes` for the canonical byte order.
+ *
+ * ⚠️ CONSENSUS-CRITICAL FILE — see ma-5yi
+ *
+ * `serializeLayoutBytes` writes the exact byte stream that gets hashed.
+ * The header field order (width, height, sx, sy, robe_x, robe_y, scepter_x,
+ * scepter_y, gx, gy), big-endian u16 encoding, header offset, and packed-cell
+ * placement must mirror the Noir `compute_maze_hash` byte layout exactly.
+ * Any drift changes mazeHash → tokenID for every existing seed.
+ *
+ * Post-mainnet edits require a coordinated migration plan AND a
+ * `consensus-critical-change: <bead-id>` line in the commit body.
+ * The lint gate `just check-consensus-critical` enforces this.
  */
 import { generateMaze } from './mazeGenerator';
 import { isDebugSeedActive } from './debugSeed';

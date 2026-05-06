@@ -11,6 +11,20 @@
  *
  * Byte packing: high nibble = even cell, low nibble = odd cell
  * Example: byte[0] contains cells[0] (high) and cells[1] (low)
+ *
+ * ⚠️ CONSENSUS-CRITICAL FILE — see ma-5yi
+ *
+ * The bit layout in `encodeCell`/`decodeCell`, the nibble packing in
+ * `packCells`/`unpackCells`, and the row-major iteration order in
+ * `serializeForZk` produce the byte stream that gets Pedersen-hashed into
+ * mazeHash → tokenID. Reordering bits, nibbles, or cell-iteration changes
+ * mint identity for every existing seed and silently breaks the Noir
+ * circuit's `compute_maze_hash` agreement (see `maze_prover/src/main.nr`).
+ *
+ * Post-mainnet edits require a coordinated migration plan AND a
+ * `consensus-critical-change: <bead-id>` line in the commit body.
+ * The lint gate `just check-consensus-critical` enforces this; the related
+ * gate `just check-abi-drift` catches Sol/circuit/TS shape divergence.
  */
 
 import {
@@ -35,6 +49,9 @@ export const DIR_LEFT = 3;
 /**
  * Encode a single cell into a 4-bit value.
  * bit 3: southWall, bit 2: eastWall, bits 1-0: cellType
+ *
+ * CONSENSUS-CRITICAL: bit layout must match the Noir circuit's cell decode
+ * (see maze_prover/src/main.nr). Any reordering changes mazeHash → tokenID.
  */
 export function encodeCell(cell: Cell): number {
   let data = 0;
@@ -63,6 +80,9 @@ export function decodeCell(data: number): Cell {
  * Pack two 4-bit cells into one byte.
  * @param evenCell - Cell at even index (high nibble)
  * @param oddCell - Cell at odd index (low nibble)
+ *
+ * CONSENSUS-CRITICAL: high-nibble = even-index, low-nibble = odd-index. Swapping
+ * nibble assignment changes every packed byte → mazeHash → tokenID.
  */
 export function packCells(evenCell: number, oddCell: number): number {
   return ((evenCell & 0x0f) << 4) | (oddCell & 0x0f);
