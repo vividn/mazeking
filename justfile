@@ -327,9 +327,16 @@ format-circuits:
 # Lint all code
 lint:
     @echo -e "{{BLUE}}[lint]{{NC}} Linting all code..."
+    @just check-abi-drift
     @just lint-contracts
     @just lint-frontend
     @echo -e "{{GREEN}}[lint]{{NC}} Linting complete!"
+
+# Build-time gate: circuit ↔ MazeConstants ↔ ProverInput must agree (ma-3xv).
+# Fails fast on public-input divergence — the class of bug that invalidated
+# the deployed verifier in ma-6ff.
+check-abi-drift:
+    @{{node}} {{scripts_dir}}/check-abi-drift.js
 
 # Lint contract code
 lint-contracts:
@@ -407,6 +414,7 @@ integration-test: _ensure-anvil
 # Build everything for production
 build:
     @echo -e "{{BLUE}}[build]{{NC}} Building for production..."
+    @just check-abi-drift
     @just compile-circuits
     @just _build-contracts
     @just _build-frontend
