@@ -15,6 +15,7 @@ import { Game, type ReplayPayload } from './components/Game';
 import { MyMazesPage } from './components/MyMazesPage';
 import { GalleryPage } from './components/GalleryPage';
 import { TestnetBanner } from './components/TestnetBanner';
+import { DebugWinModalButton } from './components/DebugWinModalButton';
 import { filterToValidChars } from './lib/pixelFont';
 import { config } from './lib/wagmi';
 import { MAX_MAZE_CELLS } from './lib/mazeConstants.generated';
@@ -142,6 +143,7 @@ function AppShell() {
         </div>
         {!isGameRoute && <Outlet context={ctx} />}
       </div>
+      <DebugWinModalButton />
     </div>
   );
 }

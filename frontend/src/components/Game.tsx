@@ -877,8 +877,8 @@ export function Game({ initialSeed, onSeedChange, active, replay }: GameProps) {
       <WinModal
         isOpen={gameState.gameWon && !winModalDismissed}
         moveCount={gameState.moveCount}
-        onPlayAgain={handlePlayAgain}
         onNewMaze={handleNewMaze}
+        onDismiss={() => setWinModalDismissed(true)}
         colors={colors}
         onCopyLink={handleCopyLink}
         copied={copied}
