@@ -644,7 +644,7 @@ export function Game({ initialSeed, onSeedChange, active, replay }: GameProps) {
                   </button>
                   <div style={styles.headerSpacer} />
                   <button
-                    onClick={() => setHistorySidebarOpen(true)}
+                    onClick={() => navigate('/mazes')}
                     style={{
                       ...styles.mobileIconButton,
                       borderColor: getContrastColor(
@@ -652,10 +652,10 @@ export function Game({ initialSeed, onSeedChange, active, replay }: GameProps) {
                       ),
                       color: getContrastColor(colors.headerBackgroundColor),
                     }}
-                    title="History"
-                    aria-label="Open history"
+                    title="Open my mazes"
+                    aria-label="View collection"
                   >
-                    🕘
+                    👑
                   </button>
                   <button
                     onClick={handleNewMaze}
@@ -865,7 +865,6 @@ export function Game({ initialSeed, onSeedChange, active, replay }: GameProps) {
           onHistory={() => setHistorySidebarOpen(true)}
           onShare={handleCopyLink}
           onRestart={handlePlayAgain}
-          onViewCollection={() => navigate('/mazes')}
           disabled={gameState.gameWon}
           accentColor={colors.uiAccentColor}
           wallColor={colors.wallColor}

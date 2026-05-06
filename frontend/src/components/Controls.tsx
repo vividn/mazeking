@@ -6,7 +6,6 @@ interface ControlsProps {
   onHistory: () => void;
   onShare: () => void;
   onRestart: () => void;
-  onViewCollection: () => void;
   disabled?: boolean;
   accentColor: string;
   wallColor: string;
@@ -24,7 +23,6 @@ export const Controls: React.FC<ControlsProps> = ({
   onHistory,
   onShare,
   onRestart,
-  onViewCollection,
   disabled = false,
   accentColor,
   wallColor,
@@ -145,15 +143,6 @@ export const Controls: React.FC<ControlsProps> = ({
             />
           </div>
           <div style={styles.actionGrid} data-testid="controls-action-grid">
-            <ActionButton
-              label="Collection"
-              onPress={() => {
-                setExpanded(false);
-                onViewCollection();
-              }}
-              bg={wallColor}
-              fg={wallFg}
-            />
             <ActionButton
               label="History"
               onPress={() => {
@@ -397,10 +386,11 @@ const styles: Record<string, React.CSSProperties> = {
   actionGrid: {
     flex: 1,
     display: 'grid',
-    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-    gridTemplateRows: 'repeat(2, 40px)',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gridTemplateRows: '40px',
     gap: '6px',
     minWidth: 0,
+    alignSelf: 'center',
   },
   actionButton: {
     height: '40px',
