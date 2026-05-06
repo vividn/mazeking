@@ -108,6 +108,16 @@ generate-palette:
     node {{scripts_dir}}/generate-palette.js
     @echo -e "{{GREEN}}[palette]{{NC}} Palette generation complete!"
 
+# Regenerate cross-layer Pedersen fixtures (TS↔Noir byte-encoding gate).
+# Reads maze_prover/test_data/layout_fixtures.json, codegens a Noir test
+# that hashes each fixture, runs nargo to capture the hashes, and writes
+# frontend/src/lib/__tests__/pedersen_fixtures.json. Idempotent — running
+# twice produces no diff. See ma-bu3.
+regen-pedersen-fixtures:
+    @echo -e "{{BLUE}}[pedersen-fixtures]{{NC}} Regenerating cross-layer fixtures..."
+    {{node}} {{scripts_dir}}/regen-pedersen-fixtures.js
+    @echo -e "{{GREEN}}[pedersen-fixtures]{{NC}} Pedersen fixtures regenerated!"
+
 # CI gate: regenerate palette artifacts and assert no diff. Catches both
 # hand-edits to the generated files AND missed regen after recipe edits.
 verify-palette:

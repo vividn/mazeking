@@ -1,0 +1,79 @@
+{
+  "_doc": [
+    "Source-of-truth fixtures for the cross-layer Pedersen hash invariant.",
+    "Edited by hand. The recipe `just regen-pedersen-fixtures` regenerates",
+    "`maze_prover/src/fixtures_codegen.nr` and",
+    "`frontend/src/lib/__tests__/pedersen_fixtures.json` from this file.",
+    "",
+    "Fixtures are chosen to exercise byte-encoding boundaries that matter for",
+    "the 50-field × 31-byte Pedersen packing of the 1520-byte canonical layout:",
+    "  - field 0  covers bytes [ 0, 31)  (entire 20-byte header + packed[0..11])",
+    "  - field 1  covers bytes [31, 62)  (packed[11..42])",
+    "  - field 49 covers bytes [1519, 1550) but only byte 1519 (=packed[1499])",
+    "    is in the layout — the remaining 30 bytes are zero-padded carry.",
+    "",
+    "Layout shape per fixture:",
+    "  name              slug used in test names and the FIXTURE_HASH:<name> prefix",
+    "  description       human-readable note about what this fixture exercises",
+    "  header            10 BE u16s: width, height, sx, sy, robe(x,y), scepter(x,y), goal(x,y)",
+    "  packedFill        default byte (0..255) for every cell of packed_cells[1500]",
+    "  packedOverrides   optional sparse [idx, byte] overrides applied after fill"
+  ],
+  "fixtures": [
+    {
+      "name": "all-zero",
+      "description": "Sentinel: every byte zero. Pinned across layers since ma-6cr.8.",
+      "header": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "packedFill": 0
+    },
+    {
+      "name": "all-0xff",
+      "description": "Every byte 0xFF. Exercises the high-byte path through every field, including the trailing-pad byte at index 1519.",
+      "header": [65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535],
+      "packedFill": 255
+    },
+    {
+      "name": "minimal-10x10",
+      "description": "Standard 10x10 header (matches mazeGenerator default), all-zero packed cells. Header-only baseline.",
+      "header": [10, 10, 0, 0, 9, 0, 1, 1, 5, 9],
+      "packedFill": 0
+    },
+    {
+      "name": "header-edge-bit",
+      "description": "10x10 header with packed_cells[0]=1. Pinned across layers since ma-6cr.8 — exercises field 0's header/packed-cells transition (bytes 19→20).",
+      "header": [10, 10, 0, 0, 9, 0, 1, 1, 5, 9],
+      "packedFill": 0,
+      "packedOverrides": [[0, 1]]
+    },
+    {
+      "name": "packed-cells-only",
+      "description": "Zero header, single nonzero byte in the middle of packed_cells. Exercises a non-header byte that does not coincide with field boundaries.",
+      "header": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "packedFill": 0,
+      "packedOverrides": [[750, 170]]
+    },
+    {
+      "name": "max-cells-header",
+      "description": "Maximum u16 fields throughout the header. Exercises high-byte serialization of every header u16 (bytes 0..20 all 0xFF) without touching packed_cells.",
+      "header": [65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535],
+      "packedFill": 0
+    },
+    {
+      "name": "field-boundary-byte-30-31",
+      "description": "Bytes at packed_cells[10] (last byte of field 0, byte index 30) and packed_cells[11] (first byte of field 1, byte index 31). Catches drift in the 31-byte chunk transition.",
+      "header": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "packedFill": 0,
+      "packedOverrides": [
+        [10, 1],
+        [11, 128]
+      ]
+    },
+    {
+      "name": "trailing-pad-byte-1519",
+      "description": "Single nonzero byte at packed_cells[1499] (= byte index 1519 = field 49's only layout byte). Catches drift in the carry-byte zero-padding of the final field — invisible to the two original fixtures.",
+      "header": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "packedFill": 0,
+      "packedOverrides": [[1499, 255]]
+    }
+  ]
+}

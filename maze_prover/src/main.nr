@@ -2,6 +2,7 @@ mod types;
 mod position;
 mod walls;
 mod hash;
+mod fixtures_codegen;
 
 use hash::compute_maze_hash;
 use position::next_position;
