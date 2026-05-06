@@ -82,16 +82,11 @@ export function MazeLightbox({
             </div>
           )}
         </div>
-        <div style={{ ...styles.seedRow, color: fg }}>
-          {seed ? (
+        {seed && (
+          <div style={{ ...styles.seedRow, color: fg }}>
             <span style={styles.seedText}>{seed}</span>
-          ) : (
-            <span style={styles.unknownText}>
-              Seed unknown on this device
-              {fallbackLabel ? ` · ${fallbackLabel}` : ''}
-            </span>
-          )}
-        </div>
+          </div>
+        )}
         {onPlay && (seed || canReplayWithoutSeed) && (
           <button
             type="button"
@@ -183,10 +178,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   seedText: {
     fontFamily: 'monospace',
-  },
-  unknownText: {
-    opacity: 0.7,
-    fontSize: '13px',
   },
   playButton: {
     border: 'none',
