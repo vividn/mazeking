@@ -6,7 +6,6 @@ interface ControlsProps {
   onHistory: () => void;
   onShare: () => void;
   onRestart: () => void;
-  onViewCollection: () => void;
   disabled?: boolean;
   accentColor: string;
   wallColor: string;
@@ -24,7 +23,6 @@ export const Controls: React.FC<ControlsProps> = ({
   onHistory,
   onShare,
   onRestart,
-  onViewCollection,
   disabled = false,
   accentColor,
   wallColor,
@@ -144,16 +142,7 @@ export const Controls: React.FC<ControlsProps> = ({
               fg={arrowFg}
             />
           </div>
-          <div style={styles.actionGrid} data-testid="controls-action-grid">
-            <ActionButton
-              label="Collection"
-              onPress={() => {
-                setExpanded(false);
-                onViewCollection();
-              }}
-              bg={wallColor}
-              fg={wallFg}
-            />
+          <div style={styles.actionRow} data-testid="controls-action-grid">
             <ActionButton
               label="History"
               onPress={() => {
@@ -394,18 +383,19 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
   },
-  actionGrid: {
+  actionRow: {
     flex: 1,
     display: 'grid',
-    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-    gridTemplateRows: 'repeat(2, 40px)',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gridAutoRows: '40px',
     gap: '6px',
     minWidth: 0,
+    alignSelf: 'center',
   },
   actionButton: {
     height: '40px',
-    padding: '0 10px',
-    fontSize: '14px',
+    padding: '0 6px',
+    fontSize: '13px',
     fontWeight: 700,
     border: 'none',
     borderRadius: '8px',
@@ -417,6 +407,7 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
+    minWidth: 0,
   },
   compactBar: {
     pointerEvents: 'auto',
