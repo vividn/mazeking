@@ -14,6 +14,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Game } from './components/Game';
 import { MyMazesPage } from './components/MyMazesPage';
 import { GalleryPage } from './components/GalleryPage';
+import { TestnetBanner } from './components/TestnetBanner';
 import { filterToValidChars } from './lib/pixelFont';
 import { config } from './lib/wagmi';
 import { MAX_MAZE_CELLS } from './lib/mazeConstants.generated';
@@ -91,22 +92,32 @@ function AppShell() {
   const ctx: OutletCtx = { seed, selectSeed };
 
   return (
-    <div style={{ width: '100%', height: '100%' }}>
-      <div
-        style={{
-          display: isGameRoute ? 'flex' : 'none',
-          flexDirection: 'column',
-          width: '100%',
-          height: '100%',
-        }}
-      >
-        <Game
-          initialSeed={seed}
-          onSeedChange={handleSeedChange}
-          active={isGameRoute}
-        />
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        width: '100%',
+        height: '100%',
+      }}
+    >
+      <TestnetBanner />
+      <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+        <div
+          style={{
+            display: isGameRoute ? 'flex' : 'none',
+            flexDirection: 'column',
+            width: '100%',
+            height: '100%',
+          }}
+        >
+          <Game
+            initialSeed={seed}
+            onSeedChange={handleSeedChange}
+            active={isGameRoute}
+          />
+        </div>
+        {!isGameRoute && <Outlet context={ctx} />}
       </div>
-      {!isGameRoute && <Outlet context={ctx} />}
     </div>
   );
 }
