@@ -145,15 +145,26 @@ function ConfettiCanvas({ colors, active }: ConfettiCanvasProps) {
 interface ProofPlaceholderProps {
   size: number;
   accentColor: string;
+  /** When true, render the pulsing squares + scan line (proving state). */
+  animated: boolean;
+  /** Foreground content (e.g. the Generate ZK Proof CTA). Sits above any animation. */
+  children?: React.ReactNode;
+  ariaLabel: string;
 }
 
 /**
  * Pre-proof placeholder: solid black box at the proof image's final
- * dimensions, with concentric squares pulsing in the accent color.
- * Replaces the linear progress bar — a polished "something is happening"
- * affordance, no concrete progress claim.
+ * dimensions. Renders pulsing concentric squares + a scan line when
+ * `animated` (proving state); otherwise just the dark box. Children render
+ * on top so the idle state can host a centered Generate ZK Proof button.
  */
-function ProofPlaceholder({ size, accentColor }: ProofPlaceholderProps) {
+function ProofPlaceholder({
+  size,
+  accentColor,
+  animated,
+  children,
+  ariaLabel,
+}: ProofPlaceholderProps) {
   return (
     <div
       data-testid="proof-placeholder"
@@ -166,38 +177,57 @@ function ProofPlaceholder({ size, accentColor }: ProofPlaceholderProps) {
         position: 'relative',
         overflow: 'hidden',
         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
       role="status"
-      aria-label="Generating proof"
+      aria-label={ariaLabel}
     >
-      {[0, 1, 2].map((i) => (
+      {animated &&
+        [0, 1, 2].map((i) => (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              width: '40%',
+              height: '40%',
+              border: `2px solid ${accentColor}`,
+              borderRadius: '4px',
+              transform: 'translate(-50%, -50%)',
+              animation: `proofPulse 1.6s ease-in-out ${i * 0.4}s infinite`,
+              opacity: 0,
+            }}
+          />
+        ))}
+      {animated && (
         <div
-          key={i}
           style={{
             position: 'absolute',
-            top: '50%',
-            left: '50%',
-            width: '40%',
-            height: '40%',
-            border: `2px solid ${accentColor}`,
-            borderRadius: '4px',
-            transform: 'translate(-50%, -50%)',
-            animation: `proofPulse 1.6s ease-in-out ${i * 0.4}s infinite`,
-            opacity: 0,
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '2px',
+            background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)`,
+            animation: 'proofScan 2.2s linear infinite',
           }}
         />
-      ))}
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '2px',
-          background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)`,
-          animation: 'proofScan 2.2s linear infinite',
-        }}
-      />
+      )}
+      {children && (
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -290,13 +320,6 @@ export function WinModal({
   const proofReady = proofState.stage === 'complete';
   const minting = isPending || isConfirming;
 
-  // Auto-start proof generation when the modal opens.
-  useEffect(() => {
-    if (!isOpen) return;
-    if (proofState.stage !== 'idle') return;
-    void startProofGeneration();
-  }, [isOpen, proofState.stage, startProofGeneration]);
-
   const handleMint = async () => {
     if (mockMode) {
       console.log('[mockMode] Skipping real mint; visual review only.');
@@ -364,10 +387,17 @@ export function WinModal({
   } else if (mockMode) {
     mintLabel = proofReady ? 'Mint NFT (mock)' : 'Mint NFT';
     mintDisabled = !proofReady;
-    mintDisabledReason = proofReady ? null : 'Generating proof…';
+    mintDisabledReason = proofReady
+      ? null
+      : proofState.stage === 'idle'
+      ? 'Generate proof first'
+      : 'Generating proof…';
   } else if (!proofReady) {
     mintDisabled = true;
-    mintDisabledReason = 'Generating proof…';
+    mintDisabledReason =
+      proofState.stage === 'idle'
+        ? 'Generate proof first'
+        : 'Generating proof…';
   } else if (!isConnected) {
     mintLabel = 'Connect Wallet';
   } else if (!onSepolia) {
@@ -578,6 +608,21 @@ export function WinModal({
     color: pickTextColor(colors.goalColor),
   };
 
+  const generateProofButtonStyle: React.CSSProperties = {
+    padding: '10px 14px',
+    fontSize: '13px',
+    fontWeight: 700,
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    backgroundColor: colors.uiAccentColor,
+    color: pickTextColor(colors.uiAccentColor),
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.45)',
+    fontFamily: 'inherit',
+    whiteSpace: 'nowrap',
+    transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+  };
+
   const reasonTextStyle: React.CSSProperties = {
     fontSize: '11px',
     color: pickTextColor(colors.textBackgroundColor),
@@ -750,11 +795,36 @@ export function WinModal({
                     proofSizeBytes={proofState.proof.length}
                     colors={colors}
                   />
+                ) : proofState.stage === 'idle' ? (
+                  <>
+                    <ProofPlaceholder
+                      size={proofImageSize}
+                      accentColor={colors.uiAccentColor}
+                      animated={false}
+                      ariaLabel="Generate zero-knowledge proof"
+                    >
+                      <button
+                        type="button"
+                        className="win-action-button"
+                        style={generateProofButtonStyle}
+                        onClick={() => void startProofGeneration()}
+                        data-testid="generate-proof-button"
+                        aria-label="Generate zero-knowledge proof of your solution"
+                      >
+                        Generate ZK Proof
+                      </button>
+                    </ProofPlaceholder>
+                    <div style={helperTextStyle} aria-live="polite">
+                      {' '}
+                    </div>
+                  </>
                 ) : (
                   <>
                     <ProofPlaceholder
                       size={proofImageSize}
                       accentColor={colors.uiAccentColor}
+                      animated={proofState.stage !== 'error'}
+                      ariaLabel="Generating proof"
                     />
                     <div style={helperTextStyle} aria-live="polite">
                       {proofState.stage === 'error'
