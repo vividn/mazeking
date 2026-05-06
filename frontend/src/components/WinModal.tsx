@@ -8,8 +8,6 @@ import { ProofImage } from './ProofImage';
 import { Maze } from './Maze';
 import { areContractsDeployed } from '../lib/contracts';
 import { sepolia } from 'wagmi/chains';
-import { computeTokenIdFromMazeHash } from '../lib/tokenId';
-import { rememberMint } from '../lib/mintRegistry';
 import { computeOptimalMoves, tierFromMoveCount } from '../lib/mazeSolver';
 import { pickTextColor } from '../lib/contrastText';
 import kingUrl from '../glyphs/king.png?url';
@@ -17,7 +15,6 @@ import kingUrl from '../glyphs/king.png?url';
 interface WinModalProps {
   isOpen: boolean;
   moveCount: number;
-  seed: string;
   onPlayAgain: () => void;
   onNewMaze: () => void;
   colors: ColorScheme;
@@ -142,7 +139,6 @@ function ConfettiCanvas({ colors, active }: ConfettiCanvasProps) {
 export function WinModal({
   isOpen,
   moveCount,
-  seed,
   onPlayAgain,
   onNewMaze,
   colors,
@@ -204,21 +200,6 @@ export function WinModal({
     isSuccess,
     errorMessage: mintErrorMessage,
   } = useMintNFT();
-
-  // On successful mint, persist tokenId↔seed locally so the My Mazes view can
-  // replay this maze even though the contract derives tokenId from the layout
-  // rather than from the seed string. Under the hash-as-public-input
-  // architecture (ma-6cr.6) the tokenId IS the mazeHash, which is the proof's
-  // first public input.
-  useEffect(() => {
-    if (!isSuccess || !proofState.publicInputs?.length) return;
-    try {
-      const tokenId = computeTokenIdFromMazeHash(proofState.publicInputs[0]);
-      rememberMint(tokenId, seed);
-    } catch (err) {
-      console.warn('Failed to record mint→seed mapping:', err);
-    }
-  }, [isSuccess, proofState.publicInputs, seed]);
 
   // Check if contracts are deployed on current chain
   const contractsDeployed = chain ? areContractsDeployed(chain.id) : false;

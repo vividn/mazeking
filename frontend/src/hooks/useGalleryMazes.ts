@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useAccount, usePublicClient } from 'wagmi';
-import type { Address, PublicClient } from 'viem';
-import { parseAbiItem } from 'viem';
+import type { Address, Hex, PublicClient } from 'viem';
+import { hexToBytes, parseAbiItem } from 'viem';
 import MazeKingNFTAbi from '../lib/abi/MazeKingNFT.json';
 import { getContractAddress } from '../lib/contracts';
-import { rememberMany, lookupSeed } from '../lib/mintRegistry';
 
 /**
  * How far back from the current block to scan event logs. Mirrors
@@ -31,6 +30,13 @@ export interface GalleryMaze {
   /** null when only the mint event is known (registrar didn't publish a seed). */
   seed: string | null;
   imageUrl: string | null;
+  /**
+   * Canonical layout bytes from `MazeKingNFT.layouts(tokenId)`. Used by
+   * `mazeFromLayoutBytes` to power replay for every gallery tile, including
+   * tokens whose seed was never published. Null when the chain returned no
+   * bytes (pre-renderer mints, RPC failure).
+   */
+  layout: Uint8Array | null;
   timesSolved: number;
   minMoves: number | null;
 }
@@ -207,19 +213,13 @@ export function useGalleryMazes(
         ]);
         if (cancelled) return;
 
-        // Hydrate the local seed registry so other views (My Mazes) can
-        // recover replay seeds for tokens minted on a different device.
-        // Only registered events carry the seed string.
-        rememberMany(registered);
-
         // Merge: registered tokens win (they have a seed string); fall back
         // to minted token ids for the rest. Same tokenId in both lists is
-        // deduped via the registered map.
+        // deduped via the registered map. Replay no longer depends on knowing
+        // a seed — every tile fetches its on-chain layout below.
         const registeredById = new Map(
           registered.map((r) => [r.tokenId.toString(), r.seed])
         );
-        const seedFor = (id: bigint): string | null =>
-          registeredById.get(id.toString()) ?? lookupSeed(id) ?? null;
 
         const mergedIds: bigint[] = [
           ...registered.map((r) => r.tokenId),
@@ -233,7 +233,7 @@ export function useGalleryMazes(
 
         const tokenIds = mergedIds;
 
-        const [disqResults, uriResults] = await Promise.all([
+        const [disqResults, uriResults, layoutResults] = await Promise.all([
           publicClient.multicall({
             contracts: tokenIds.map((id) => ({
               address: contractAddress,
@@ -252,6 +252,15 @@ export function useGalleryMazes(
             })),
             allowFailure: true,
           }),
+          publicClient.multicall({
+            contracts: tokenIds.map((id) => ({
+              address: contractAddress,
+              abi: MazeKingNFTAbi as never,
+              functionName: 'layouts',
+              args: [id],
+            })),
+            allowFailure: true,
+          }),
         ]);
         if (cancelled) return;
 
@@ -263,11 +272,17 @@ export function useGalleryMazes(
           const u = uriResults[i];
           const tokenUri =
             u && u.status === 'success' ? (u.result as string) : '';
+          const l = layoutResults[i];
+          const layout =
+            l && l.status === 'success' && (l.result as Hex).length > 2
+              ? hexToBytes(l.result as Hex)
+              : null;
           const agg = proofStats.get(tokenIds[i].toString());
           mazes.push({
             tokenId: tokenIds[i],
-            seed: seedFor(tokenIds[i]),
+            seed: registeredById.get(tokenIds[i].toString()) ?? null,
             imageUrl: decodeImageFromTokenUri(tokenUri),
+            layout,
             timesSolved: agg?.timesSolved ?? 0,
             minMoves: agg?.minMoves ?? null,
           });

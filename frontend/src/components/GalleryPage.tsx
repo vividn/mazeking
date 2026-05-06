@@ -17,7 +17,7 @@ function shortId(tokenId: bigint): string {
 export function GalleryPage() {
   const { loading, error, mazes } = useGalleryMazes(true);
   const [sort, setSort] = useState<SortMode>('solves');
-  const { seed, selectSeed } = useAppOutlet();
+  const { seed, selectReplay } = useAppOutlet();
   const colors = useMemo(() => generateColorScheme(seed), [seed]);
   const [zoomed, setZoomed] = useState<GalleryMaze | null>(null);
 
@@ -164,8 +164,16 @@ export function GalleryPage() {
           fallbackLabel={shortId(zoomed.tokenId)}
           colors={colors}
           onClose={() => setZoomed(null)}
+          canReplayWithoutSeed={zoomed.layout !== null}
           onPlay={
-            zoomed.seed ? () => selectSeed(zoomed.seed as string) : undefined
+            zoomed.layout
+              ? () =>
+                  selectReplay({
+                    layout: zoomed.layout as Uint8Array,
+                    tokenId: zoomed.tokenId,
+                    seed: zoomed.seed,
+                  })
+              : undefined
           }
         />
       )}

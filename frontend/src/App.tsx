@@ -11,7 +11,7 @@ import {
 } from 'react-router-dom';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Game } from './components/Game';
+import { Game, type ReplayPayload } from './components/Game';
 import { MyMazesPage } from './components/MyMazesPage';
 import { GalleryPage } from './components/GalleryPage';
 import { TestnetBanner } from './components/TestnetBanner';
@@ -39,6 +39,13 @@ export { MAX_MAZE_CELLS };
 export interface OutletCtx {
   seed: string;
   selectSeed: (seed: string) => void;
+  /**
+   * Hand the game a replay payload (decoded from on-chain `layouts(tokenId)`).
+   * Navigates to `/` and lets `<Game>` decode the layout via
+   * `mazeFromLayoutBytes`. Replaces the prior `selectSeed`-based replay path
+   * that relied on a localStorage seed→tokenId bridge.
+   */
+  selectReplay: (payload: ReplayPayload) => void;
 }
 
 export function useAppOutlet(): OutletCtx {
@@ -49,11 +56,15 @@ function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const [seed, setSeed] = useState<string>(readSeedFromURL);
+  // Active replay (decoded on-chain layout) overrides seed-driven play. The
+  // game returns to seed mode the next time `selectSeed` is called.
+  const [replay, setReplay] = useState<ReplayPayload | null>(null);
 
   const isGameRoute = location.pathname === '/';
 
   const handleSeedChange = useCallback((newSeed: string) => {
     setSeed(newSeed);
+    setReplay(null);
     const url = new URL(window.location.href);
     if (newSeed === DEFAULT_SEED) {
       url.searchParams.delete('seed');
@@ -69,10 +80,21 @@ function AppShell() {
   const selectSeed = useCallback(
     (newSeed: string) => {
       setSeed(newSeed);
+      setReplay(null);
       const params = new URLSearchParams();
       if (newSeed !== DEFAULT_SEED) params.set('seed', newSeed);
       const search = params.toString();
       navigate(search ? `/?${search}` : '/');
+    },
+    [navigate]
+  );
+
+  const selectReplay = useCallback(
+    (payload: ReplayPayload) => {
+      setReplay(payload);
+      // Drop any ?seed= from the URL — replay is identified by tokenId, not
+      // by a typeable seed string.
+      navigate('/');
     },
     [navigate]
   );
@@ -83,13 +105,14 @@ function AppShell() {
     const onPop = () => {
       if (window.location.pathname === '/') {
         setSeed(readSeedFromURL());
+        setReplay(null);
       }
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  const ctx: OutletCtx = { seed, selectSeed };
+  const ctx: OutletCtx = { seed, selectSeed, selectReplay };
 
   return (
     <div
@@ -114,6 +137,7 @@ function AppShell() {
             initialSeed={seed}
             onSeedChange={handleSeedChange}
             active={isGameRoute}
+            replay={replay}
           />
         </div>
         {!isGameRoute && <Outlet context={ctx} />}

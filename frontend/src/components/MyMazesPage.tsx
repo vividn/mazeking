@@ -15,7 +15,7 @@ function shortId(tokenId: bigint): string {
 export function MyMazesPage() {
   const { isConnected, address } = useAccount();
   const { loading, error, mazes } = useOwnedMazes(true);
-  const { seed, selectSeed } = useAppOutlet();
+  const { seed, selectReplay } = useAppOutlet();
   const colors = useMemo(() => generateColorScheme(seed), [seed]);
   const [zoomed, setZoomed] = useState<OwnedMaze | null>(null);
 
@@ -35,14 +35,14 @@ export function MyMazesPage() {
         key={maze.tokenId.toString()}
         className="my-mazes-tile"
         onClick={() => setZoomed(maze)}
-        title={maze.seed ? `Inspect: ${maze.seed}` : 'Inspect maze'}
+        title={`Inspect maze ${shortId(maze.tokenId)}`}
         style={{ ...styles.tile, color: textColor }}
       >
         <div style={{ ...styles.thumb, backgroundColor: 'rgba(0,0,0,0.25)' }}>
           {maze.imageUrl ? (
             <img
               src={maze.imageUrl}
-              alt={maze.seed ?? `Maze ${shortId(maze.tokenId)}`}
+              alt={`Maze ${shortId(maze.tokenId)}`}
               style={styles.thumbImg}
               draggable={false}
             />
@@ -121,12 +121,19 @@ export function MyMazesPage() {
       {zoomed && (
         <MazeLightbox
           imageUrl={zoomed.imageUrl}
-          seed={zoomed.seed}
+          seed={null}
           fallbackLabel={shortId(zoomed.tokenId)}
           colors={colors}
           onClose={() => setZoomed(null)}
+          canReplayWithoutSeed={zoomed.layout !== null}
           onPlay={
-            zoomed.seed ? () => selectSeed(zoomed.seed as string) : undefined
+            zoomed.layout
+              ? () =>
+                  selectReplay({
+                    layout: zoomed.layout as Uint8Array,
+                    tokenId: zoomed.tokenId,
+                  })
+              : undefined
           }
         />
       )}

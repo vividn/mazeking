@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useAccount, usePublicClient } from 'wagmi';
-import type { Address, PublicClient } from 'viem';
-import { parseAbiItem } from 'viem';
+import type { Address, Hex, PublicClient } from 'viem';
+import { hexToBytes, parseAbiItem } from 'viem';
 import MazeKingNFTAbi from '../lib/abi/MazeKingNFT.json';
 import { getContractAddress } from '../lib/contracts';
-import { lookupSeed } from '../lib/mintRegistry';
 
 /**
  * How far back from the current block to scan for ERC1155 transfer logs.
@@ -26,7 +25,14 @@ const TRANSFER_BATCH = parseAbiItem(
 export interface OwnedMaze {
   tokenId: bigint;
   imageUrl: string | null;
-  seed: string | null;
+  /**
+   * Canonical layout bytes from `MazeKingNFT.layouts(tokenId)`. Decoded by
+   * `mazeFromLayoutBytes` for replay; null when the chain returned no bytes
+   * (pre-renderer mints, RPC failure). Replaces the prior `seed` localStorage
+   * bridge — every owned token replays from on-chain bytes regardless of
+   * which device was used to mint it.
+   */
+  layout: Uint8Array | null;
   /** Owner's best move count for this token; null when never solved. */
   minMoves: number | null;
 }
@@ -142,11 +148,6 @@ export function useOwnedMazes(
       setState((s) => ({ ...s, loading: true, error: null }));
 
       try {
-        // Seed→tokenId hydration is paused under the hash-as-public-input
-        // architecture (ma-6cr.6): tokenId now comes from a Pedersen hash of
-        // the canonical layout, computed via bb.js. ma-6cr.8 will restore
-        // this path once the bb.js Pedersen wiring lands.
-
         const tokenIds = await scanIncomingTokenIds(
           publicClient,
           contractAddress,
@@ -182,7 +183,7 @@ export function useOwnedMazes(
           return;
         }
 
-        const [uris, statsResults] = await Promise.all([
+        const [uris, statsResults, layoutResults] = await Promise.all([
           publicClient.multicall({
             contracts: heldIds.map((id) => ({
               address: contractAddress,
@@ -198,6 +199,15 @@ export function useOwnedMazes(
               abi: MazeKingNFTAbi as never,
               functionName: 'stats',
               args: [id, address],
+            })),
+            allowFailure: true,
+          }),
+          publicClient.multicall({
+            contracts: heldIds.map((id) => ({
+              address: contractAddress,
+              abi: MazeKingNFTAbi as never,
+              functionName: 'layouts',
+              args: [id],
             })),
             allowFailure: true,
           }),
@@ -218,10 +228,15 @@ export function useOwnedMazes(
             const timesSolved = Number(tuple[1] ?? 0n);
             if (timesSolved > 0) minMoves = Number(tuple[0]);
           }
+          const l = layoutResults[i];
+          const layout =
+            l && l.status === 'success' && (l.result as Hex).length > 2
+              ? hexToBytes(l.result as Hex)
+              : null;
           return {
             tokenId,
             imageUrl: decodeImageFromTokenUri(tokenUri),
-            seed: lookupSeed(tokenId) ?? null,
+            layout,
             minMoves,
           };
         });

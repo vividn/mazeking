@@ -13,6 +13,7 @@ import { isDebugSeedActive } from '../lib/debugSeed';
 import { generateColorScheme } from '../lib/colorGenerator';
 import { computeMazeHash } from '../lib/mazeIdentity';
 import { layoutBytesForSeed } from '../lib/tokenId';
+import { mazeFromLayoutBytes } from '../lib/mazeFromLayoutBytes';
 import { addSeedToHistory } from '../lib/seedHistory';
 import { getRandomPhrase } from '../lib/seedPhrases';
 import { Maze, type MazeHandle } from './Maze';
@@ -28,10 +29,44 @@ import { DEFAULT_SEED } from '../App';
 import robeUrl from '../glyphs/robe.png?url';
 import scepterUrl from '../glyphs/scepter.png?url';
 
+/**
+ * Replay payload for an on-chain token. When set, Game decodes the layout
+ * bytes via `mazeFromLayoutBytes` and uses the tokenId to derive a
+ * mazeHash-aligned palette — no seed string required. This is how
+ * MyMazes/Gallery hand off owned/registered tokens for replay regardless of
+ * which device minted them.
+ */
+export interface ReplayPayload {
+  layout: Uint8Array;
+  tokenId: bigint;
+  /** Optional original seed for display (unknown for tokens minted elsewhere). */
+  seed?: string | null;
+}
+
 interface GameProps {
   initialSeed: string;
   onSeedChange: (seed: string) => void;
   active: boolean;
+  /**
+   * When non-null, the game replays the maze encoded in `replay.layout`
+   * (decoded from on-chain bytes) instead of generating from `initialSeed`.
+   * The parent flips this to null to return to seed-driven play.
+   */
+  replay: ReplayPayload | null;
+}
+
+function tokenIdToMazeHash(tokenId: bigint): `0x${string}` {
+  return `0x${tokenId.toString(16).padStart(64, '0')}`;
+}
+
+/**
+ * Display label for replay sessions where we don't know the original seed.
+ * Sharing/winning still wants a string in the seed slot; this gives a stable
+ * placeholder derived from the tokenId.
+ */
+function tokenIdShortLabel(tokenId: bigint): string {
+  const hex = tokenId.toString(16).padStart(64, '0');
+  return `Token #0x${hex.slice(0, 4)}…${hex.slice(-4)}`;
 }
 
 const DIRECTION_TO_MOVE: Record<string, Move> = {
@@ -41,7 +76,7 @@ const DIRECTION_TO_MOVE: Record<string, Move> = {
   left: 3, // Move.Left
 };
 
-export function Game({ initialSeed, onSeedChange, active }: GameProps) {
+export function Game({ initialSeed, onSeedChange, active, replay }: GameProps) {
   const navigate = useNavigate();
   const mazeRef = useRef<MazeHandle>(null);
   const [seed, setSeed] = useState(initialSeed);
@@ -154,10 +189,56 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
     [onSeedChange]
   );
 
-  // Initialize on mount or seed change
+  // Initialize game from a decoded on-chain layout (replay flow).
+  const initFromReplay = useCallback((payload: ReplayPayload) => {
+    const decoded = mazeFromLayoutBytes(payload.layout);
+    const displaySeed = payload.seed ?? tokenIdShortLabel(payload.tokenId);
+    // tokenId IS the Pedersen mazeHash under the hash-as-public-input
+    // architecture (ma-6cr.6), so we can paint the canonical palette
+    // immediately — no async upgrade dance like the seed path.
+    const mazeHash = tokenIdToMazeHash(payload.tokenId);
+    const newColors = generateColorScheme(displaySeed, { mazeHash });
+
+    setMaze(decoded.maze);
+    setColors(newColors);
+    setInitialPositions({
+      startPos: { ...decoded.startPos },
+      robePos: { ...decoded.robePos },
+      scepterPos: { ...decoded.scepterPos },
+      goalPos: { ...decoded.goalPos },
+    });
+
+    const startKey = `${decoded.startPos.x},${decoded.startPos.y}`;
+    setVisited(new Set([startKey]));
+    setShowKinglyHint(false);
+
+    setGameState({
+      playerPos: { ...decoded.startPos },
+      robePos: { ...decoded.robePos },
+      scepterPos: { ...decoded.scepterPos },
+      goalPos: { ...decoded.goalPos },
+      hasRobe: false,
+      hasScepter: false,
+      moveCount: 0,
+      moves: [],
+      gameWon: false,
+    });
+    setWinModalDismissed(false);
+    setSeed(displaySeed);
+    // Replay mazes don't change the URL ?seed= and don't go in history —
+    // they're tied to a tokenId, not a typeable seed string.
+  }, []);
+
+  // Initialize on mount or input change. `replay` takes priority over
+  // `initialSeed`: when the parent hands off a tokenId we ignore the URL seed
+  // until they clear `replay` back to null.
   useEffect(() => {
-    initGame(initialSeed);
-  }, [initialSeed, initGame]);
+    if (replay) {
+      initFromReplay(replay);
+    } else {
+      initGame(initialSeed);
+    }
+  }, [replay, initialSeed, initGame, initFromReplay]);
 
   // Handle movement
   const handleMove = useCallback(
@@ -244,7 +325,11 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
       // R key restarts the game (works even when won)
       if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
-        initGame(seed);
+        if (replay) {
+          initFromReplay(replay);
+        } else {
+          initGame(seed);
+        }
         return;
       }
 
@@ -313,6 +398,8 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
     seedBarOpen,
     historySidebarOpen,
     initGame,
+    initFromReplay,
+    replay,
     seed,
   ]);
 
@@ -326,7 +413,11 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
   };
 
   const handlePlayAgain = () => {
-    initGame(seed);
+    if (replay) {
+      initFromReplay(replay);
+    } else {
+      initGame(seed);
+    }
   };
 
   const handleNewMaze = () => {
@@ -722,7 +813,6 @@ export function Game({ initialSeed, onSeedChange, active }: GameProps) {
       <WinModal
         isOpen={gameState.gameWon && !winModalDismissed}
         moveCount={gameState.moveCount}
-        seed={seed}
         onPlayAgain={handlePlayAgain}
         onNewMaze={handleNewMaze}
         colors={colors}

@@ -10,6 +10,12 @@ interface MazeLightboxProps {
   colors: ColorScheme;
   onClose: () => void;
   onPlay?: () => void;
+  /**
+   * When true, the Replay button is offered even without a known seed.
+   * Used by tiles whose replay path is on-chain layout bytes (no seed string
+   * needed). When false (legacy), Replay only renders when `seed` is known.
+   */
+  canReplayWithoutSeed?: boolean;
 }
 
 export function MazeLightbox({
@@ -19,6 +25,7 @@ export function MazeLightbox({
   colors,
   onClose,
   onPlay,
+  canReplayWithoutSeed = false,
 }: MazeLightboxProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -85,7 +92,7 @@ export function MazeLightbox({
             </span>
           )}
         </div>
-        {onPlay && seed && (
+        {onPlay && (seed || canReplayWithoutSeed) && (
           <button
             type="button"
             onClick={() => {
