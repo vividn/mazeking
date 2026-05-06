@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:e2e-full": "RUN_E2E_FULL_PROOF=1 vitest run e2eSolveProve"
+    "test:e2e-full": "RUN_E2E_FULL_PROOF=1 vitest run e2eSolveProve",
+    "test:e2e-mint": "RUN_E2E_MINT=1 vitest run e2eMintOnAnvil"
   },
   "dependencies": {
     "@aztec/bb.js": "catalog:zktools",

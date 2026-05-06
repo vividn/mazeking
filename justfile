@@ -422,6 +422,17 @@ test-e2e-full:
     @echo -e "{{YELLOW}}[test]{{NC}} Running full e2e (solve → prove → verify)..."
     cd {{frontend_dir}} && {{pnpm}} test:e2e-full
 
+# Run the on-chain mint e2e (solve → prove → mintWithProof on anvil).
+# Builds on `test-e2e-full` by also submitting the proof to a real
+# `HonkVerifier` deployment, catching verifier-bytecode drift and ABI
+# mismatches that the off-chain verify path can't see (see ma-cfg).
+# Slow (deploy + proof generation): nightly / main-branch only. The
+# `deploy-local` dependency regenerates the verifier from the current
+# circuit, so verifier-VK drift surfaces here too.
+test-e2e-mint: deploy-local
+    @echo -e "{{YELLOW}}[test]{{NC}} Running e2e mint (solve → prove → mint on anvil)..."
+    cd {{frontend_dir}} && {{pnpm}} test:e2e-mint
+
 # === FORMATTING ===
 
 # Format all code
