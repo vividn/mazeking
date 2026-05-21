@@ -1,16 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useAccount, useConnect, useSwitchChain } from 'wagmi';
 import type { ColorScheme, MazeData, Move, Position } from '../types';
 import { useZkProof } from '../hooks/useZkProof';
-import { useMintNFT } from '../hooks/useMintNFT';
-import { ProofImage } from './ProofImage';
 import { Maze } from './Maze';
-import { areContractsDeployed } from '../lib/contracts';
-import { sepolia } from 'wagmi/chains';
+import { MintBlock } from './MintBlock';
+import { NavBlock } from './NavBlock';
+import { ShareBlock } from './ShareBlock';
 import { computeOptimalMoves, tierFromMoveCount } from '../lib/mazeSolver';
 import { pickTextColor } from '../lib/contrastText';
 import kingUrl from '../glyphs/king.png?url';
-import crownUrl from '../glyphs/crown.png?url';
 
 interface WinModalProps {
   isOpen: boolean;
@@ -143,86 +140,6 @@ function ConfettiCanvas({ colors, active }: ConfettiCanvasProps) {
   );
 }
 
-interface ProofPlaceholderProps {
-  size: number;
-  accentColor: string;
-  /** When true, render the pulsing squares + scan line (proving state). */
-  animated: boolean;
-  /** Foreground content (e.g. the Generate ZK Proof CTA). Sits above any animation. */
-  children?: React.ReactNode;
-  ariaLabel: string;
-}
-
-/**
- * Pre-proof placeholder: solid black box at the proof image's final
- * dimensions. While `animated` (proving state) a single low-contrast crown
- * sprite breathes in and out at the center — a quiet "we're sealing the
- * certificate" signal in keeping with the medieval/coronation theme. The
- * idle state hosts the Generate ZK Proof button via `children`.
- */
-function ProofPlaceholder({
-  size,
-  accentColor,
-  animated,
-  children,
-  ariaLabel,
-}: ProofPlaceholderProps) {
-  return (
-    <div
-      data-testid="proof-placeholder"
-      style={{
-        width: size,
-        height: size,
-        backgroundColor: '#000',
-        borderRadius: '8px',
-        border: `2px solid ${accentColor}`,
-        position: 'relative',
-        overflow: 'hidden',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-      role="status"
-      aria-label={ariaLabel}
-    >
-      {animated && (
-        <img
-          src={crownUrl}
-          alt=""
-          aria-hidden
-          style={{
-            width: '40%',
-            height: '40%',
-            objectFit: 'contain',
-            imageRendering: 'pixelated',
-            opacity: 0.4,
-            animation: 'proofRoyalBreath 1.5s ease-in-out infinite',
-          }}
-        />
-      )}
-      {children && (
-        <div
-          style={{
-            position: 'relative',
-            zIndex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Single quiet line for every proving stage — the multi-stage rotation
-// (Loading circuit / Initializing Noir / Computing witness / …) read as
-// engineering noise and clashed with the modal's medieval/coronation tone.
-const PROOF_HELPER_TEXT = 'Sealing the certificate…';
-
 export function WinModal({
   isOpen,
   moveCount,
@@ -273,59 +190,6 @@ export function WinModal({
     return () => window.clearTimeout(t);
   }, [isOpen]);
 
-  // Wallet connection
-  const { address, isConnected, chain } = useAccount();
-  const { connect, connectors } = useConnect();
-  const { switchChain } = useSwitchChain();
-
-  const {
-    mintWithProof,
-    isPending,
-    isConfirming,
-    isSuccess,
-    errorMessage: mintErrorMessage,
-  } = useMintNFT();
-
-  const contractsDeployed = chain ? areContractsDeployed(chain.id) : false;
-  const onSepolia = chain?.id === sepolia.id;
-  const sepoliaSupported = areContractsDeployed(sepolia.id);
-  const proofReady = proofState.stage === 'complete';
-  const minting = isPending || isConfirming;
-
-  const handleMint = async () => {
-    if (mockMode) {
-      console.log('[mockMode] Skipping real mint; visual review only.');
-      return;
-    }
-    if (!isConnected) {
-      const connector = connectors[0];
-      if (connector) connect({ connector });
-      return;
-    }
-    if (!onSepolia && sepoliaSupported) {
-      switchChain({ chainId: sepolia.id });
-      return;
-    }
-    if (!proofReady || !proofState.proof || !proofState.mazeHash || !proofState.layoutBytes) {
-      return;
-    }
-    try {
-      await mintWithProof(
-        proofState.proof,
-        proofState.mazeHash,
-        proofState.layoutBytes,
-        moveCount
-      );
-    } catch (err) {
-      console.error('mintWithProof threw:', err);
-    }
-  };
-
-  const handleNewMaze = () => {
-    resetProof();
-    onNewMaze();
-  };
-
   // Escape closes the modal. Skip while a real proof is mid-flight so we
   // don't tear down the in-flight pipeline mid-keypress.
   const isProving =
@@ -349,42 +213,10 @@ export function WinModal({
 
   const subtitle = getSubtitleVariant(moveCount, maze);
 
-  // Compute Mint button label + disabled-reason in one place so they stay in sync.
-  let mintLabel = 'Mint NFT';
-  let mintDisabledReason: string | null = null;
-  let mintDisabled = false;
-  if (isSuccess) {
-    mintLabel = '✓ Minted';
-    mintDisabled = true;
-  } else if (mockMode) {
-    mintLabel = proofReady ? 'Mint NFT (mock)' : 'Mint NFT';
-    mintDisabled = !proofReady;
-    mintDisabledReason = proofReady
-      ? null
-      : proofState.stage === 'idle'
-      ? 'Generate proof first'
-      : 'Generating proof…';
-  } else if (!proofReady) {
-    mintDisabled = true;
-    mintDisabledReason =
-      proofState.stage === 'idle'
-        ? 'Generate proof first'
-        : 'Generating proof…';
-  } else if (!isConnected) {
-    mintLabel = 'Connect Wallet';
-  } else if (!onSepolia) {
-    mintLabel = sepoliaSupported ? 'Switch to Sepolia' : 'Wrong network';
-    mintDisabled = !sepoliaSupported;
-    mintDisabledReason = sepoliaSupported
-      ? null
-      : `Contracts not deployed on ${chain?.name ?? 'this network'}`;
-  } else if (!contractsDeployed) {
-    mintDisabled = true;
-    mintDisabledReason = `Contracts not deployed on ${chain?.name ?? 'this network'}`;
-  } else if (minting) {
-    mintLabel = isPending ? 'Preparing…' : 'Confirming…';
-    mintDisabled = true;
-  }
+  const handleNewMaze = () => {
+    resetProof();
+    onNewMaze();
+  };
 
   const overlayStyle: React.CSSProperties = {
     position: 'fixed',
@@ -453,17 +285,12 @@ export function WinModal({
     fontStyle: 'italic',
   };
 
-  // Both boxes share these dimensions so they read as siblings.
-  const boxStyle: React.CSSProperties = {
+  const certificateBoxStyle: React.CSSProperties = {
     backgroundColor: colors.textBackgroundColor,
     borderRadius: '12px',
     padding: '14px',
     marginBottom: '14px',
     boxShadow: `inset 0 0 0 2px ${colors.uiAccentColor}, 0 8px 24px rgba(0, 0, 0, 0.25)`,
-  };
-
-  const certificateBoxStyle: React.CSSProperties = {
-    ...boxStyle,
     position: 'relative',
   };
 
@@ -509,111 +336,6 @@ export function WinModal({
     color: pickTextColor(colors.goalColor),
     marginTop: '2px',
   };
-
-  const proofBoxInnerStyle: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'row',
-    gap: '14px',
-    alignItems: 'stretch',
-  };
-
-  const proofColumnStyle: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '8px',
-    flex: '0 0 auto',
-  };
-
-  const helperTextStyle: React.CSSProperties = {
-    fontSize: '12px',
-    color: '#e6e6e6',
-    minHeight: '16px',
-    textAlign: 'center',
-    fontWeight: 500,
-  };
-
-  const buttonColumnStyle: React.CSSProperties = {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    minWidth: 0,
-  };
-
-  const baseActionButtonStyle: React.CSSProperties = {
-    padding: '12px 16px',
-    fontSize: '15px',
-    fontWeight: 700,
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-    boxShadow: '0 3px 8px rgba(0, 0, 0, 0.22)',
-    fontFamily: 'inherit',
-    minHeight: '44px',
-    width: '100%',
-  };
-
-  const mintButtonStyle: React.CSSProperties = {
-    ...baseActionButtonStyle,
-    backgroundColor: colors.uiAccentColor,
-    color: pickTextColor(colors.uiAccentColor),
-    fontSize: '16px',
-  };
-
-  const collectionButtonStyle: React.CSSProperties = {
-    ...baseActionButtonStyle,
-    backgroundColor: colors.keyColor,
-    color: pickTextColor(colors.keyColor),
-  };
-
-  const newGameButtonStyle: React.CSSProperties = {
-    ...baseActionButtonStyle,
-    backgroundColor: colors.wallColor,
-    color: pickTextColor(colors.wallColor),
-  };
-
-  const shareButtonStyle: React.CSSProperties = {
-    ...baseActionButtonStyle,
-    backgroundColor: colors.goalColor,
-    color: pickTextColor(colors.goalColor),
-  };
-
-  const generateProofButtonStyle: React.CSSProperties = {
-    padding: '10px 14px',
-    fontSize: '13px',
-    fontWeight: 700,
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    backgroundColor: colors.uiAccentColor,
-    color: pickTextColor(colors.uiAccentColor),
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.45)',
-    fontFamily: 'inherit',
-    whiteSpace: 'nowrap',
-    transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-  };
-
-  const reasonTextStyle: React.CSSProperties = {
-    fontSize: '11px',
-    color: pickTextColor(colors.textBackgroundColor),
-    lineHeight: 1.3,
-    marginTop: '-4px',
-    paddingLeft: '4px',
-  };
-
-  const errorBannerStyle: React.CSSProperties = {
-    backgroundColor: 'rgba(255, 0, 0, 0.12)',
-    border: '1px solid rgba(255, 80, 80, 0.6)',
-    borderRadius: '6px',
-    padding: '8px 10px',
-    color: '#ff8080',
-    fontSize: '12px',
-    marginTop: '4px',
-  };
-
-  const proofImageSize = 140;
 
   return (
     <>
@@ -753,137 +475,25 @@ export function WinModal({
           </div>
 
           {/* Box 2: Proof + Actions */}
-          <div style={boxStyle} data-testid="proof-actions-box">
-            <div className="win-proof-row" style={proofBoxInnerStyle}>
-              <div className="win-proof-column" style={proofColumnStyle}>
-                {proofReady && proofState.imageDataUrl && proofState.proof ? (
-                  <ProofImage
-                    imageDataUrl={proofState.imageDataUrl}
-                    proofSizeBytes={proofState.proof.length}
-                    colors={colors}
-                  />
-                ) : proofState.stage === 'idle' ? (
-                  <>
-                    <ProofPlaceholder
-                      size={proofImageSize}
-                      accentColor={colors.uiAccentColor}
-                      animated={false}
-                      ariaLabel="Generate zero-knowledge proof"
-                    >
-                      <button
-                        type="button"
-                        className="win-action-button"
-                        style={generateProofButtonStyle}
-                        onClick={() => void startProofGeneration()}
-                        data-testid="generate-proof-button"
-                        aria-label="Generate zero-knowledge proof of your solution"
-                      >
-                        Generate ZK Proof
-                      </button>
-                    </ProofPlaceholder>
-                    <div style={helperTextStyle} aria-live="polite">
-                      {' '}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <ProofPlaceholder
-                      size={proofImageSize}
-                      accentColor={colors.uiAccentColor}
-                      animated={proofState.stage !== 'error'}
-                      ariaLabel="Generating proof"
-                    />
-                    <div style={helperTextStyle} aria-live="polite">
-                      {proofState.stage === 'error'
-                        ? 'Proof generation failed.'
-                        : PROOF_HELPER_TEXT}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div style={buttonColumnStyle}>
-                <button
-                  className="win-action-button"
-                  style={mintButtonStyle}
-                  onClick={handleMint}
-                  disabled={mintDisabled}
-                  aria-label={mintLabel}
-                  data-testid="mint-button"
-                >
-                  {mintLabel}
-                </button>
-                {mintDisabledReason && (
-                  <div style={reasonTextStyle}>{mintDisabledReason}</div>
-                )}
-                {!mockMode && isConnected && address && (
-                  <div
-                    style={{
-                      ...reasonTextStyle,
-                      opacity: 0.85,
-                    }}
-                  >
-                    {address.slice(0, 6)}…{address.slice(-4)}
-                    {chain?.name ? ` · ${chain.name}` : ''}
-                  </div>
-                )}
-                {mintErrorMessage && !mockMode && (
-                  <div role="alert" style={errorBannerStyle}>
-                    {mintErrorMessage}
-                  </div>
-                )}
-                {proofState.stage === 'error' && !mockMode && (
-                  <div role="alert" style={errorBannerStyle}>
-                    {proofState.error ?? 'Proof generation failed.'}
-                    <button
-                      className="win-action-button"
-                      style={{
-                        ...newGameButtonStyle,
-                        marginTop: '6px',
-                        fontSize: '12px',
-                        padding: '6px 10px',
-                        minHeight: '32px',
-                      }}
-                      onClick={() => {
-                        resetProof();
-                        void startProofGeneration();
-                      }}
-                    >
-                      Try again
-                    </button>
-                  </div>
-                )}
-
-                <button
-                  className="win-action-button"
-                  style={collectionButtonStyle}
-                  onClick={onViewCollection}
-                  aria-label="View your maze collection"
-                  data-testid="collection-button"
-                >
-                  Collection
-                </button>
-                <button
-                  className="win-action-button"
-                  style={newGameButtonStyle}
-                  onClick={handleNewMaze}
-                  aria-label="Start a new game"
-                  data-testid="new-game-button"
-                >
-                  New Game
-                </button>
-                <button
-                  className="win-action-button"
-                  style={shareButtonStyle}
-                  onClick={onCopyLink}
-                  aria-label="Share this maze"
-                  data-testid="share-button"
-                >
-                  {copied ? 'Link Copied!' : 'Share Maze'}
-                </button>
-              </div>
-            </div>
-          </div>
+          <MintBlock
+            colors={colors}
+            moveCount={moveCount}
+            proofState={proofState}
+            startProofGeneration={startProofGeneration}
+            resetProof={resetProof}
+            mockMode={mockMode}
+          >
+            <NavBlock
+              colors={colors}
+              onViewCollection={onViewCollection}
+              onNewMaze={handleNewMaze}
+            />
+            <ShareBlock
+              colors={colors}
+              copied={copied}
+              onCopyLink={onCopyLink}
+            />
+          </MintBlock>
         </div>
       </div>
     </>
