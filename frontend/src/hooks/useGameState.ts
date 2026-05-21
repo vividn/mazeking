@@ -6,7 +6,8 @@ import type {
   Move,
   Position,
 } from '../types';
-import { canMove, generateMaze, getNewPosition } from '../lib/mazeGenerator';
+import { generateMaze } from '../lib/mazeGenerator';
+import { canMove, getNewPosition } from '../lib/mazeLayout';
 import { isDebugSeedActive } from '../lib/debugSeed';
 import { generateColorScheme } from '../lib/colorGenerator';
 import { computeMazeHash } from '../lib/mazeIdentity';

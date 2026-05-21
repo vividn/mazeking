@@ -8,10 +8,10 @@
  * State space is (x, y, hasRobe, hasScepter) so the BFS naturally enforces
  * the "must collect both regalia pieces before reaching crown" rule. The
  * maze is toroidal, so neighbour expansion uses canMove / getNewPosition
- * from mazeGenerator.
+ * from mazeLayout.
  */
 
-import { canMove, getNewPosition } from './mazeGenerator';
+import { canMove, getNewPosition } from './mazeLayout';
 import { CrownTier } from './spriteGlyphs';
 import { MAX_MOVES } from './mazeConstants.generated';
 import { Move, type MazeData, type Position } from '../types';

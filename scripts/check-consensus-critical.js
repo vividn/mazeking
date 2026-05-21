@@ -38,6 +38,8 @@ const PROJECT_ROOT = path.join(__dirname, '..');
 // Keep in sync with the CONSENSUS-CRITICAL banner comments in each file.
 const REGISTRY = [
   'frontend/src/lib/mazeGenerator.ts',
+  'frontend/src/lib/mazeLayout.ts',
+  'frontend/src/lib/wordmarkPlacement.ts',
   'frontend/src/lib/pixelFont.ts',
   'frontend/src/lib/seededRandom.ts',
   'frontend/src/lib/zkSerialize.ts',

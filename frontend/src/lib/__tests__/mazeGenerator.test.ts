@@ -1,10 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import {
-  generateMaze,
-  canMove,
-  WORDMARK_MARGIN,
-  CHAR_HEIGHT,
-} from '../mazeGenerator';
+import { generateMaze } from '../mazeGenerator';
+import { canMove } from '../mazeLayout';
+import { WORDMARK_MARGIN, CHAR_HEIGHT } from '../wordmarkPlacement';
 import { CellType, type MazeData, type Position } from '../../types';
 
 interface BoundingBox {
