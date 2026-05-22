@@ -8,9 +8,10 @@ import type {
 } from '../types';
 import { canMove, generateMaze, getNewPosition } from '../lib/mazeGenerator';
 import { isDebugSeedActive } from '../lib/debugSeed';
-import { generateColorScheme } from '../lib/colorGenerator';
-import { computeMazeHash } from '../lib/mazeIdentity';
-import { layoutBytesForSeed } from '../lib/tokenId';
+import {
+  computeHashAlignedPalette,
+  generateColorScheme,
+} from '../lib/colorGenerator';
 import { mazeFromLayoutBytes } from '../lib/mazeFromLayoutBytes';
 import { addSeedToHistory } from '../lib/seedHistory';
 import type { ReplayPayload } from '../components/Game';
@@ -103,13 +104,10 @@ export function useGameState({
 
       void (async () => {
         try {
-          const layout = layoutBytesForSeed(newSeed);
-          const hash = await computeMazeHash(layout);
+          const upgraded = await computeHashAlignedPalette(newSeed);
           // Guard against a stale upgrade landing on a newer seed.
           setSeed((current) => {
-            if (current === newSeed) {
-              setColors(generateColorScheme(newSeed, { mazeHash: hash }));
-            }
+            if (current === newSeed) setColors(upgraded);
             return current;
           });
         } catch (err) {

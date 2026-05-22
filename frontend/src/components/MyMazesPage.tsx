@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { useOwnedMazes, type OwnedMaze } from '../hooks/useOwnedMazes';
-import { generateColorScheme } from '../lib/colorGenerator';
+import { useMazePaletteForSeed } from '../hooks/useMazePaletteForSeed';
 import { useAppOutlet } from '../App';
 import { PageHeader } from './PageHeader';
 import { KaztleText } from './KaztleText';
@@ -16,7 +16,7 @@ export function MyMazesPage() {
   const { isConnected, address } = useAccount();
   const { loading, error, mazes } = useOwnedMazes(true);
   const { seed, selectReplay } = useAppOutlet();
-  const colors = useMemo(() => generateColorScheme(seed), [seed]);
+  const colors = useMazePaletteForSeed(seed);
   const [zoomed, setZoomed] = useState<OwnedMaze | null>(null);
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { MazeData, ColorScheme } from '../types';
-import { generateColorScheme } from '../lib/colorGenerator';
+import type { MazeData } from '../types';
+import { useMazePaletteForSeed } from '../hooks/useMazePaletteForSeed';
 import { generateMaze } from '../lib/mazeGenerator';
 import { isDebugSeedActive } from '../lib/debugSeed';
 import { isValidChar, filterToValidChars } from '../lib/pixelFont';
@@ -27,8 +27,11 @@ export function HeaderSeedInput({
 }: HeaderSeedInputProps) {
   const [value, setValue] = useState('');
   const [shake, setShake] = useState(false);
+  const [previewSeed, setPreviewSeed] = useState<string>('');
   const [previewMaze, setPreviewMaze] = useState<MazeData | null>(null);
-  const [previewColors, setPreviewColors] = useState<ColorScheme | null>(null);
+  // Drive preview colors through the same hook the live game uses so they
+  // resolve to the same hash-aligned palette (ma-09y).
+  const previewColors = useMazePaletteForSeed(previewSeed);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<number | null>(null);
@@ -61,7 +64,7 @@ export function HeaderSeedInput({
     const seedForPreview = value.trim();
     if (!seedForPreview) {
       setPreviewMaze(null);
-      setPreviewColors(null);
+      setPreviewSeed('');
       return;
     }
 
@@ -75,13 +78,12 @@ export function HeaderSeedInput({
       idleCallbackRef.current = scheduleIdle(() => {
         if (generationRef.current !== currentGeneration) return;
 
-        const colors = generateColorScheme(seedForPreview);
         const maze = generateMaze(seedForPreview, {
           debug: isDebugSeedActive(seedForPreview),
         }).maze;
 
         if (generationRef.current === currentGeneration) {
-          setPreviewColors(colors);
+          setPreviewSeed(seedForPreview);
           setPreviewMaze(maze);
         }
       });
@@ -185,7 +187,7 @@ export function HeaderSeedInput({
           }
         `}
       </style>
-      {previewMaze && previewColors && (
+      {previewMaze && previewSeed && (
         <div
           style={{
             ...styles.previewOverlay,

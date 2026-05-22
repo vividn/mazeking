@@ -1,5 +1,7 @@
 import { createRng } from './seededRandom';
 import { canonicalPaletteFromHash } from './paletteRecipe.generated';
+import { computeMazeHash } from './mazeIdentity';
+import { layoutBytesForSeed } from './tokenId';
 
 export interface ColorScheme {
   wallColor: string;
@@ -182,6 +184,20 @@ function paletteFromHashAndSeed(
     headerBackgroundColor,
     modalOverlayColor,
   };
+}
+
+/**
+ * Single source of truth for the "settled" palette of a seed — the colors the
+ * live game converges on once the Pedersen mazeHash is known. Used by both
+ * the live game's hash-upgrade step and by preview surfaces, so the preview
+ * algorithm is identical to the live algorithm: same seed → same colors.
+ */
+export async function computeHashAlignedPalette(
+  seed: string
+): Promise<ColorScheme> {
+  const layout = layoutBytesForSeed(seed);
+  const mazeHash = await computeMazeHash(layout);
+  return generateColorScheme(seed, { mazeHash });
 }
 
 /**

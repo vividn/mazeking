@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { isLocalhost } from '../lib/debugSeed';
 import { generateMaze } from '../lib/mazeGenerator';
-import { generateColorScheme } from '../lib/colorGenerator';
+import { useMazePaletteForSeed } from '../hooks/useMazePaletteForSeed';
 import { WinModal } from './WinModal';
 
 const DEBUG_SEED = 'zkDEBUG-winmodal';
@@ -15,15 +15,10 @@ export function DebugWinModalButton() {
   const [open, setOpen] = useState(false);
   const [iteration, setIteration] = useState(0);
 
-  const synthetic = useMemo(() => {
-    const generated = generateMaze(DEBUG_SEED);
-    const colors = generateColorScheme(DEBUG_SEED);
-    return { generated, colors };
-  }, []);
+  const generated = useMemo(() => generateMaze(DEBUG_SEED), []);
+  const colors = useMazePaletteForSeed(DEBUG_SEED);
 
   if (!isLocalhost()) return null;
-
-  const { generated, colors } = synthetic;
 
   return (
     <>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useGalleryMazes, type GalleryMaze } from '../hooks/useGalleryMazes';
-import { generateColorScheme } from '../lib/colorGenerator';
+import { useMazePaletteForSeed } from '../hooks/useMazePaletteForSeed';
 import { pickTextColor } from '../lib/contrastText';
 import { useAppOutlet } from '../App';
 import { PageHeader } from './PageHeader';
@@ -18,7 +18,7 @@ export function GalleryPage() {
   const { loading, error, mazes } = useGalleryMazes(true);
   const [sort, setSort] = useState<SortMode>('solves');
   const { seed, selectReplay } = useAppOutlet();
-  const colors = useMemo(() => generateColorScheme(seed), [seed]);
+  const colors = useMazePaletteForSeed(seed);
   const [zoomed, setZoomed] = useState<GalleryMaze | null>(null);
 
   useEffect(() => {
