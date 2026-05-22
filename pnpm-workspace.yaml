@@ -2,6 +2,9 @@ packages:
   - frontend
   - tools
 
+onlyBuiltDependencies:
+  - esbuild
+
 catalogs:
   zktools:
     '@aztec/bb.js': 2.1.9
