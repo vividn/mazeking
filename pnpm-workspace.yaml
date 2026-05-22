@@ -2,8 +2,8 @@ packages:
   - frontend
   - tools
 
-onlyBuiltDependencies:
-  - esbuild
+allowBuilds:
+  esbuild: true
 
 catalogs:
   zktools:
