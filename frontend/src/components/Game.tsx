@@ -341,7 +341,7 @@ export function Game({ initialSeed, onSeedChange, active, replay }: GameProps) {
                     title="Open my mazes"
                     aria-label="View collection"
                   >
-                    👑
+                    👤
                   </button>
                   <button
                     onClick={handleNewMaze}
