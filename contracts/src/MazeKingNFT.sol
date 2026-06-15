@@ -210,6 +210,18 @@ contract MazeKingNFT is ERC1155, AccessControl, ERC1155Burnable, ERC1155Supply {
         return super.uri(tokenId);
     }
 
+    /// @notice Store the canonical layout for a maze, registrar-authoritative.
+    /// @dev For registrar-vetted mazes the canonical layout is pre-stored here so
+    ///      minters can pass an empty `layout` to `mintWithProof` (cheaper mint,
+    ///      no render-spoof). Overwriting is allowed so the registrar can correct
+    ///      a layout that a front-running "wildcat" mint stored incorrectly.
+    /// @param tokenId The maze tokenId / maze hash
+    /// @param layout Canonical layout bytes (header + packed cells)
+    function setLayout(uint256 tokenId, bytes calldata layout) external onlyRole(REGISTRAR_ROLE) {
+        layouts[tokenId] = layout;
+        emit LayoutStored(tokenId, layout.length);
+    }
+
     /// @notice Record the optimal (minimum) move count for a maze
     /// @param tokenId The maze tokenId
     /// @param moves Optimal move count (0 = unknown)

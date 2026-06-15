@@ -625,6 +625,91 @@ contract MazeKingNFTTest is Test {
         assertFalse(_contains(svg, "<circle"));
     }
 
+    // ==================================================
+    // Registrar-authoritative layout (setLayout) — ma-cb4
+    // ==================================================
+
+    event LayoutStored(uint256 indexed tokenId, uint256 layoutBytes);
+
+    function test_RevertSetLayoutWithoutRole() public {
+        bytes memory layout = _smallMazeLayout();
+        vm.prank(user);
+        vm.expectRevert();
+        nft.setLayout(1, layout);
+    }
+
+    function test_SetLayoutStoresLayout() public {
+        bytes memory layout = _smallMazeLayout();
+        vm.prank(owner);
+        nft.setLayout(1, layout);
+
+        bytes memory stored = nft.layouts(1);
+        assertEq(stored.length, layout.length);
+        assertEq(keccak256(stored), keccak256(layout));
+    }
+
+    function test_SetLayoutEmitsEvent() public {
+        bytes memory layout = _smallMazeLayout();
+        vm.prank(owner);
+        vm.expectEmit(true, false, false, true);
+        emit LayoutStored(1, layout.length);
+        nft.setLayout(1, layout);
+    }
+
+    function test_SetLayoutOverwrites() public {
+        bytes memory layout = _smallMazeLayout();
+        vm.prank(owner);
+        nft.setLayout(1, hex"DEADBEEF");
+        assertEq(keccak256(nft.layouts(1)), keccak256(hex"DEADBEEF"));
+
+        vm.prank(owner);
+        nft.setLayout(1, layout);
+        assertEq(keccak256(nft.layouts(1)), keccak256(layout));
+    }
+
+    /// @dev Registrar pre-stores the canonical layout; minter passes empty
+    ///      layout (0x) -> cheap mint that still renders the vetted layout.
+    function test_PrestoredLayoutRendersOnEmptyMint() public {
+        MazeRenderer rendererContract = new MazeRenderer();
+        vm.prank(owner);
+        nft.setRenderer(address(rendererContract));
+
+        bytes memory layout = _smallMazeLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        uint256 tokenId = uint256(mazeHash);
+
+        // Registrar pre-stores the canonical layout.
+        vm.prank(owner);
+        nft.setLayout(tokenId, layout);
+
+        // Minter omits the layout (passes empty bytes); the stored one survives.
+        vm.prank(user);
+        nft.mintWithProof(hex"00", mazeHash, hex"", 50);
+
+        assertEq(keccak256(nft.layouts(tokenId)), keccak256(layout));
+
+        string memory tokenUri = nft.uri(tokenId);
+        bytes memory uriBytes = bytes(tokenUri);
+        bytes memory prefix = bytes("data:application/json;base64,");
+        assertGt(uriBytes.length, prefix.length);
+        for (uint256 i = 0; i < prefix.length; i++) {
+            assertEq(uriBytes[i], prefix[i], "tokenURI prefix mismatch");
+        }
+    }
+
+    /// @dev Wildcat path unchanged: a first mint with a non-empty layout on an
+    ///      unset tokenId still stores the caller-supplied layout.
+    function test_WildcatMintStillStoresLayout() public {
+        bytes memory layout = _smallMazeLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        uint256 tokenId = uint256(mazeHash);
+
+        vm.prank(user);
+        nft.mintWithProof(hex"00", mazeHash, layout, 50);
+
+        assertEq(keccak256(nft.layouts(tokenId)), keccak256(layout));
+    }
+
     function test_SetRenderer() public {
         MazeRenderer r = new MazeRenderer();
         vm.prank(owner);
