@@ -554,6 +554,63 @@ contract MazeKingNFTTest is Test {
         assertEq(keccak256(firstLayout), keccak256(secondLayout));
     }
 
+    function test_RevertSetLayoutWithoutRole() public {
+        vm.prank(user);
+        vm.expectRevert();
+        nft.setLayout(1, _smallMazeLayout());
+    }
+
+    function test_SetLayoutStoresAndEmits() public {
+        bytes memory layout = _smallMazeLayout();
+        uint256 tokenId = 42;
+
+        vm.expectEmit(true, false, false, true);
+        emit MazeKingNFT.LayoutStored(tokenId, layout.length);
+        vm.prank(owner);
+        nft.setLayout(tokenId, layout);
+
+        assertEq(keccak256(nft.layouts(tokenId)), keccak256(layout));
+    }
+
+    function test_SetLayoutOverwrites() public {
+        bytes memory griefed = hex"deadbeef";
+        bytes memory canonical = _smallMazeLayout();
+        uint256 tokenId = 99;
+
+        vm.startPrank(owner);
+        nft.setLayout(tokenId, griefed);
+        assertEq(keccak256(nft.layouts(tokenId)), keccak256(griefed));
+
+        nft.setLayout(tokenId, canonical);
+        vm.stopPrank();
+
+        assertEq(keccak256(nft.layouts(tokenId)), keccak256(canonical));
+    }
+
+    /// @notice Registered-maze path: registrar pre-stores the canonical layout,
+    ///         minter omits the layout (empty), and the vetted layout is what renders.
+    function test_SetLayoutThenMintEmptyRendersSetLayout() public {
+        MazeRenderer rendererContract = new MazeRenderer();
+        bytes memory layout = _smallMazeLayout();
+        bytes32 mazeHash = _mockMazeHash(layout);
+        uint256 tokenId = uint256(mazeHash);
+
+        vm.startPrank(owner);
+        nft.setRenderer(address(rendererContract));
+        nft.setLayout(tokenId, layout);
+        vm.stopPrank();
+
+        // Minter passes an empty layout; the pre-stored layout must survive.
+        vm.prank(user);
+        nft.mintWithProof(hex"00", mazeHash, "", 50);
+
+        assertEq(keccak256(nft.layouts(tokenId)), keccak256(layout));
+
+        string memory expected = rendererContract.renderSvg(tokenId, layout);
+        string memory actual = rendererContract.renderSvg(tokenId, nft.layouts(tokenId));
+        assertEq(keccak256(bytes(actual)), keccak256(bytes(expected)));
+    }
+
     function test_UriFallsBackWithoutRenderer() public {
         bytes memory layout = _smallMazeLayout();
         bytes32 mazeHash = _mockMazeHash(layout);
