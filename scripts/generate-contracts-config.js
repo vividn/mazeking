@@ -151,30 +151,66 @@ export const CONTRACT_ADDRESSES: Record<
 `;
 }
 
+// Parse existing chain entries out of the committed public map so a deploy to
+// one chain doesn't clobber the others. The file is generator-produced with a
+// fixed shape (`<chainId>: { key: '0x..', ... },`), so a tolerant regex over
+// our own format is safe. Returns { [chainId]: { nft, verifier, renderer?,
+// badgeAwarder? } }. Anything that doesn't parse is dropped silently — a
+// fresh deploy then re-establishes the file from the current deployment alone.
+function parseExistingChains(filepath) {
+  if (!fs.existsSync(filepath)) return {};
+  const text = fs.readFileSync(filepath, 'utf8');
+  const mapMatch = text.match(/CONTRACT_ADDRESSES[^=]*=\s*\{([\s\S]*)\};/);
+  if (!mapMatch) return {};
+  const chains = {};
+  const entryRe = /(\d+):\s*\{([\s\S]*?)\}/g;
+  let m;
+  while ((m = entryRe.exec(mapMatch[1])) !== null) {
+    const fields = {};
+    const fieldRe = /(\w+):\s*'([^']*)'/g;
+    let f;
+    while ((f = fieldRe.exec(m[2])) !== null) fields[f[1]] = f[2];
+    if (fields.nft && fields.verifier) chains[m[1]] = fields;
+  }
+  return chains;
+}
+
+function renderEntry(chainId, data) {
+  return `  ${chainId}: {
+    nft: '${data.nft}',
+    verifier: '${data.verifier}',${optionalLine(data, 'renderer')}${optionalLine(data, 'badgeAwarder')}
+  },`;
+}
+
 function renderGenerated(chainId, deployment) {
-  // Public-network map. Committed; statichost.eu's build reads this.
-  // Generator-rendered version preserves any additional public chains is
-  // out of scope — Sepolia redeploys overwrite the file with this single
-  // entry. If multi-chain support is needed, edit by hand.
+  // Public-network map. Committed; statichost.eu's build reads this. Merge the
+  // freshly-deployed chain into whatever chains the file already carries so a
+  // redeploy of one chain (e.g. Base) preserves the others (e.g. Sepolia).
+  const chains = parseExistingChains(
+    path.join(FRONTEND_LIB_DIR, 'contracts.generated.ts')
+  );
+  chains[chainId] = deployment;
+  const body = Object.keys(chains)
+    .sort((a, b) => Number(a) - Number(b))
+    .map((id) => renderEntry(id, chains[id]))
+    .join('\n');
   return `/**
  * Public-network contract addresses.
  *
- * Written by \`just deploy-sepolia\` (and other non-local deploys) via
+ * Written by the \`deploy-*\` recipes (Sepolia / Base / Polygon zkEVM) via
  * \`scripts/generate-contracts-config.js\`. Tracked in git so statichost.eu's
  * build picks up the live addresses; commit the diff after redeploying.
  *
- * Local anvil (31337) addresses live in the gitignored sibling
- * \`contracts.local.ts\`.
+ * Multi-chain: each non-local deploy merges its chain into this map and
+ * preserves the others. Local anvil (31337) addresses live in the gitignored
+ * sibling \`contracts.local.ts\`.
  */
 
 export const CONTRACT_ADDRESSES: Record<
   number,
   ${TYPE_SHAPE}
 > = {
-  ${chainId}: {
-    nft: '${deployment.nft}',
-    verifier: '${deployment.verifier}',${optionalLine(deployment, 'renderer')}${optionalLine(deployment, 'badgeAwarder')}
-  },
+${body}
 };
 `;
 }

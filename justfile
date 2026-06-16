@@ -241,6 +241,61 @@ deploy-sepolia:
     just _generate-frontend-config 11155111
     echo -e "{{GREEN}}[deploy]{{NC}} Sepolia deployment complete!"
 
+# Deploy contracts to Base mainnet (chain 8453). Gas is paid in ETH.
+# Invoke via `scripts/with-base.sh just deploy-base` so BASE_RPC_URL and
+# PRIVATE_KEY are loaded from ~/.config/gt-mazeking/base.env. See DEPLOY.md.
+# Regenerates the verifier first (ma-6ff); skip with SKIP_VERIFIER_GEN=1.
+deploy-base:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [ -z "${BASE_RPC_URL:-}" ]; then
+        echo -e "{{RED}}[deploy]{{NC}} Error: BASE_RPC_URL not set (run via scripts/with-base.sh)"
+        exit 1
+    fi
+
+    if [ -z "${PRIVATE_KEY:-}" ]; then
+        echo -e "{{RED}}[deploy]{{NC}} Error: PRIVATE_KEY not set (run via scripts/with-base.sh)"
+        exit 1
+    fi
+
+    if [ "${SKIP_VERIFIER_GEN:-0}" != "1" ]; then
+        just generate-verifier
+    fi
+
+    echo -e "{{BLUE}}[deploy]{{NC}} Deploying to Base mainnet..."
+    just _deploy-contracts "$BASE_RPC_URL" "base"
+    just _generate-frontend-config 8453
+    echo -e "{{GREEN}}[deploy]{{NC}} Base deployment complete!"
+
+# Deploy contracts to Polygon zkEVM mainnet (chain 1101). Gas is paid in ETH.
+# Invoke via `scripts/with-polygon-zkevm.sh just deploy-polygon-zkevm` so
+# POLYGON_ZKEVM_RPC_URL and PRIVATE_KEY are loaded from
+# ~/.config/gt-mazeking/polygon-zkevm.env. See DEPLOY.md.
+# Regenerates the verifier first (ma-6ff); skip with SKIP_VERIFIER_GEN=1.
+deploy-polygon-zkevm:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [ -z "${POLYGON_ZKEVM_RPC_URL:-}" ]; then
+        echo -e "{{RED}}[deploy]{{NC}} Error: POLYGON_ZKEVM_RPC_URL not set (run via scripts/with-polygon-zkevm.sh)"
+        exit 1
+    fi
+
+    if [ -z "${PRIVATE_KEY:-}" ]; then
+        echo -e "{{RED}}[deploy]{{NC}} Error: PRIVATE_KEY not set (run via scripts/with-polygon-zkevm.sh)"
+        exit 1
+    fi
+
+    if [ "${SKIP_VERIFIER_GEN:-0}" != "1" ]; then
+        just generate-verifier
+    fi
+
+    echo -e "{{BLUE}}[deploy]{{NC}} Deploying to Polygon zkEVM mainnet..."
+    just _deploy-contracts "$POLYGON_ZKEVM_RPC_URL" "polygon-zkevm"
+    just _generate-frontend-config 1101
+    echo -e "{{GREEN}}[deploy]{{NC}} Polygon zkEVM deployment complete!"
+
 # Internal: Deploy contracts to specified network
 _deploy-contracts rpc_url network:
     #!/usr/bin/env bash

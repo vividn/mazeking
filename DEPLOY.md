@@ -1,7 +1,13 @@
 # Deploying MazeKing
 
-This document describes how to deploy the MazeKing contracts to Sepolia and
-push the matching frontend build to statichost.eu.
+This document describes how to deploy the MazeKing contracts to Sepolia (the
+testnet flow) and to the L2 mainnets — **Polygon zkEVM (1101)** and
+**Base (8453)** — then push the matching frontend build to statichost.eu.
+
+The Sepolia sections below are the primary day-to-day flow. The
+[L2 mainnet runbook](#l2-mainnet-runbook-polygon-zkevm--base) is the production
+deploy; it reuses the same recipes/wrappers pattern with chain-specific env
+files and adds one production-only step: **[mint-first ordering](#mint-first-ordering-pre-empt-the-render-spoof)**.
 
 ## Contents
 
@@ -13,6 +19,8 @@ push the matching frontend build to statichost.eu.
 - [Frontend deploy (statichost.eu)](#frontend-deploy-statichosteu) — the
   build env-var dance
 - [Smoke tests](#smoke-tests) — what to run after each upgrade
+- [L2 mainnet runbook (Polygon zkEVM + Base)](#l2-mainnet-runbook-polygon-zkevm--base)
+  — production deploy to the two L2s, including mint-first ordering
 - [Files written](#files-written) — what to commit, what's gitignored
 
 ## Secrets
@@ -219,19 +227,177 @@ Everything above, plus: confirm `frontend/src/lib/contracts.generated.ts`
 was rewritten with the new NFT and verifier addresses, and commit + push so
 statichost.eu rebuilds.
 
+## L2 mainnet runbook (Polygon zkEVM + Base)
+
+Production lives on two L2s. The deploy machinery is the same shape as Sepolia —
+a per-chain secrets wrapper `exec`s a `just deploy-*` recipe — only the env file,
+RPC, and chain ID differ. **Both chains pay gas in ETH**, so the deployer key
+must hold ETH on whichever chain you're deploying to (bridge first).
+
+| Chain | Chain ID | Gas token | Wrapper | Recipe | Default public RPC |
+|---|---|---|---|---|---|
+| Polygon zkEVM | `1101` | ETH | `scripts/with-polygon-zkevm.sh` | `just deploy-polygon-zkevm` | `https://zkevm-rpc.com` |
+| Base | `8453` | ETH | `scripts/with-base.sh` | `just deploy-base` | `https://mainnet.base.org` |
+
+> **As of this writing, the mainnet deploy is NOT live** — Sepolia is the
+> conference fallback. This runbook is the procedure for when it does ship.
+
+### Secrets
+
+Each chain reads its own env file the operator owns (`chmod 600`):
+
+```
+~/.config/gt-mazeking/base.env
+~/.config/gt-mazeking/polygon-zkevm.env
+```
+
+**Required key:** `DEPLOYER_KEY` — hex private key (`0x`-prefixed) that owns
+`MazeKingNFT` on that chain. It must hold both `OWNER_ROLE` (for
+`setVerifier`/`setRenderer`/`setBadgeAwarder`) and `REGISTRAR_ROLE` (for
+`registerMaze`/`setRegistered`). The Deploy script grants both to the deployer.
+
+**Optional key:** `RPC_URL` — override the default public RPC with a dedicated
+endpoint (recommended for mainnet — public RPCs rate-limit broadcasts).
+
+```bash
+# ~/.config/gt-mazeking/base.env  (chmod 600)
+DEPLOYER_KEY=0xYOUR_64_HEX_CHARS
+# RPC_URL=https://base-mainnet.g.alchemy.com/v2/YOUR_KEY   # optional override
+```
+
+The wrappers mirror `with-sepolia.sh`: they source the env file, assert
+`DEPLOYER_KEY` is set (failing loud), export `PRIVATE_KEY` plus the
+chain-specific RPC var (`BASE_RPC_URL` / `POLYGON_ZKEVM_RPC_URL`), and `exec`
+the command. The recipes only read those exported vars, never the file path.
+
+### Order of operations
+
+Run the chains independently — they share nothing on-chain. For each chain:
+
+1. **Bridge ETH** to the deployer address on the target L2 (gas is ETH).
+2. **Deploy contracts:**
+   ```bash
+   ./scripts/with-base.sh just deploy-base
+   # or
+   ./scripts/with-polygon-zkevm.sh just deploy-polygon-zkevm
+   ```
+   Each recipe regenerates the verifier from the circuit first (keeps on-chain
+   VK in lockstep — ma-6ff; skip with `SKIP_VERIFIER_GEN=1` only when the
+   circuit is unchanged), runs `Deploy.s.sol`, writes
+   `contracts/deployments/<chainId>.json`, and merges the new chain into
+   `frontend/src/lib/contracts.generated.ts` (preserving the other chains —
+   see [Files written](#files-written)).
+3. **Mint-first ordering** — see the dedicated section below. **Do this before
+   the chain is publicized**, while you are the only party minting.
+4. **Smoke-test the pointers** with `cast` (below).
+5. **Wire and deploy the frontend** (env vars + wagmi chains, below).
+
+### Mint-first ordering (pre-empt the render-spoof)
+
+**This is the load-bearing production-only step.** `MazeKingNFT.mintWithProof`
+stores the maze layout on a **first-mint-wins** basis (`layouts[tokenId]`), and
+the stored layout bytes are **not bound to the proof's `mazeHash`** on-chain
+(ma-bs5 finding #2, "option-alpha"). The proof guarantees the tokenId and
+achievement are correct, but the *picture* can be spoofed: an adversary who
+front-runs the first mint of a maze writes garbage layout bytes that render
+forever. The proper fix (route canonical layout through the registrar / bind it
+to `mazeHash`) is tracked in ma-bs5 and is **not** in this deploy.
+
+The operational mitigation at mainnet launch: **the deployer/registrar registers
+and mints the official showcase mazes FIRST**, claiming the first-mint slot for
+exactly the mazes that matter before anyone else can.
+
+For each showcase maze, in order, before opening the chain to the public:
+
+```bash
+# 1. Register the seed → tokenId mapping (REGISTRAR_ROLE):
+cast send <NFT_ADDRESS> "registerMaze(string,uint256)" "<seed>" <tokenId> \
+  --rpc-url $BASE_RPC_URL --private-key $PRIVATE_KEY
+
+# 2. Mint it with a real proof so layouts[tokenId] holds the canonical bytes.
+#    Generate proof+layout off-chain (the same solve→prove path the dApp uses),
+#    then call mintWithProof so this honest mint wins the first-mint slot.
+#    Signature: mintWithProof(bytes proof, bytes32 mazeHash, bytes layout, uint16 moveCount)
+cast send <NFT_ADDRESS> "mintWithProof(bytes,bytes32,bytes,uint16)" <proof> <mazeHash> <layout> <moveCount> \
+  --rpc-url $BASE_RPC_URL --private-key $PRIVATE_KEY
+
+# 3. Mark it officially registered (REGISTRAR_ROLE):
+cast send <NFT_ADDRESS> "setRegistered(uint256,bool)" <tokenId> true \
+  --rpc-url $BASE_RPC_URL --private-key $PRIVATE_KEY
+```
+
+Because the layout slot is now occupied with correct bytes, a later front-run
+of those mazes is a no-op (`layouts[tokenId].length != 0`). Only do this once
+per chain, immediately post-deploy, before publicizing the chain. Mazes minted
+normally by the public after launch remain individually spoofable until ma-bs5
+lands — mint-first only protects the official showcase set.
+
+### Frontend (multi-chain)
+
+`frontend/src/lib/contracts.generated.ts` is a `Record<chainId, {...}>` — the
+deploy recipes merge one entry per chain and preserve the others. After a
+mainnet deploy, commit the updated file (and `frontend/src/lib/abi/*.json` if
+the ABI changed) so statichost.eu rebuilds with the new addresses.
+
+Two prerequisites for the dApp to actually use a new chain:
+
+1. **wagmi must define the chain and read its RPC env var.** `src/lib/wagmi.ts`
+   currently wires only Anvil + Sepolia. Adding Base / Polygon zkEVM (consuming
+   `VITE_BASE_RPC_URL` / `VITE_POLYGON_ZKEVM_RPC_URL`) is **deploy-time work
+   tracked in ma-27y** — it is intentionally not pre-shipped, because exposing a
+   live mainnet chain in the dApp before its contracts exist would break minting
+   for users who switch to it.
+2. **statichost.eu build env vars** (Build environment / Env vars — NOT GitHub
+   secrets; there is no CI workflow):
+
+   | Var | Why |
+   |---|---|
+   | `VITE_BASE_RPC_URL` | Dedicated Base RPC with a real key. Public `mainnet.base.org` rate-limits and may block browser CORS under load. |
+   | `VITE_POLYGON_ZKEVM_RPC_URL` | Dedicated Polygon zkEVM RPC with a real key, same reasoning. |
+
+### Smoke tests (mainnet)
+
+Same shape as the Sepolia smoke tests — read back each side-contract pointer and
+confirm it resolves. Use the chain's RPC (`$BASE_RPC_URL` /
+`$POLYGON_ZKEVM_RPC_URL`):
+
+```bash
+cast call <NFT_ADDRESS> "verifierContract()(address)"  --rpc-url $BASE_RPC_URL
+cast call <NFT_ADDRESS> "renderer()(address)"          --rpc-url $BASE_RPC_URL
+cast call <NFT_ADDRESS> "badgeAwarder()(address)"      --rpc-url $BASE_RPC_URL
+
+# Confirm the verifier rejects an empty proof (right shape on-chain):
+cast call <NEW_VERIFIER> "verify(bytes,bytes32[])(bool)" 0x "[]" --rpc-url $BASE_RPC_URL
+#   → revert ProofLengthWrongWithLogN
+
+# Confirm the awarder is wired back to the NFT:
+cast call <NEW_AWARDER> "nft()(address)" --rpc-url $BASE_RPC_URL
+#   → <NFT_ADDRESS>
+
+# After mint-first: confirm a showcase maze's layout slot is populated:
+cast call <NFT_ADDRESS> "layouts(uint256)(bytes)" <tokenId> --rpc-url $BASE_RPC_URL
+#   → non-empty bytes (the canonical layout you minted)
+```
+
+Functional smoke: once wagmi is wired and the frontend is deployed, switch the
+wallet to the chain, solve a maze, and mint — the proof should verify and the
+SVG should render.
+
 ## Files written
 
 | Path | Tracked? | Written by |
 |---|---|---|
-| `contracts/deployments/<chainId>.json` | yes | every deploy / upgrade |
-| `contracts/deployments/latest.json` | yes | every deploy / upgrade (mirror of the active chain) |
-| `contracts/deployments/31337.json` | no (gitignored) | `deploy-local` and `*-local` upgrades |
-| `frontend/src/lib/contracts.generated.ts` | yes | every non-local deploy |
+| `contracts/deployments/<chainId>.json` | no (gitignored) | every deploy / upgrade — local operator record only |
+| `contracts/deployments/latest.json` | no (gitignored) | every deploy / upgrade (mirror of the active chain) |
+| `frontend/src/lib/contracts.generated.ts` | yes | every non-local deploy — **merges** the deployed chain, preserving the others |
 | `frontend/src/lib/contracts.local.ts` | no (gitignored) | local deploys only |
 | `frontend/src/lib/abi/*.json` | yes | every deploy (only changes if ABI did) |
-| `contracts/src/generated/MazeVerifier.sol` | yes | `generate-verifier` (called by `upgrade-verifier-*` and `deploy-sepolia`) |
+| `contracts/src/generated/MazeVerifier.sol` | yes | `generate-verifier` (called by `upgrade-verifier-*` and the `deploy-*` recipes) |
 
-After a Sepolia deploy the only mandatory commits are
-`contracts/deployments/11155111.json` and
-`frontend/src/lib/contracts.generated.ts`. Everything else changes only when
-the ABI / circuit / verifier source changed too.
+The entire `contracts/deployments/` directory is gitignored — the address map
+the build actually reads is `frontend/src/lib/contracts.generated.ts`, which the
+generator derives from the deployment JSON. After any deploy the only mandatory
+commit is `frontend/src/lib/contracts.generated.ts` (plus
+`frontend/src/lib/abi/*.json` if the ABI changed). Because the generator merges
+rather than overwrites, deploying one chain leaves the other chains' entries
+intact in the committed file.
